@@ -1,0 +1,19 @@
+{
+  "name": "hirethemnow-deployment",
+  "version": "1.0.0",
+  "description": "AWS deployment scripts for HireThemNow",
+  "scripts": {
+    "deploy:dev": "node deploy.js dev",
+    "deploy:prod": "node deploy.js prod",
+    "validate": "aws cloudformation validate-template --template-body file://cloudformation-template.yaml",
+    "estimate-cost": "aws cloudformation estimate-template-cost --template-body file://cloudformation-template.yaml --parameters ParameterKey=Environment,ParameterValue=dev",
+    "describe-stack": "aws cloudformation describe-stacks --stack-name",
+    "delete-stack": "aws cloudformation delete-stack --stack-name"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1490.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

@@ -1,0 +1,186 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+    name: Frontend Tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: hirethemnow.client/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd hirethemnow.client
+        npm ci
+
+    - name: Run ESLint
+      run: |
+        cd hirethemnow.client
+        npm run lint
+
+    - name: Run TypeScript check
+      run: |
+        cd hirethemnow.client
+        npm run type-check
+
+    - name: Build frontend
+      run: |
+        cd hirethemnow.client
+        npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: frontend-build
+        path: hirethemnow.client/dist/
+        retention-days: 1
+
+  backend-test:
+    runs-on: ubuntu-latest
+    name: Backend Tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: |
+        cd HireThemNoW.Server
+        dotnet restore
+
+    - name: Build backend
+      run: |
+        cd HireThemNoW.Server
+        dotnet build --configuration Release --no-restore
+
+    - name: Run tests (if any)
+      run: |
+        cd HireThemNoW.Server
+        # Add test command here when tests are available
+        # dotnet test --configuration Release --no-build --verbosity normal
+        echo "No tests configured yet"
+
+    - name: Publish backend
+      run: |
+        cd HireThemNoW.Server
+        dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  validate-infrastructure:
+    runs-on: ubuntu-latest
+    name: Validate AWS Infrastructure
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Validate CloudFormation template
+      run: |
+        aws cloudformation validate-template \
+          --template-body file://aws-deployment/cloudformation-template.yaml
+
+    - name: Lint CloudFormation template
+      uses: scottbrenner/cfn-lint-action@v2
+      with:
+        file: aws-deployment/cloudformation-template.yaml
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-test, security-scan, validate-infrastructure]
+    if: always()
+    name: CI Summary
+
+    steps:
+    - name: Check all jobs status
+      run: |
+        if [[ "${{ needs.frontend-test.result }}" != "success" ]]; then
+          echo "❌ Frontend tests failed"
+          exit 1
+        fi
+        if [[ "${{ needs.backend-test.result }}" != "success" ]]; then
+          echo "❌ Backend tests failed"
+          exit 1
+        fi
+        if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+          echo "⚠️ Security scan had issues"
+        fi
+        if [[ "${{ needs.validate-infrastructure.result }}" != "success" ]]; then
+          echo "❌ Infrastructure validation failed"
+          exit 1
+        fi
+        echo "✅ All CI checks passed!"
+
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          const status = '${{ needs.frontend-test.result }}' === 'success' &&
+                        '${{ needs.backend-test.result }}' === 'success' &&
+                        '${{ needs.validate-infrastructure.result }}' === 'success' ? '✅' : '❌';
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `${status} **CI Pipeline Results**
+
+            - Frontend Tests: ${{ needs.frontend-test.result === 'success' && '✅' || '❌' }}
+            - Backend Tests: ${{ needs.backend-test.result === 'success' && '✅' || '❌' }}
+            - Security Scan: ${{ needs.security-scan.result === 'success' && '✅' || '⚠️' }}
+            - Infrastructure: ${{ needs.validate-infrastructure.result === 'success' && '✅' || '❌' }}
+
+            ${status === '✅' ? 'Ready for deployment! 🚀' : 'Please fix the issues above before merging.'}`
+          })

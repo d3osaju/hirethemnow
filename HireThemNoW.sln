@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36518.9 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "hirethemnow.client", "hirethemnow.client\hirethemnow.client.esproj", "{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HireThemNoW.Server", "HireThemNoW.Server\HireThemNoW.Server.csproj", "{8C831B96-8716-4D2D-BBAA-8FE0530A208D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CCC7AF4-116D-D3DC-FD16-F8D2D575D513}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{8C831B96-8716-4D2D-BBAA-8FE0530A208D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C831B96-8716-4D2D-BBAA-8FE0530A208D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C831B96-8716-4D2D-BBAA-8FE0530A208D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C831B96-8716-4D2D-BBAA-8FE0530A208D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3617FB7D-6A43-4DE2-B0E8-DEBDB0C2CEE8}
+	EndGlobalSection
+EndGlobal

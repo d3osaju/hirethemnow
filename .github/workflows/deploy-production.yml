@@ -1,0 +1,192 @@
+name: Deploy to AWS Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if no changes'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: hirethemnow-prod
+  NODE_VERSION: '18'
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: hirethemnow.client/package-lock.json
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install frontend dependencies
+      run: |
+        cd hirethemnow.client
+        npm ci
+
+    - name: Lint and type check
+      run: |
+        cd hirethemnow.client
+        npm run lint
+        npm run type-check
+
+    - name: Deploy CloudFormation stack
+      id: deploy-stack
+      run: |
+        aws cloudformation deploy \
+          --template-file aws-deployment/cloudformation-template.yaml \
+          --stack-name ${{ env.STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            Environment=prod \
+            DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
+            JWTSecret="${{ secrets.JWT_SECRET }}" \
+            GoogleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            GoogleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+          --capabilities CAPABILITY_IAM \
+          --no-fail-on-empty-changeset
+
+    - name: Get stack outputs
+      id: stack-outputs
+      run: |
+        OUTPUTS=$(aws cloudformation describe-stacks \
+          --stack-name ${{ env.STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs" --output json)
+
+        FRONTEND_BUCKET=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="S3FrontendBucket") | .OutputValue')
+        API_URL=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiURL") | .OutputValue')
+        FRONTEND_URL=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="FrontendURL") | .OutputValue')
+
+        echo "frontend-bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+        echo "api-url=$API_URL" >> $GITHUB_OUTPUT
+        echo "frontend-url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+
+        echo "✅ Stack Outputs:"
+        echo "  Frontend Bucket: $FRONTEND_BUCKET"
+        echo "  API URL: $API_URL"
+        echo "  Frontend URL: $FRONTEND_URL"
+
+    - name: Create production environment file
+      run: |
+        cd hirethemnow.client
+        cat > .env.production << EOF
+        VITE_APP_ENV=production
+        VITE_API_URL=${{ steps.stack-outputs.outputs.api-url }}
+        VITE_APP_NAME=HireThemNow
+        VITE_BACKEND_URL=${{ steps.stack-outputs.outputs.api-url }}
+        VITE_API_BASE_URL=${{ steps.stack-outputs.outputs.api-url }}
+        VITE_ENABLE_DEBUG=false
+        VITE_ENABLE_MOCK_DATA=false
+        VITE_LOG_LEVEL=error
+        EOF
+
+    - name: Build frontend for production
+      run: |
+        cd hirethemnow.client
+        npm run build:production
+
+    - name: Deploy frontend to S3
+      run: |
+        aws s3 sync hirethemnow.client/dist/ s3://${{ steps.stack-outputs.outputs.frontend-bucket }} \
+          --delete \
+          --cache-control "public,max-age=31536000,immutable" \
+          --exclude "*.html" \
+          --region ${{ env.AWS_REGION }}
+
+        # Deploy HTML files separately with shorter cache
+        aws s3 sync hirethemnow.client/dist/ s3://${{ steps.stack-outputs.outputs.frontend-bucket }} \
+          --delete \
+          --cache-control "public,max-age=0,must-revalidate" \
+          --include "*.html" \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Build and package backend
+      run: |
+        cd HireThemNoW.Server
+        dotnet restore
+        dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+
+        # Create deployment package for Lambda
+        cd publish
+        zip -r ../lambda-deployment.zip .
+
+    - name: Invalidate CloudFront cache
+      run: |
+        CLOUDFRONT_ID=$(aws cloudformation describe-stacks \
+          --stack-name ${{ env.STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+          --output text 2>/dev/null || echo "")
+
+        if [ ! -z "$CLOUDFRONT_ID" ]; then
+          aws cloudfront create-invalidation \
+            --distribution-id $CLOUDFRONT_ID \
+            --paths "/*" \
+            --region ${{ env.AWS_REGION }}
+          echo "✅ CloudFront cache invalidated"
+        else
+          echo "⚠️ CloudFront distribution not found, skipping cache invalidation"
+        fi
+
+    - name: Deployment summary
+      run: |
+        echo "🎉 Deployment completed successfully!"
+        echo "🌐 Frontend URL: ${{ steps.stack-outputs.outputs.frontend-url }}"
+        echo "🔗 API URL: ${{ steps.stack-outputs.outputs.api-url }}"
+        echo "📦 Stack Name: ${{ env.STACK_NAME }}"
+        echo "🌍 Region: ${{ env.AWS_REGION }}"
+
+    - name: Comment on PR (if applicable)
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🚀 **Deployment Complete!**
+
+            ✅ Frontend: ${{ steps.stack-outputs.outputs.frontend-url }}
+            ✅ API: ${{ steps.stack-outputs.outputs.api-url }}
+
+            The application has been successfully deployed to production.`
+          })
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+
+    steps:
+    - name: Notify deployment failure
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check the logs above for details."
+        exit 1
