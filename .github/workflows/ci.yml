@@ -114,7 +114,6 @@ jobs:
   validate-infrastructure:
     runs-on: ubuntu-latest
     name: Validate AWS Infrastructure
-    if: false  # Disabled - no AWS credentials needed
 
     steps:
     - name: Checkout code
