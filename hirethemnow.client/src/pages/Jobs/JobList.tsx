@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Job } from '../../types';
@@ -18,16 +18,16 @@ const JobList: React.FC = () => {
 
   useEffect(() => {
     fetchJobs();
-  }, [filters]);
+  }, [filters, fetchJobs]);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
       const response = await jobsAPI.getJobs(1, 20, filters);
       if (response.success) {
         setJobs(response.data.jobs);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to load jobs');
       // Mock data for development
       setJobs([
@@ -74,7 +74,7 @@ const JobList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   const filteredJobs = jobs.filter(job =>
     job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

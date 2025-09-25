@@ -28,22 +28,22 @@ export const isProduction = config.environment === 'production';
 
 // Logger utility
 export const logger = {
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (config.logLevel === 'debug' && config.enableDebug) {
       console.log('[DEBUG]', ...args);
     }
   },
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     if (['debug', 'info'].includes(config.logLevel)) {
       console.info('[INFO]', ...args);
     }
   },
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (['debug', 'info', 'warn'].includes(config.logLevel)) {
       console.warn('[WARN]', ...args);
     }
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     console.error('[ERROR]', ...args);
   },
 };

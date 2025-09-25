@@ -14,14 +14,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -35,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (response.success) {
             setUser(response.data);
           }
-        } catch (error) {
+        } catch {
           localStorage.removeItem('token');
           setToken(null);
         }
@@ -54,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
       }
-    } catch (error) {
+    } catch {
       throw new Error('Login failed');
     }
   };
@@ -67,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
       }
-    } catch (error) {
+    } catch {
       throw new Error('Registration failed');
     }
   };
@@ -80,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
       }
-    } catch (error) {
+    } catch {
       throw new Error('Google login failed');
     }
   };
@@ -103,4 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

@@ -81,7 +81,7 @@ export const authAPI = {
 
 // Jobs API with mock data fallback for local development
 export const jobsAPI = {
-  getJobs: async (page = 1, limit = 10, filters?: any): Promise<ApiResponse<{ jobs: Job[]; total: number }>> => {
+  getJobs: async (page = 1, limit = 10, filters?: Record<string, string>): Promise<ApiResponse<{ jobs: Job[]; total: number }>> => {
     try {
       const response = await api.get('/jobs', { params: { page, limit, ...filters } });
       return response.data;
