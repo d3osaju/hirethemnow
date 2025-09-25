@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Job, Application, ApiResponse } from '../types';
+import type { User, Job, Application, ApiResponse } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;

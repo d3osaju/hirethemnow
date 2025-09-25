@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { Job } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import type { Job } from '../../types';
 import { jobsAPI } from '../../services/api';
 import { MapPin, DollarSign, Clock, Briefcase, Search } from 'lucide-react';
 
@@ -15,10 +15,6 @@ const JobList: React.FC = () => {
     location: '',
     type: '',
   });
-
-  useEffect(() => {
-    fetchJobs();
-  }, [filters, fetchJobs]);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -75,6 +71,10 @@ const JobList: React.FC = () => {
       setLoading(false);
     }
   }, [filters]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const filteredJobs = jobs.filter(job =>
     job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
