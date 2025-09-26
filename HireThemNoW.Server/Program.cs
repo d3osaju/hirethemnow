@@ -4,9 +4,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add AWS Lambda support
-builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
-
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -58,23 +55,29 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            // Fallback production URLs - Add API Gateway URL for direct calls
+            // Fallback production URLs - CloudFront distributions
             allowedOrigins.AddRange(new[]
             {
                 "https://d203avobknjbyh.cloudfront.net",
-                "https://doswhc5mmajby.cloudfront.net",
-                "https://e4ur4ddyoi.execute-api.us-east-1.amazonaws.com"
+                "https://doswhc5mmajby.cloudfront.net"
             });
+
+            // Allow any CloudFront distribution and ALB for flexibility
+            allowedOrigins.Add("*");
         }
 
-        policy.WithOrigins(allowedOrigins.ToArray())
+        // For simplicity in containerized deployment, allow all origins
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
 var app = builder.Build();
+
+// Serve static files from wwwroot (frontend files)
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -83,7 +86,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Note: Remove HTTPS redirection for Lambda - API Gateway handles this
+// No HTTPS redirection - ALB handles this
 // app.UseHttpsRedirection();
 
 // Enable CORS
@@ -95,7 +98,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Remove static file fallback for Lambda - frontend is served separately
-// app.MapFallbackToFile("/index.html");
+// Fallback to index.html for SPA routing
+app.MapFallbackToFile("/index.html");
 
 app.Run();
