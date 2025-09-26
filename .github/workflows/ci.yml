@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   DOTNET_VERSION: '8.0.x'
 
 jobs:
@@ -124,14 +124,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Check if CloudFormation template exists
+    - name: Check if Fargate CloudFormation template exists
       id: check-template
       run: |
-        if [ -f "aws-deployment/cloudformation-template.yaml" ]; then
+        if [ -f "aws-deployment/fargate-template.yaml" ]; then
           echo "template_exists=true" >> $GITHUB_OUTPUT
+          echo "✅ Found Fargate CloudFormation template"
         else
           echo "template_exists=false" >> $GITHUB_OUTPUT
-          echo "CloudFormation template not found, skipping validation"
+          echo "⚠️ Fargate CloudFormation template not found, skipping validation"
         fi
 
     - name: Configure AWS credentials
@@ -142,24 +143,72 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
 
-    - name: Validate CloudFormation template
+    - name: Validate Fargate CloudFormation template
       if: steps.check-template.outputs.template_exists == 'true' && github.repository_owner != 'fork'
       run: |
+        echo "🔍 Validating Fargate CloudFormation template..."
         aws cloudformation validate-template \
-          --template-body file://aws-deployment/cloudformation-template.yaml
+          --template-body file://aws-deployment/fargate-template.yaml
+        echo "✅ Fargate template validation passed"
 
     - name: Install cfn-lint
       if: steps.check-template.outputs.template_exists == 'true'
       run: pip install cfn-lint
 
-    - name: Lint CloudFormation template
+    - name: Lint Fargate CloudFormation template
       if: steps.check-template.outputs.template_exists == 'true'
       run: |
-        cfn-lint aws-deployment/cloudformation-template.yaml || echo "CloudFormation linting completed with warnings"
+        echo "🔍 Linting Fargate CloudFormation template..."
+        cfn-lint aws-deployment/fargate-template.yaml || echo "⚠️ CloudFormation linting completed with warnings"
+
+  docker-build-test:
+    runs-on: ubuntu-latest
+    name: Docker Build Test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Test Docker build
+      run: |
+        echo "🐳 Testing Docker build for Fargate deployment..."
+        docker build --no-cache -t hirethemnow-test .
+        echo "✅ Docker build successful!"
+
+    - name: Test container startup
+      run: |
+        echo "🧪 Testing container startup..."
+        # Run container in background
+        docker run -d --name test-container \
+          -p 8080:8080 \
+          -e ASPNETCORE_ENVIRONMENT=Production \
+          -e JWT_SECRET=test-secret-for-ci \
+          -e GOOGLE_CLIENT_ID=test-client-id \
+          -e GOOGLE_CLIENT_SECRET=test-client-secret \
+          hirethemnow-test
+
+        # Wait for startup
+        sleep 10
+
+        # Check if container is running
+        if docker ps | grep test-container; then
+          echo "✅ Container started successfully"
+        else
+          echo "❌ Container failed to start"
+          docker logs test-container
+          exit 1
+        fi
+
+        # Cleanup
+        docker stop test-container
+        docker rm test-container
 
   summary:
     runs-on: ubuntu-latest
-    needs: [frontend-test, backend-test, security-scan, validate-infrastructure]
+    needs: [frontend-test, backend-test, security-scan, validate-infrastructure, docker-build-test]
     if: always()
     name: CI Summary
 
@@ -182,6 +231,10 @@ jobs:
           echo "❌ Backend tests failed - this is blocking"
           exit 1
         fi
+        if [[ "${{ needs.docker-build-test.result }}" != "success" ]]; then
+          echo "❌ Docker build failed - this is blocking"
+          exit 1
+        fi
 
         # Security and infrastructure are non-blocking
         if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
@@ -200,11 +253,13 @@ jobs:
         script: |
           const frontendStatus = '${{ needs.frontend-test.result }}';
           const backendStatus = '${{ needs.backend-test.result }}';
+          const dockerStatus = '${{ needs.docker-build-test.result }}';
           const securityStatus = '${{ needs.security-scan.result }}';
           const infraStatus = '${{ needs.validate-infrastructure.result }}';
 
           const allPassed = frontendStatus === 'success' &&
                            backendStatus === 'success' &&
+                           dockerStatus === 'success' &&
                            infraStatus === 'success';
           const status = allPassed ? '✅' : '❌';
 
@@ -212,12 +267,13 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `${status} **CI Pipeline Results**
+            body: `${status} **CI Pipeline Results (Fargate Ready)**
 
             - Frontend Tests: ${frontendStatus === 'success' ? '✅' : '❌'}
             - Backend Tests: ${backendStatus === 'success' ? '✅' : '❌'}
+            - Docker Build: ${dockerStatus === 'success' ? '✅' : '❌'}
             - Security Scan: ${securityStatus === 'success' ? '✅' : '⚠️'}
             - Infrastructure: ${infraStatus === 'success' ? '✅' : '❌'}
 
-            ${allPassed ? 'Ready for deployment! 🚀' : 'Please fix the issues above before merging.'}`
+            ${allPassed ? 'Ready for Fargate deployment! 🐳🚀' : 'Please fix the issues above before merging.'}`
           })

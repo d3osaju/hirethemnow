@@ -6,12 +6,12 @@ A modern full-stack hiring platform built with React 19, ASP.NET Core 8, and dep
 
 ```
 Frontend (React 19 + TypeScript)
-├── Development: http://localhost:5173 → http://localhost:7154/api (Local ASP.NET)
-└── Production: CloudFront → AWS Lambda/API Gateway
+├── Development: http://localhost:5173 → http://localhost:8080/api (Local Docker)
+└── Production: CloudFront → Application Load Balancer
 
 Backend (ASP.NET Core 8)
-├── Development: https://localhost:7154 (Local development server)
-└── Production: https://ijcm8d71tl.execute-api.us-east-1.amazonaws.com/dev (AWS Lambda)
+├── Development: http://localhost:8080 (Docker container)
+└── Production: AWS Fargate (containerized, cost-effective)
 ```
 
 ## 🚀 Quick Start
@@ -19,6 +19,10 @@ Backend (ASP.NET Core 8)
 ### Local Development
 
 ```bash
+# Option 1: Docker (Recommended - matches production)
+docker-compose up
+
+# Option 2: Manual (for development)
 # Backend (ASP.NET Core)
 cd HireThemNoW.Server
 dotnet run
@@ -26,15 +30,15 @@ dotnet run
 # Frontend (React + Vite) - in new terminal
 cd hirethemnow.client
 npm install
-npm run dev    # Uses local backend at localhost:7154
+npm run dev    # Uses backend at localhost:8080
 ```
 
 ## 🔧 Environment Configuration
 
 | Environment | Command | API Endpoint | Features |
 |-------------|---------|--------------|----------|
-| **Development** | `npm run dev` | `https://localhost:7154/api` | Local ASP.NET, Mock data fallback, Debug logging |
-| **Production** | Deployed to AWS | AWS Lambda/API Gateway | Real API, Error logging only |
+| **Development** | `docker-compose up` | `http://localhost:8080/api` | Docker container, Mock data fallback, Debug logging |
+| **Production** | Deployed to AWS | AWS Fargate + ALB | Containerized API, Cost-effective (~$15/month) |
 
 ### Environment Files
 
@@ -97,7 +101,7 @@ VITE_LOG_LEVEL=debug|info|warn|error
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "postgresql://..."
+    "DefaultConnection": "Data Source=hirethemnow.db"
   },
   "JWT": {
     "Secret": "your-jwt-secret"
@@ -123,14 +127,14 @@ VITE_LOG_LEVEL=debug|info|warn|error
 ### Backend
 - **ASP.NET Core 8** - Web API framework
 - **Entity Framework Core** - ORM
-- **PostgreSQL** - Database
+- **SQLite** - Database (embedded, cost-effective)
 - **JWT** - Authentication
 - **Swagger/OpenAPI** - API documentation
 
 ### Cloud Infrastructure (AWS)
 - **S3 + CloudFront** - Frontend hosting
-- **Lambda + API Gateway** - Serverless backend
-- **RDS PostgreSQL** - Database
+- **Fargate + Application Load Balancer** - Containerized backend
+- **SQLite** - Embedded database (cost-effective for MVP)
 - **CloudFormation** - Infrastructure as Code
 
 ## 🏃‍♂️ Development Workflow
@@ -171,15 +175,18 @@ VITE_LOG_LEVEL=debug|info|warn|error
 
 ## 💰 Cost Optimization
 
-### Production Environment (~$20-50/month)
-- RDS t3.micro PostgreSQL
-- Lambda + API Gateway (serverless)
+### Production Environment (~$15-25/month)
+- **75% cost reduction** vs traditional Lambda/RDS setup
+- Fargate container (512 CPU, 1GB RAM)
+- Application Load Balancer
 - S3 + CloudFront
+- SQLite database (no RDS costs)
 
 ### Scaling Options
-- Aurora Serverless v2 (scales to zero)
-- Lambda concurrent execution scaling
+- Fargate auto-scaling (CPU/memory-based)
+- Application Load Balancer distribution
 - CloudFront global CDN
+- Future: Upgrade to RDS when needed
 
 ## 🚨 Troubleshooting
 

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(aws cloudformation describe-stacks:*)",
+      "Bash(aws cloudformation:*)",
+      "Bash(aws lambda delete-function:*)",
+      "Bash(xargs rm:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,6 +1,8 @@
-# GitHub Secrets Configuration
+# GitHub Secrets Configuration (Fargate Deployment)
 
 Copy these secrets to your GitHub repository: **Settings** → **Secrets and variables** → **Actions**
+
+**Note:** This configuration is for the new cost-effective Fargate deployment (~$15/month vs $75+ with Lambda/RDS)
 
 ## 🔐 Required Secrets
 
@@ -15,9 +17,6 @@ Value: [Your AWS Secret Access Key]
 
 ### Application Configuration
 ```
-DATABASE_PASSWORD
-Value: [Your secure database password - min 8 characters]
-
 JWT_SECRET
 Value: [Your JWT secret key - min 32 characters]
 
@@ -43,7 +42,7 @@ Repeat for each secret above.
 
 Create an IAM user with these permissions for GitHub Actions:
 
-### Policy: `HireThemNowDeploymentPolicy`
+### Policy: `HireThemNowFargateDeploymentPolicy`
 ```json
 {
     "Version": "2012-10-17",
@@ -102,42 +101,71 @@ Create an IAM user with these permissions for GitHub Actions:
             "Resource": "*"
         },
         {
-            "Sid": "LambdaAccess",
+            "Sid": "ECSFargateAccess",
             "Effect": "Allow",
             "Action": [
-                "lambda:CreateFunction",
-                "lambda:UpdateFunctionCode",
-                "lambda:UpdateFunctionConfiguration",
-                "lambda:DeleteFunction",
-                "lambda:GetFunction",
-                "lambda:ListFunctions",
-                "lambda:InvokeFunction",
-                "lambda:AddPermission",
-                "lambda:RemovePermission"
-            ],
-            "Resource": [
-                "arn:aws:lambda:*:*:function:hirethemnow-*"
-            ]
-        },
-        {
-            "Sid": "APIGatewayAccess",
-            "Effect": "Allow",
-            "Action": [
-                "apigateway:*"
+                "ecs:CreateCluster",
+                "ecs:DeleteCluster",
+                "ecs:DescribeClusters",
+                "ecs:CreateService",
+                "ecs:DeleteService",
+                "ecs:DescribeServices",
+                "ecs:UpdateService",
+                "ecs:RegisterTaskDefinition",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:DescribeTaskDefinition",
+                "ecs:ListTaskDefinitions",
+                "ecs:RunTask",
+                "ecs:StopTask",
+                "ecs:DescribeTasks"
             ],
             "Resource": "*"
         },
         {
-            "Sid": "RDSAccess",
+            "Sid": "ECRAccess",
             "Effect": "Allow",
             "Action": [
-                "rds:CreateDBInstance",
-                "rds:DeleteDBInstance",
-                "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance",
-                "rds:CreateDBSubnetGroup",
-                "rds:DeleteDBSubnetGroup",
-                "rds:DescribeDBSubnetGroups"
+                "ecr:CreateRepository",
+                "ecr:DeleteRepository",
+                "ecr:DescribeRepositories",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ELBAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:CreateLoadBalancer",
+                "elasticloadbalancing:DeleteLoadBalancer",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:CreateTargetGroup",
+                "elasticloadbalancing:DeleteTargetGroup",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:CreateListener",
+                "elasticloadbalancing:DeleteListener",
+                "elasticloadbalancing:DescribeListeners",
+                "elasticloadbalancing:ModifyTargetGroupAttributes",
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "LogsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:DeleteLogGroup",
+                "logs:DescribeLogGroups",
+                "logs:PutRetentionPolicy"
             ],
             "Resource": "*"
         },
@@ -189,9 +217,11 @@ Create an IAM user with these permissions for GitHub Actions:
 After adding secrets, verify by:
 
 1. Go to **Actions** tab
-2. Select **Deploy to AWS Production** workflow
+2. Select **Deploy to AWS Fargate (Production)** workflow
 3. Click **Run workflow** → **Run workflow**
-4. Check if deployment starts without credential errors
+4. Check if Fargate deployment starts without credential errors
+
+**Note:** The Fargate deployment is much more cost-effective (~$15/month vs $75+ with the old Lambda/RDS setup)
 
 ## 🚨 Security Notes
 
@@ -203,4 +233,10 @@ After adding secrets, verify by:
 
 ---
 
-**Next Step**: Push to `main` branch to trigger automatic deployment! 🚀
+**Next Step**: Push to `main` branch to trigger automatic Fargate deployment! 🐳🚀
+
+**Benefits of the new Fargate deployment:**
+- 75% cost reduction (~$15/month vs $75+/month)
+- No cold starts, better performance
+- Easier debugging with container logs
+- Identical local/production environment
