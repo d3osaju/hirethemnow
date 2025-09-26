@@ -118,35 +118,40 @@ Resources:
                   - s3:DeleteObject
                 Resource: !Sub '${FilesBucket.Arn}/*'
 
-  # Lambda Function
+  # Lambda Function (.NET 8)
   ApiLambda:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-api-${Environment}'
-      Runtime: nodejs20.x
-      Handler: index.handler
+      Runtime: dotnet8
+      Handler: HireThemNoW.Server
       Code:
         ZipFile: |
-          exports.handler = async (event, context) => {
-              console.log('Event:', JSON.stringify(event, null, 2));
+          // Placeholder - actual deployment will replace this with the .NET package
+          using Amazon.Lambda.Core;
+          using Amazon.Lambda.APIGatewayEvents;
 
-              return {
-                  statusCode: 200,
-                  headers: {
-                      'Content-Type': 'application/json',
-                      'Access-Control-Allow-Origin': '*',
-                      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-                      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-                  },
-                  body: JSON.stringify({
-                      message: 'HireThemNow API is running',
-                      environment: process.env.NODE_ENV || 'production',
-                      timestamp: new Date().toISOString(),
-                      path: event.path || '/',
-                      method: event.httpMethod || 'GET'
-                  })
-              };
-          };
+          [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
+
+          namespace HireThemNoW.Server
+          {
+              public class LambdaEntryPoint
+              {
+                  public async Task<APIGatewayProxyResponse> FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
+                  {
+                      return new APIGatewayProxyResponse
+                      {
+                          StatusCode = 200,
+                          Body = "HireThemNow API Placeholder - Deploy actual .NET code",
+                          Headers = new Dictionary<string, string>
+                          {
+                              { "Content-Type", "application/json" },
+                              { "Access-Control-Allow-Origin", "*" }
+                          }
+                      };
+                  }
+              }
+          }
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
         SecurityGroupIds:

@@ -126,15 +126,26 @@ jobs:
           --include "*.html" \
           --region ${{ env.AWS_REGION }}
 
-    - name: Build and package backend
+    - name: Install AWS Lambda Tools for .NET
+      run: |
+        dotnet tool install -g Amazon.Lambda.Tools
+
+    - name: Build and deploy .NET Lambda function
       run: |
         cd HireThemNoW.Server
         dotnet restore
-        dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish
+        dotnet build --configuration Release
 
-        # Create deployment package for Lambda
-        cd publish
-        zip -r ../lambda-deployment.zip .
+        # Deploy to Lambda using the existing function
+        dotnet lambda deploy-function \
+          --function-name "${{ env.STACK_NAME }}-api-prod" \
+          --region ${{ env.AWS_REGION }} \
+          --configuration Release \
+          --framework net8.0 \
+          --function-runtime dotnet8 \
+          --function-memory-size 512 \
+          --function-timeout 30 \
+          --environment-variables "ASPNETCORE_ENVIRONMENT=Production;JWT_SECRET=${{ secrets.JWT_SECRET }};GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }};GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
 
     - name: Invalidate CloudFront cache
       run: |
