@@ -167,9 +167,15 @@ jobs:
       if: github.event_name == 'pull_request'
       with:
         script: |
-          const status = '${{ needs.frontend-test.result }}' === 'success' &&
-                        '${{ needs.backend-test.result }}' === 'success' &&
-                        '${{ needs.validate-infrastructure.result }}' === 'success' ? '✅' : '❌';
+          const frontendStatus = '${{ needs.frontend-test.result }}';
+          const backendStatus = '${{ needs.backend-test.result }}';
+          const securityStatus = '${{ needs.security-scan.result }}';
+          const infraStatus = '${{ needs.validate-infrastructure.result }}';
+
+          const allPassed = frontendStatus === 'success' &&
+                           backendStatus === 'success' &&
+                           infraStatus === 'success';
+          const status = allPassed ? '✅' : '❌';
 
           github.rest.issues.createComment({
             issue_number: context.issue.number,
@@ -177,10 +183,10 @@ jobs:
             repo: context.repo.repo,
             body: `${status} **CI Pipeline Results**
 
-            - Frontend Tests: ${{ needs.frontend-test.result === 'success' && '✅' || '❌' }}
-            - Backend Tests: ${{ needs.backend-test.result === 'success' && '✅' || '❌' }}
-            - Security Scan: ${{ needs.security-scan.result === 'success' && '✅' || '⚠️' }}
-            - Infrastructure: ${{ needs.validate-infrastructure.result === 'success' && '✅' || '❌' }}
+            - Frontend Tests: ${frontendStatus === 'success' ? '✅' : '❌'}
+            - Backend Tests: ${backendStatus === 'success' ? '✅' : '❌'}
+            - Security Scan: ${securityStatus === 'success' ? '✅' : '⚠️'}
+            - Infrastructure: ${infraStatus === 'success' ? '✅' : '❌'}
 
-            ${status === '✅' ? 'Ready for deployment! 🚀' : 'Please fix the issues above before merging.'}`
+            ${allPassed ? 'Ready for deployment! 🚀' : 'Please fix the issues above before merging.'}`
           })
