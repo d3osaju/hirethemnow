@@ -9,10 +9,14 @@
     <PackageJsonScriptsBuild Condition="$(PackageJsonScriptsBuild) == ''">tsc -b &amp;&amp; vite build</PackageJsonScriptsBuild>
     <PackageJsonScriptsBuildProduction Condition="$(PackageJsonScriptsBuildProduction) == ''">tsc -b &amp;&amp; vite build --mode production</PackageJsonScriptsBuildProduction>
     <PackageJsonScriptsLint Condition="$(PackageJsonScriptsLint) == ''">eslint .</PackageJsonScriptsLint>
+    <PackageJsonScriptsLintFix Condition="$(PackageJsonScriptsLintFix) == ''">eslint . --fix</PackageJsonScriptsLintFix>
     <PackageJsonScriptsPreview Condition="$(PackageJsonScriptsPreview) == ''">vite preview</PackageJsonScriptsPreview>
     <PackageJsonScriptsTypeCheck Condition="$(PackageJsonScriptsTypeCheck) == ''">tsc --noEmit</PackageJsonScriptsTypeCheck>
+    <PackageJsonScriptsPrepare Condition="$(PackageJsonScriptsPrepare) == ''">husky</PackageJsonScriptsPrepare>
+    <PackageJsonScriptsPreCommit Condition="$(PackageJsonScriptsPreCommit) == ''">lint-staged</PackageJsonScriptsPreCommit>
     <PackageJsonDependenciesTypesNode Condition="$(PackageJsonDependenciesTypesNode) == ''">^24.5.2</PackageJsonDependenciesTypesNode>
     <PackageJsonDependenciesAxios Condition="$(PackageJsonDependenciesAxios) == ''">^1.12.2</PackageJsonDependenciesAxios>
+    <PackageJsonDependenciesDateFns Condition="$(PackageJsonDependenciesDateFns) == ''">^4.1.0</PackageJsonDependenciesDateFns>
     <PackageJsonDependenciesJwtDecode Condition="$(PackageJsonDependenciesJwtDecode) == ''">^4.0.0</PackageJsonDependenciesJwtDecode>
     <PackageJsonDependenciesLucideReact Condition="$(PackageJsonDependenciesLucideReact) == ''">^0.544.0</PackageJsonDependenciesLucideReact>
     <PackageJsonDependenciesReact Condition="$(PackageJsonDependenciesReact) == ''">^19.1.1</PackageJsonDependenciesReact>
@@ -28,10 +32,20 @@
     <PackageJsonDevdependenciesEslintPluginReactHooks Condition="$(PackageJsonDevdependenciesEslintPluginReactHooks) == ''">^5.2.0</PackageJsonDevdependenciesEslintPluginReactHooks>
     <PackageJsonDevdependenciesEslintPluginReactRefresh Condition="$(PackageJsonDevdependenciesEslintPluginReactRefresh) == ''">^0.4.20</PackageJsonDevdependenciesEslintPluginReactRefresh>
     <PackageJsonDevdependenciesGlobals Condition="$(PackageJsonDevdependenciesGlobals) == ''">^16.4.0</PackageJsonDevdependenciesGlobals>
+    <PackageJsonDevdependenciesHusky Condition="$(PackageJsonDevdependenciesHusky) == ''">^9.1.7</PackageJsonDevdependenciesHusky>
+    <PackageJsonDevdependenciesLintStaged Condition="$(PackageJsonDevdependenciesLintStaged) == ''">^16.2.1</PackageJsonDevdependenciesLintStaged>
     <PackageJsonDevdependenciesPostcss Condition="$(PackageJsonDevdependenciesPostcss) == ''">^8.5.6</PackageJsonDevdependenciesPostcss>
+    <PackageJsonDevdependenciesPrettier Condition="$(PackageJsonDevdependenciesPrettier) == ''">^3.6.2</PackageJsonDevdependenciesPrettier>
     <PackageJsonDevdependenciesTailwindcss Condition="$(PackageJsonDevdependenciesTailwindcss) == ''">^3.4.17</PackageJsonDevdependenciesTailwindcss>
     <PackageJsonDevdependenciesTypescript Condition="$(PackageJsonDevdependenciesTypescript) == ''">~5.8.3</PackageJsonDevdependenciesTypescript>
     <PackageJsonDevdependenciesTypescriptEslint Condition="$(PackageJsonDevdependenciesTypescriptEslint) == ''">^8.44.0</PackageJsonDevdependenciesTypescriptEslint>
     <PackageJsonDevdependenciesVite Condition="$(PackageJsonDevdependenciesVite) == ''">^7.1.7</PackageJsonDevdependenciesVite>
+    <PackageJsonLintStagedTsTsx Condition="$(PackageJsonLintStagedTsTsx) == ''">[
+  "eslint --fix",
+  "tsc --noEmit"
+]</PackageJsonLintStagedTsTsx>
+    <PackageJsonLintStagedTsTsxJsJsxJsonCssMd Condition="$(PackageJsonLintStagedTsTsxJsJsxJsonCssMd) == ''">[
+  "prettier --write"
+]</PackageJsonLintStagedTsTsxJsJsxJsonCssMd>
   </PropertyGroup>
 </Project>

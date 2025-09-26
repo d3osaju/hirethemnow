@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,6 +10,23 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add JWT Authentication
+var jwtSecret = builder.Configuration["JWT_SECRET"] ?? "ae9d27decc25cb45671ce98206e402e2";
+var key = Encoding.ASCII.GetBytes(jwtSecret);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -66,6 +87,8 @@ app.UseHttpsRedirection();
 // Enable CORS
 app.UseCors("AllowReactApp");
 
+// Add Authentication before Authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-hirethem4us}
+      - JWT_SECRET=${JWT_SECRET:-ae9d27decc25cb45671ce98206e402e2}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-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}
+    volumes:
+      - app_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  app_data:

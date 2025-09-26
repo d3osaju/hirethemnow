@@ -1,0 +1,60 @@
+name: Lint and Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    name: Frontend Lint & Build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: hirethemnow.client/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./hirethemnow.client
+      run: npm ci
+
+    - name: Run ESLint
+      working-directory: ./hirethemnow.client
+      run: npm run lint
+
+    - name: Run TypeScript check
+      working-directory: ./hirethemnow.client
+      run: npm run type-check
+
+    - name: Build frontend
+      working-directory: ./hirethemnow.client
+      run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    name: Backend Build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      working-directory: ./HireThemNoW.Server
+      run: dotnet restore
+
+    - name: Build backend
+      working-directory: ./HireThemNoW.Server
+      run: dotnet build --configuration Release --no-restore

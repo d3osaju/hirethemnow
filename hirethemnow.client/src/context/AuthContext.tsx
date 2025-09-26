@@ -55,13 +55,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const googleLogin = async (token: string) => {
     try {
+      console.log('Calling backend Google auth with token:', token.substring(0, 50) + '...');
       const response = await authAPI.googleAuth(token);
+      console.log('Google auth response:', response);
+
       if (response.success) {
+        console.log('Setting user and token from Google auth');
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
+      } else {
+        throw new Error('Google auth response was not successful');
       }
-    } catch {
+    } catch (error) {
+      console.error('GoogleLogin error in AuthContext:', error);
       throw new Error('Google login failed');
     }
   };

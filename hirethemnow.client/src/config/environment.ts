@@ -13,9 +13,17 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
 
   // Default URLs based on environment
   const getDefaultApiUrl = () => {
+    // If running in Docker container (localhost:8080), use local backend
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '8080') {
+      return 'http://localhost:8080/api';
+    }
+
+    // If in production but not Docker, use AWS Lambda
     if (env === 'production') {
       return 'https://ijcm8d71tl.execute-api.us-east-1.amazonaws.com/dev/api';
     }
+
+    // Default development server
     return 'http://localhost:5219/api';
   };
 
