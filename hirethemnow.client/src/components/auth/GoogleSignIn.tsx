@@ -53,7 +53,14 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
               onSuccess?.();
             } catch (error) {
               console.error('Google Sign-In error:', error);
-              onError?.('Google Sign-In failed. Please try again.');
+
+              // Get more specific error message
+              let errorMessage = 'Google Sign-In failed. Please try again.';
+              if (error instanceof Error) {
+                errorMessage = `Google Sign-In failed: ${error.message}`;
+              }
+
+              onError?.(errorMessage);
             }
           },
         });
