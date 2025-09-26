@@ -50,9 +50,41 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Amazon.Lambda.APIGatewayEvents": {
+              "target": "Package",
+              "version": "[2.7.1, )"
+            },
+            "Amazon.Lambda.AspNetCoreServer": {
+              "target": "Package",
+              "version": "[8.1.1, )"
+            },
+            "Amazon.Lambda.Core": {
+              "target": "Package",
+              "version": "[2.2.0, )"
+            },
+            "Amazon.Lambda.Serialization.SystemTextJson": {
+              "target": "Package",
+              "version": "[2.4.3, )"
+            },
+            "Google.Apis.Auth": {
+              "target": "Package",
+              "version": "[1.68.0, )"
+            },
+            "Microsoft.AspNetCore.Authentication.Google": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
             "Microsoft.AspNetCore.SpaProxy": {
               "target": "Package",
               "version": "[8.*-*, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.14.0, )"
             },
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
               "target": "Package",
