@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MailboxMessage } from '../../types';
+import type { MailboxMessage } from '../../types';
 import MessageList from './MessageList';
 import MessageDetail from './MessageDetail';
 import { Mail } from 'lucide-react';

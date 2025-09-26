@@ -1,5 +1,5 @@
 import React from 'react';
-import { OnboardingData } from '../../types';
+import type { OnboardingData } from '../../types';
 import { Calendar } from 'lucide-react';
 
 interface PersonalInfoStepProps {

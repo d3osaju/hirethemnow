@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { OnboardingData } from '../../types';
+import type { OnboardingData } from '../../types';
 import { Upload, FileText, CheckCircle, X } from 'lucide-react';
 
 interface ResumeUploadStepProps {

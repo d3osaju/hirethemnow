@@ -1,5 +1,5 @@
 import React from 'react';
-import { MailboxMessage } from '../../types';
+import type { MailboxMessage } from '../../types';
 import { format } from 'date-fns';
 import { ArrowLeft, Star, Gift, X, Mail, Building2, Calendar } from 'lucide-react';
 

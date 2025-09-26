@@ -1,5 +1,5 @@
 import React from 'react';
-import { MailboxMessage } from '../../types';
+import type { MailboxMessage } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Star, Gift, X, Mail } from 'lucide-react';
 

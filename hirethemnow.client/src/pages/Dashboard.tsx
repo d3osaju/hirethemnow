@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { MailboxMessage } from '../types';
+import type { MailboxMessage } from '../types';
 import Mailbox from '../components/mailbox/Mailbox';
 import StatsOverview from '../components/dashboard/StatsOverview';
 import RecentActivity from '../components/dashboard/RecentActivity';

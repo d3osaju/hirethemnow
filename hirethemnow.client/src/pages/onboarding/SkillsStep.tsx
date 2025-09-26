@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { OnboardingData } from '../../types';
+import type { OnboardingData } from '../../types';
 import { Code, Plus, X } from 'lucide-react';
 
 interface SkillsStepProps {

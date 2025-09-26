@@ -1,7 +1,7 @@
 import React from 'react';
-import { MailboxMessage } from '../../types';
+import type { MailboxMessage } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Mail, MailOpen, Star, Clock, CheckCircle, X, Gift } from 'lucide-react';
+import { Mail, MailOpen, Star, X, Gift } from 'lucide-react';
 
 interface MessageListProps {
   messages: MailboxMessage[];

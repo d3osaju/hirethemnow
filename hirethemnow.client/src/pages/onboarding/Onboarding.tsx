@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { OnboardingData } from '../../types';
+import type { OnboardingData } from '../../types';
 import SkillsStep from './SkillsStep';
 import PersonalInfoStep from './PersonalInfoStep';
 import ResumeUploadStep from './ResumeUploadStep';
@@ -90,7 +90,7 @@ const Onboarding: React.FC = () => {
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
-              {steps.map((step, index) => (
+              {steps.map((_step, index) => (
                 <div key={index} className="flex items-center">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
