@@ -14,7 +14,7 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-gradient-primary shadow-lg backdrop-blur-sm border-b border-primary-200/30">
+    <header className="bg-gradient-to-r from-primary-400 via-primary-500 to-secondary-500 shadow-lg backdrop-blur-sm border-b border-primary-200/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
@@ -22,7 +22,7 @@ const Header: React.FC = () => {
             <Link to="/" className="flex items-center space-x-3 group">
               <div className="relative">
                 <Briefcase className="h-10 w-10 text-white drop-shadow-sm group-hover:scale-110 transition-transform duration-300" />
-                <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-secondary-300 animate-pulse" />
+                <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-yellow-300 animate-pulse" />
               </div>
               <div className="flex flex-col">
                 <span className="text-2xl font-bold text-white drop-shadow-sm">{config.appName}</span>

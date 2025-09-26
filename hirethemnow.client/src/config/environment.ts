@@ -5,18 +5,28 @@ export interface EnvironmentConfig {
   enableDebug: boolean;
   enableMockData: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  googleClientId: string;
 }
 
 export const getEnvironmentConfig = (): EnvironmentConfig => {
   const env = import.meta.env.VITE_APP_ENV || 'development';
 
+  // Default URLs based on environment
+  const getDefaultApiUrl = () => {
+    if (env === 'production') {
+      return 'https://ijcm8d71tl.execute-api.us-east-1.amazonaws.com/dev/api';
+    }
+    return 'http://localhost:5219/api';
+  };
+
   return {
-    apiUrl: import.meta.env.VITE_API_BASE_URL || 'https://localhost:7154/api',
+    apiUrl: import.meta.env.VITE_API_BASE_URL || getDefaultApiUrl(),
     appName: import.meta.env.VITE_APP_NAME || 'HireThemNow',
     environment: env as EnvironmentConfig['environment'],
-    enableDebug: import.meta.env.VITE_ENABLE_DEBUG === 'true',
+    enableDebug: import.meta.env.VITE_ENABLE_DEBUG === 'true' || env === 'development',
     enableMockData: import.meta.env.VITE_ENABLE_MOCK_DATA === 'true',
-    logLevel: (import.meta.env.VITE_LOG_LEVEL as EnvironmentConfig['logLevel']) || 'info',
+    logLevel: (import.meta.env.VITE_LOG_LEVEL as EnvironmentConfig['logLevel']) || (env === 'development' ? 'debug' : 'warn'),
+    googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com',
   };
 };
 
