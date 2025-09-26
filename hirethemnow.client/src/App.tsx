@@ -7,6 +7,9 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import JobList from './pages/Jobs/JobList';
+import Dashboard from './pages/Dashboard';
+import Onboarding from './pages/onboarding/Onboarding';
+import Profile from './pages/Profile';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -33,7 +36,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  return user ? <Navigate to="/jobs" /> : <>{children}</>;
+  return user ? <Navigate to="/dashboard" /> : <>{children}</>;
 };
 
 function App() {
@@ -60,10 +63,34 @@ function App() {
               }
             />
             <Route
+              path="onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="jobs"
               element={
                 <ProtectedRoute>
                   <JobList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               }
             />

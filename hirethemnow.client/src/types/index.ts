@@ -4,6 +4,10 @@ export interface User {
   name: string;
   role: 'employer' | 'candidate';
   avatar?: string;
+  dateOfBirth?: Date;
+  skills?: string[];
+  resumeUrl?: string;
+  onboardingCompleted?: boolean;
   createdAt: Date;
 }
 
@@ -39,4 +43,22 @@ export interface ApiResponse<T> {
   data: T;
   message: string;
   success: boolean;
+}
+
+export interface OnboardingData {
+  dateOfBirth: string;
+  skills: string[];
+  resume: File | null;
+}
+
+export interface MailboxMessage {
+  id: string;
+  from: string;
+  subject: string;
+  content: string;
+  jobTitle?: string;
+  company?: string;
+  receivedAt: Date;
+  read: boolean;
+  type: 'reply' | 'interview_invitation' | 'rejection' | 'offer';
 }

@@ -46,7 +46,7 @@ const Register: React.FC = () => {
         role: formData.role,
         password: formData.password,
       });
-      navigate('/jobs');
+      navigate('/onboarding');
     } catch {
       setError('Registration failed. Please try again.');
     } finally {

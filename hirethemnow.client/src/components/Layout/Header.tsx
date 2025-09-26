@@ -35,6 +35,12 @@ const Header: React.FC = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
+            {user && (
+              <Link to="/dashboard" className="text-white/90 hover:text-white font-medium transition-all duration-300 hover:scale-105 relative group">
+                Dashboard
+                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-secondary-300 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
+              </Link>
+            )}
             <Link to="/jobs" className="text-white/90 hover:text-white font-medium transition-all duration-300 hover:scale-105 relative group">
               Jobs
               <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-secondary-300 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
@@ -46,8 +52,8 @@ const Header: React.FC = () => {
               </Link>
             )}
             {user && (
-              <Link to="/applications" className="text-white/90 hover:text-white font-medium transition-all duration-300 hover:scale-105 relative group">
-                {user.role === 'employer' ? 'Applications' : 'My Applications'}
+              <Link to="/profile" className="text-white/90 hover:text-white font-medium transition-all duration-300 hover:scale-105 relative group">
+                Profile
                 <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-secondary-300 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
               </Link>
             )}
@@ -105,6 +111,14 @@ const Header: React.FC = () => {
       {/* Mobile menu */}
       <div className="md:hidden border-t border-white/20 bg-white/5 backdrop-blur-sm">
         <div className="px-4 pt-4 pb-4 space-y-2">
+          {user && (
+            <Link
+              to="/dashboard"
+              className="text-white/90 hover:text-white block px-4 py-3 text-base font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
+            >
+              Dashboard
+            </Link>
+          )}
           <Link
             to="/jobs"
             className="text-white/90 hover:text-white block px-4 py-3 text-base font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
@@ -121,10 +135,10 @@ const Header: React.FC = () => {
           )}
           {user && (
             <Link
-              to="/applications"
+              to="/profile"
               className="text-white/90 hover:text-white block px-4 py-3 text-base font-medium rounded-lg hover:bg-white/10 transition-all duration-300"
             >
-              {user.role === 'employer' ? 'Applications' : 'My Applications'}
+              Profile
             </Link>
           )}
         </div>
