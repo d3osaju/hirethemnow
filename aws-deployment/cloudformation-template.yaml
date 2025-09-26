@@ -116,7 +116,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub '${FilesBucket}/*'
+                Resource: !Sub '${FilesBucket.Arn}/*'
 
   # Lambda Function
   ApiLambda:
