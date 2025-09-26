@@ -235,7 +235,7 @@ Resources:
       DBInstanceIdentifier: !Sub '${AWS::StackName}-db-${Environment}'
       DBInstanceClass: db.t3.micro # Cheapest option
       Engine: postgres
-      EngineVersion: '15'
+      EngineVersion: '16.6'
       AllocatedStorage: 20
       StorageType: gp3
       MasterUsername: postgres
