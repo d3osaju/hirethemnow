@@ -4,6 +4,9 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add AWS Lambda support
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -55,11 +58,12 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            // Fallback production URLs
+            // Fallback production URLs - Add API Gateway URL for direct calls
             allowedOrigins.AddRange(new[]
             {
                 "https://d203avobknjbyh.cloudfront.net",
-                "https://doswhc5mmajby.cloudfront.net"
+                "https://doswhc5mmajby.cloudfront.net",
+                "https://e4ur4ddyoi.execute-api.us-east-1.amazonaws.com"
             });
         }
 
@@ -72,9 +76,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -82,7 +83,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Note: Remove HTTPS redirection for Lambda - API Gateway handles this
+// app.UseHttpsRedirection();
 
 // Enable CORS
 app.UseCors("AllowReactApp");
@@ -93,6 +95,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapFallbackToFile("/index.html");
+// Remove static file fallback for Lambda - frontend is served separately
+// app.MapFallbackToFile("/index.html");
 
 app.Run();
