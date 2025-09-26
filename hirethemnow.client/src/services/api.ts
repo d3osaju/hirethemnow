@@ -76,10 +76,10 @@ export const authAPI = {
     } catch (error) {
       console.error('❌ API Error:', error);
       console.error('📊 API Error Details:', {
-        status: (error as any)?.response?.status,
-        statusText: (error as any)?.response?.statusText,
-        data: (error as any)?.response?.data,
-        url: (error as any)?.config?.url
+        status: (error as { response?: { status?: number } })?.response?.status,
+        statusText: (error as { response?: { statusText?: string } })?.response?.statusText,
+        data: (error as { response?: { data?: unknown } })?.response?.data,
+        url: (error as { config?: { url?: string } })?.config?.url
       });
       throw error;
     }

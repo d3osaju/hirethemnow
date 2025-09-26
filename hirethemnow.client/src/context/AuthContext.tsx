@@ -79,10 +79,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('💥 GoogleLogin error in AuthContext:', error);
       console.error('📊 Error details:', {
-        name: (error as any)?.name,
-        message: (error as any)?.message,
-        stack: (error as any)?.stack,
-        response: (error as any)?.response?.data
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        response: (error as { response?: { data?: unknown } })?.response?.data
       });
       throw new Error('Google login failed');
     }
