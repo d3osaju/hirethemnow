@@ -114,10 +114,15 @@ public class AuthController : ControllerBase
         {
             var googleClientId = _configuration["GOOGLE_CLIENT_ID"] ?? "419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com";
 
-            // Verify the Google ID token
+            _logger.LogInformation("Starting Google token validation. Client ID: {ClientId}", googleClientId);
+            _logger.LogInformation("Current server time: {CurrentTime}", DateTime.UtcNow);
+
+            // Verify the Google ID token with relaxed time validation
             var payload = await GoogleJsonWebSignature.ValidateAsync(request.Token, new GoogleJsonWebSignature.ValidationSettings()
             {
-                Audience = new[] { googleClientId }
+                Audience = new[] { googleClientId },
+                IssuedAtClockTolerance = TimeSpan.FromMinutes(10),
+                ExpirationTimeClockTolerance = TimeSpan.FromMinutes(10)
             });
 
             if (payload == null)
@@ -165,11 +170,31 @@ public class AuthController : ControllerBase
         catch (InvalidJwtException ex)
         {
             _logger.LogWarning("Invalid Google JWT token: {Message}", ex.Message);
+            _logger.LogWarning("JWT Exception Details: {Details}", ex.ToString());
+
+            // Try to decode token header to understand the issue better
+            try
+            {
+                var tokenParts = request.Token.Split('.');
+                if (tokenParts.Length >= 2)
+                {
+                    var header = tokenParts[0];
+                    var payload = tokenParts[1];
+                    _logger.LogWarning("Token header (base64): {Header}", header);
+                    _logger.LogWarning("Token payload (base64): {Payload}", payload);
+                }
+            }
+            catch (Exception decodeEx)
+            {
+                _logger.LogWarning("Failed to decode token parts: {Error}", decodeEx.Message);
+            }
+
             return BadRequest(new { success = false, message = "Invalid Google token" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during Google authentication");
+            _logger.LogError(ex, "Error during Google authentication: {Message}", ex.Message);
+            _logger.LogError("Full exception details: {Details}", ex.ToString());
             return BadRequest(new { success = false, message = "Google authentication failed" });
         }
     }

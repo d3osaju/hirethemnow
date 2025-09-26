@@ -64,8 +64,25 @@ export const authAPI = {
   },
 
   googleAuth: async (token: string): Promise<ApiResponse<{ user: User; token: string }>> => {
-    const response = await api.post('/auth/google', { token });
-    return response.data;
+    console.log('🚀 API Service: Calling Google auth endpoint');
+    console.log('📍 URL:', `${API_BASE_URL}/auth/google`);
+    console.log('📦 Payload:', { token: token.substring(0, 50) + '...' });
+
+    try {
+      const response = await api.post('/auth/google', { token });
+      console.log('✅ API Response Status:', response.status);
+      console.log('📄 API Response Data:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error:', error);
+      console.error('📊 API Error Details:', {
+        status: (error as any)?.response?.status,
+        statusText: (error as any)?.response?.statusText,
+        data: (error as any)?.response?.data,
+        url: (error as any)?.config?.url
+      });
+      throw error;
+    }
   },
 
   logout: async (): Promise<void> => {
