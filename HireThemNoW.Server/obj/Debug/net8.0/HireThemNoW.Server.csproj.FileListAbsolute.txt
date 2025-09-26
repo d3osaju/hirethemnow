@@ -42,3 +42,4 @@ F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\Microsoft.Identit
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\Microsoft.IdentityModel.Logging.dll
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll
+F:\DevProjects\HireThemNow\HireThemNoW.Server\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
