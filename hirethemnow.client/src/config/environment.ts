@@ -20,7 +20,7 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
 
     // If in production but not Docker, use AWS Lambda
     if (env === 'production') {
-      return 'https://ijcm8d71tl.execute-api.us-east-1.amazonaws.com/dev/api';
+      return 'https://e4ur4ddyoi.execute-api.us-east-1.amazonaws.com/prod';
     }
 
     // Default development server
