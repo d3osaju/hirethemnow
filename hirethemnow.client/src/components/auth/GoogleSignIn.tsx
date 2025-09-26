@@ -1,16 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { config } from '../../config/environment';
-import { jwtDecode } from 'jwt-decode';
-
-interface GoogleUser {
-  sub: string;
-  email: string;
-  name: string;
-  picture?: string;
-  given_name?: string;
-  family_name?: string;
-}
 
 interface GoogleSignInProps {
   onSuccess?: () => void;
@@ -53,9 +43,6 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
           client_id: config.googleClientId,
           callback: async (response) => {
             try {
-              // Decode the JWT token to get user info
-              const userInfo: GoogleUser = jwtDecode(response.credential);
-
               // Call the backend with the Google token
               await googleLogin(response.credential);
 
