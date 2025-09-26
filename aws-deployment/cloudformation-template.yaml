@@ -123,28 +123,30 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-api-${Environment}'
-      Runtime: dotnet8
-      Handler: bootstrap
+      Runtime: nodejs20.x
+      Handler: index.handler
       Code:
         ZipFile: |
-          using System.Text.Json;
-          using Amazon.Lambda.Core;
-          using Amazon.Lambda.APIGatewayEvents;
+          exports.handler = async (event, context) => {
+              console.log('Event:', JSON.stringify(event, null, 2));
 
-          [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
-
-          public class Function
-          {
-              public APIGatewayProxyResponse FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
-              {
-                  return new APIGatewayProxyResponse
-                  {
-                      StatusCode = 200,
-                      Body = JsonSerializer.Serialize(new { message = "Hello from .NET Lambda" }),
-                      Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
-                  };
-              }
-          }
+              return {
+                  statusCode: 200,
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Access-Control-Allow-Origin': '*',
+                      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+                  },
+                  body: JSON.stringify({
+                      message: 'HireThemNow API is running',
+                      environment: process.env.NODE_ENV || 'production',
+                      timestamp: new Date().toISOString(),
+                      path: event.path || '/',
+                      method: event.httpMethod || 'GET'
+                  })
+              };
+          };
       Role: !GetAtt LambdaExecutionRole.Arn
       VpcConfig:
         SecurityGroupIds:
