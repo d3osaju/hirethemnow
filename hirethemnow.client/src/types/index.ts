@@ -90,4 +90,27 @@ export interface MailboxStats {
   rejections: number;
   positiveResponses: number;
   pendingResponses: number;
+  totalReceived?: number;
+  responseRate?: number;
+  pendingReplies?: number;
+}
+
+export interface ResumeAnalysis {
+  id: string;
+  userId: string;
+  resumeFileName: string;
+  resumeFilePath: string;
+  analysisStatus: string;
+  skills?: string;
+  workExperience?: string;
+  education?: string;
+  summary?: string;
+  analysisJson?: string;
+  coldEmailTemplate1?: string;
+  coldEmailTemplate2?: string;
+  coldEmailTemplate3?: string;
+  coldEmailTemplate4?: string;
+  coldEmailTemplate5?: string;
+  createdAt: string;
+  updatedAt: string;
 }

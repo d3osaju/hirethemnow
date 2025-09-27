@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, Job, Application, ApiResponse } from '../types';
+import type { User, Job, Application, ApiResponse, ResumeAnalysis, MailboxMessage } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;
@@ -147,6 +147,34 @@ export const applicationsAPI = {
 
   updateApplicationStatus: async (id: string, status: Application['status']): Promise<ApiResponse<Application>> => {
     const response = await api.put(`/applications/${id}`, { status });
+    return response.data;
+  },
+};
+
+// Resume API
+export const resumeAPI = {
+  uploadResume: async (file: File): Promise<ApiResponse<ResumeAnalysis>> => {
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    const response = await api.post('/resume/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getResumeAnalysis: async (): Promise<ApiResponse<ResumeAnalysis>> => {
+    const response = await api.get('/resume/analysis');
+    return response.data;
+  },
+};
+
+// Mailbox API
+export const mailboxAPI = {
+  getEmails: async (): Promise<ApiResponse<MailboxMessage[]>> => {
+    const response = await api.get('/mailbox/emails');
     return response.data;
   },
 };

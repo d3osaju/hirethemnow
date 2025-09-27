@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, Zap } from 'lucide-react';
+import { resumeAPI } from '../../services/api';
 
 interface ResumeUploadProps {
   onUploadComplete: () => void;
@@ -44,29 +45,19 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
     setUploadStatus('uploading');
 
     try {
-      const formData = new FormData();
-      formData.append('resume', file);
+      const result = await resumeAPI.uploadResume(file);
 
-      const response = await fetch('/api/resume/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: formData
-      });
-
-      if (response.ok) {
+      if (result.success) {
         setUploadStatus('success');
         setTimeout(() => {
           onUploadComplete();
         }, 2000);
       } else {
-        const errorData = await response.json();
-        setErrorMessage(errorData.message || 'Upload failed');
+        setErrorMessage(result.message || 'Upload failed');
         setUploadStatus('error');
       }
-    } catch {
-      setErrorMessage('Network error. Please try again.');
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : 'Network error. Please try again.');
       setUploadStatus('error');
     } finally {
       setUploading(false);
@@ -102,26 +93,26 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center p-3 bg-primary-100 rounded-full mb-6">
-          <Zap className="h-8 w-8 text-primary-600" />
+        <div className="inline-flex items-center justify-center p-3 bg-gray-100 rounded-full mb-6">
+          <Zap className="h-8 w-8 text-gray-700" />
         </div>
-        <h2 className="text-3xl font-bold text-jobpilot-navy mb-4">Upload Your Resume</h2>
-        <p className="text-lg text-neutral-600 max-w-lg mx-auto">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Upload Your Resume</h2>
+        <p className="text-lg text-gray-600 max-w-lg mx-auto">
           Our AI will analyze your resume and automatically launch a personalized job hunting campaign
         </p>
       </div>
 
       {/* Upload Area */}
-      <div className="border-2 border-dashed border-neutral-300 rounded-2xl p-12 text-center bg-gradient-to-br from-neutral-50 to-white hover:border-primary-400 transition-all duration-300">
+      <div className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-gradient-to-br from-gray-50 to-white hover:border-gray-400 transition-all duration-300">
         {!file ? (
           <label htmlFor="resume-upload" className="cursor-pointer block">
             <div className="space-y-6">
-              <div className="w-20 h-20 mx-auto bg-primary-100 rounded-full flex items-center justify-center">
-                <Upload className="h-10 w-10 text-primary-600" />
+              <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                <Upload className="h-10 w-10 text-gray-700" />
               </div>
               <div>
-                <p className="text-xl font-semibold text-jobpilot-navy mb-2">Drop your resume here or click to browse</p>
-                <p className="text-neutral-500">Supports PDF, DOC, or DOCX up to 10MB</p>
+                <p className="text-xl font-semibold text-gray-900 mb-2">Drop your resume here or click to browse</p>
+                <p className="text-gray-500">Supports PDF, DOC, or DOCX up to 10MB</p>
               </div>
             </div>
             <input
@@ -166,8 +157,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         <p className={`text-lg font-medium ${
           uploadStatus === 'error' ? 'text-error-600' :
           uploadStatus === 'success' ? 'text-success-600' :
-          uploadStatus === 'uploading' ? 'text-primary-600' :
-          'text-neutral-600'
+          uploadStatus === 'uploading' ? 'text-gray-700' :
+          'text-gray-600'
         }`}>
           {getStatusMessage()}
         </p>
@@ -181,8 +172,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
             disabled={uploading}
             className={`w-full flex items-center justify-center py-4 px-8 rounded-xl text-lg font-semibold transition-all duration-200 ${
               uploading
-                ? 'bg-neutral-400 cursor-not-allowed text-white'
-                : 'bg-gradient-primary text-white hover:shadow-button-hover transform hover:-translate-y-0.5'
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : 'bg-gray-800 text-white hover:bg-gray-900 hover:shadow-button-hover transform hover:-translate-y-0.5'
             }`}
           >
             {uploading ? (

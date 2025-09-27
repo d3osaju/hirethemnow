@@ -13,17 +13,38 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
 
   // Default URLs based on environment
   const getDefaultApiUrl = () => {
-    // If running in Docker container (localhost:8080), use local backend
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '8080') {
-      return 'http://localhost:8080/api';
-    }
-
-    // If in production but not Docker, use AWS Lambda
+    // If running in production, use production API URL from environment
     if (env === 'production') {
-      return 'https://e4ur4ddyoi.execute-api.us-east-1.amazonaws.com/prod';
+      // Use the AWS Fargate load balancer URL from environment
+      return import.meta.env.VITE_API_BASE_URL || 'https://api.hirethemnow.com/api';
     }
 
-    // Default development server
+    // For development, use local backend
+    if (env === 'development') {
+      return 'http://localhost:5219/api';
+    }
+
+    // Runtime detection for special cases
+    if (typeof window !== 'undefined') {
+      const { hostname, port, protocol } = window.location;
+
+      // If running in Docker container
+      if (hostname === 'localhost' && port === '8080') {
+        return 'http://localhost:8080/api';
+      }
+
+      // If accessing via different port in development
+      if (hostname === 'localhost' && ['5173', '5174', '3000'].includes(port)) {
+        return 'http://localhost:5219/api';
+      }
+
+      // For production domains, construct API URL
+      if (hostname.includes('hirethemnow') && !hostname.includes('localhost')) {
+        return `${protocol}//${hostname}/api`;
+      }
+    }
+
+    // Fallback to development
     return 'http://localhost:5219/api';
   };
 

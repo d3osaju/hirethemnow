@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { MailboxMessage, MailboxStats } from '../../types';
 import { Mail, Send, Reply, TrendingUp, Calendar, XCircle, AlertCircle, Star, Search, Filter, MoreVertical } from 'lucide-react';
+import { mailboxAPI } from '../../services/api';
 
 const EnhancedMailbox: React.FC = () => {
   const [messages, setMessages] = useState<MailboxMessage[]>([]);
@@ -19,28 +20,30 @@ const EnhancedMailbox: React.FC = () => {
       setLoading(true);
 
       // Load emails
-      const emailsResponse = await fetch('/api/mailbox/emails', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      if (emailsResponse.ok) {
-        const emailsData = await emailsResponse.json();
-        setMessages(emailsData.data || []);
+      const emailsResult = await mailboxAPI.getEmails();
+      if (emailsResult.success) {
+        setMessages(emailsResult.data || []);
       }
 
-      // Load stats
-      const statsResponse = await fetch('/api/mailbox/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      // TODO: Add stats API endpoint to mailboxAPI when backend implements it
+      // For now, calculate basic stats from the messages
+      const emails = emailsResult.data || [];
+      const sentCount = emails.filter(email => email.type === 'sent').length;
+      const receivedCount = emails.filter(email => email.type === 'received').length;
+      const responseRate = sentCount > 0 ? (receivedCount / sentCount) * 100 : 0;
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData.data);
-      }
+      setStats({
+        totalSent: sentCount,
+        totalReceived: receivedCount,
+        responseRate: responseRate,
+        totalReplies: receivedCount,
+        totalOpened: 0, // Not implemented yet
+        interviewInvitations: emails.filter(email => email.hasInterviewInvitation).length,
+        rejections: emails.filter(email => email.isRejection).length,
+        positiveResponses: emails.filter(email => email.isPositiveResponse).length,
+        pendingResponses: emails.filter(email => email.type === 'sent' && email.status === 'pending').length,
+        pendingReplies: emails.filter(email => email.type === 'received' && email.status === 'pending').length
+      });
 
     } catch (error) {
       console.error('Error loading mailbox data:', error);
@@ -127,7 +130,7 @@ const EnhancedMailbox: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
+    <div className="min-h-full bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-8">
