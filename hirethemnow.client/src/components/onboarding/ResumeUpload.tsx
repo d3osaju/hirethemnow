@@ -65,7 +65,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         setErrorMessage(errorData.message || 'Upload failed');
         setUploadStatus('error');
       }
-    } catch (error) {
+    } catch {
       setErrorMessage('Network error. Please try again.');
       setUploadStatus('error');
     } finally {

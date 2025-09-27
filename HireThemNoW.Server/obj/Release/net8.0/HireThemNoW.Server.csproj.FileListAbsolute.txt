@@ -1,7 +1,6 @@
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\appsettings.Development.json
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\appsettings.json
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\appsettings.Production.json
-F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\aws-lambda-tools-defaults.json
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\HireThemNoW.Server.staticwebassets.endpoints.json
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\HireThemNoW.Server.exe
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\HireThemNoW.Server.deps.json
