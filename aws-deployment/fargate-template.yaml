@@ -25,6 +25,20 @@ Parameters:
     Description: Google OAuth Client Secret
     Default: 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
 
+  DomainName:
+    Type: String
+    Default: ""
+    Description: Custom domain name (e.g., hirethemnow.xyz)
+
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM Certificate ARN for custom domain
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref DomainName, ""]]
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
+
 Resources:
   # VPC for Fargate (minimal setup)
   VPC:
@@ -128,13 +142,24 @@ Resources:
             Action: s3:GetObject
             Resource: !Sub '${FrontendBucket.Arn}/*'
 
-  # CloudFront Distribution (keep existing)
+  # CloudFront Distribution with custom domain support
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
+        Aliases: !If
+          - HasCustomDomain
+          - - !Sub "www.${DomainName}"
+            - !Ref DomainName
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCertificate
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - CloudFrontDefaultCertificate: true
         Origins:
           - Id: S3Origin
             DomainName: !Select [2, !Split ["/", !GetAtt FrontendBucket.WebsiteURL]]
