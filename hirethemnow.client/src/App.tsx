@@ -11,6 +11,8 @@ import JobList from './pages/Jobs/JobList';
 import Dashboard from './pages/Dashboard';
 import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -76,6 +78,16 @@ function App() {
             }
           />
 
+          {/* Resume upload - standalone route */}
+          <Route
+            path="/resume"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Dashboard routes with side navigation */}
           <Route
             path="/dashboard"
@@ -88,6 +100,9 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="jobs" element={<JobList />} />
+            <Route path="resume" element={<Onboarding />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </Router>
