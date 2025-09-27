@@ -6,9 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>bc388726-ef78-4f47-b360-9c96fc55c1f5</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <SpaRoot>..\hirethemnow.client</SpaRoot>
-    <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
-    <SpaProxyServerUrl>https://localhost:49294</SpaProxyServerUrl>
     <!-- AWS Lambda Configuration -->
     <AWSProjectType>Lambda</AWSProjectType>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
