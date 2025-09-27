@@ -13,13 +13,18 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('DEBUG: File selection triggered', event.target.files);
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
+      console.log('DEBUG: File selected:', selectedFile.name, 'Size:', selectedFile.size, 'Type:', selectedFile.type);
+
       // Validate file type
       const allowedTypes = ['.pdf', '.doc', '.docx'];
       const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'));
+      console.log('DEBUG: File extension:', fileExtension);
 
       if (!allowedTypes.includes(fileExtension)) {
+        console.log('DEBUG: File type validation failed');
         setErrorMessage('Please upload a PDF or Word document (.pdf, .doc, .docx)');
         setUploadStatus('error');
         return;
@@ -27,36 +32,50 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
       // Validate file size (2MB max)
       if (selectedFile.size > 2 * 1024 * 1024) {
+        console.log('DEBUG: File size validation failed:', selectedFile.size);
         setErrorMessage('File size must be less than 2MB');
         setUploadStatus('error');
         return;
       }
 
+      console.log('DEBUG: File validation passed, setting file state');
       setFile(selectedFile);
       setUploadStatus('idle');
       setErrorMessage('');
+    } else {
+      console.log('DEBUG: No file selected');
     }
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    console.log('DEBUG: Upload button clicked, file state:', file);
+    if (!file) {
+      console.log('DEBUG: No file to upload, returning early');
+      return;
+    }
 
+    console.log('DEBUG: Starting upload process');
     setUploading(true);
     setUploadStatus('uploading');
 
     try {
+      console.log('DEBUG: Calling resumeAPI.uploadResume with file:', file.name);
       const result = await resumeAPI.uploadResume(file);
+      console.log('DEBUG: Upload API response:', result);
 
       if (result.success) {
+        console.log('DEBUG: Upload successful');
         setUploadStatus('success');
         setTimeout(() => {
           onUploadComplete();
         }, 2000);
       } else {
+        console.log('DEBUG: Upload failed:', result.message);
         setErrorMessage(result.message || 'Upload failed');
         setUploadStatus('error');
       }
     } catch (error: unknown) {
+      console.log('DEBUG: Upload error caught:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Network error. Please try again.');
       setUploadStatus('error');
     } finally {
@@ -89,6 +108,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         return 'Upload your resume to get started with automated job applications';
     }
   };
+
+  console.log('DEBUG: Component render - file:', file?.name, 'uploadStatus:', uploadStatus);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -138,6 +159,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
             {uploadStatus !== 'success' && (
               <button
                 onClick={() => {
+                  console.log('DEBUG: Choose different file clicked');
                   setFile(null);
                   setUploadStatus('idle');
                   setErrorMessage('');
@@ -168,7 +190,10 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       {file && uploadStatus !== 'success' && (
         <div className="mt-8">
           <button
-            onClick={handleUpload}
+            onClick={(e) => {
+              console.log('DEBUG: Upload button click event:', e);
+              handleUpload();
+            }}
             disabled={uploading}
             className={`w-full flex items-center justify-center py-4 px-8 rounded-xl text-lg font-semibold transition-all duration-200 ${
               uploading
