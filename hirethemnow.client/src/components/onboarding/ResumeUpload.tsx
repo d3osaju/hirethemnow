@@ -25,9 +25,9 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
         return;
       }
 
-      // Validate file size (10MB max)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setErrorMessage('File size must be less than 10MB');
+      // Validate file size (2MB max)
+      if (selectedFile.size > 2 * 1024 * 1024) {
+        setErrorMessage('File size must be less than 2MB');
         setUploadStatus('error');
         return;
       }
@@ -112,7 +112,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
               </div>
               <div>
                 <p className="text-xl font-semibold text-gray-900 mb-2">Drop your resume here or click to browse</p>
-                <p className="text-gray-500">Supports PDF, DOC, or DOCX up to 10MB</p>
+                <p className="text-gray-500">Supports PDF, DOC, or DOCX up to 2MB</p>
               </div>
             </div>
             <input

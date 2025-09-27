@@ -14,12 +14,14 @@ public class ResumeController : ControllerBase
     private readonly IDataService _dataService;
     private readonly ILogger<ResumeController> _logger;
     private readonly IWebHostEnvironment _environment;
+    private readonly IS3Service _s3Service;
 
-    public ResumeController(IDataService dataService, ILogger<ResumeController> logger, IWebHostEnvironment environment)
+    public ResumeController(IDataService dataService, ILogger<ResumeController> logger, IWebHostEnvironment environment, IS3Service s3Service)
     {
         _dataService = dataService;
         _logger = logger;
         _environment = environment;
+        _s3Service = s3Service;
     }
 
     [HttpPost("upload")]
@@ -59,18 +61,35 @@ public class ResumeController : ControllerBase
                 });
             }
 
-            // Create upload directory
-            var uploadsPath = Path.Combine(_environment.ContentRootPath, "uploads", "resumes");
-            Directory.CreateDirectory(uploadsPath);
-
-            // Generate unique filename
-            var fileName = $"{userId}_{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            // Save file
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Validate file size (2MB max)
+            const long maxFileSize = 2 * 1024 * 1024; // 2MB
+            if (resume.Length > maxFileSize)
             {
-                await resume.CopyToAsync(stream);
+                return BadRequest(new ApiResponse<ResumeAnalysis>
+                {
+                    Success = false,
+                    Message = "File size must be less than 2MB"
+                });
+            }
+
+            // Upload to S3
+            string s3FileKey;
+            try
+            {
+                using (var stream = resume.OpenReadStream())
+                {
+                    s3FileKey = await _s3Service.UploadFileAsync(stream, resume.FileName, resume.ContentType);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to upload resume to S3 for user {UserId}", userId);
+                return StatusCode(500, new ApiResponse<ResumeAnalysis>
+                {
+                    Success = false,
+                    Message = "Failed to upload resume. Please try again.",
+                    Errors = new List<string> { "Storage upload failed" }
+                });
             }
 
             // Get user info for N8N
@@ -89,18 +108,21 @@ public class ResumeController : ControllerBase
             {
                 UserId = userId,
                 ResumeFileName = resume.FileName,
-                ResumeFilePath = filePath,
+                ResumeFilePath = s3FileKey, // Store S3 key instead of local path
                 AnalysisStatus = "pending"
             };
 
             var createdAnalysis = await _dataService.CreateResumeAnalysisAsync(resumeAnalysis);
+
+            // Generate pre-signed URL for N8N to access the file
+            var preSignedUrl = await _s3Service.GetPreSignedUrlAsync(s3FileKey, 60); // Valid for 1 hour
 
             // Trigger N8N workflow for document analysis and auto cold email campaign
             await TriggerResumeAnalysisWorkflow(new ResumeAnalysisRequest
             {
                 UserId = userId,
                 UserEmail = user.Email,
-                ResumeFilePath = filePath,
+                ResumeFilePath = preSignedUrl, // Send pre-signed URL to N8N
                 ResumeFileName = resume.FileName
             });
 
