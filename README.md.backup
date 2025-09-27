@@ -2,159 +2,6 @@
 
 **AI-Powered Automated Job Hunting Platform** - Upload your resume, let AI analyze it, scrape HR contacts, and automatically send personalized cold emails to get you interviews.
 
-## 🏗️ System Architecture
-
-### 🌐 Production Infrastructure Overview
-
-```
-                                     ┌─ 👤 Users ─┐
-                                     │             │
-                                     ▼             ▼
-                              🌍 CloudFront CDN
-                        (d2mddiq1c6w52v.cloudfront.net)
-                                     │
-                         ┌───────────┼───────────┐
-                         ▼                       ▼
-                   📁 S3 Frontend           ⚖️ Application
-                     (React SPA)            Load Balancer
-                         │                       │
-                         │                       ▼
-                         │                🐳 AWS Fargate
-                         │              (ASP.NET Core 8 API)
-                         │                       │
-                         │              ┌────────┼────────┐
-                         │              ▼        ▼        ▼
-                         │        📄 S3 Resume  💾 SQLite  🔐 JWT Auth
-                         │         Storage      Database   & CORS
-                         │              │
-                         │              ▼
-                         │        🤖 N8N Automation Engine
-                         │              │
-                         └──────────────┼──────────────────
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-           📊 Resume Analysis   🔍 HR Contact Scraping  📧 Email Campaigns
-           (AI Skill Extraction) (Web Scraping)        (Testmail.app)
-                    │                   │                   │
-                    └───────────────────┼───────────────────┘
-                                        ▼
-                              📬 Smart Mailbox System
-                            (AI Sentiment Analysis Badges)
-```
-
-### 🔄 Complete Application Flow
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           HireThemNow Processing Pipeline                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-1️⃣ USER ONBOARDING
-   👤 User Registration
-   ├── 📝 Account Creation (Email/Password or Google OAuth)
-   ├── 🔐 JWT Token Generation & Authentication
-   └── 📄 Resume Upload → 📁 AWS S3 Storage (2MB max)
-
-2️⃣ AI RESUME ANALYSIS
-   🚀 Trigger: Resume uploaded
-   ├── 📤 Generate S3 Pre-signed URL (1-hour expiry)
-   ├── 🔔 Send Webhook → N8N Analysis Workflow
-   ├── 🤖 AI Processing:
-   │   ├── 📊 Extract Skills, Experience, Education
-   │   ├── ✍️ Generate 5 Personalized Email Templates
-   │   └── 🎯 Identify Target Industries & Roles
-   └── 📥 Results sent back via Webhook → API Database
-
-3️⃣ HR CONTACT DISCOVERY
-   🔍 Automatic HR Scraping Workflow
-   ├── 🏢 Match Companies by User's Skills/Industry
-   ├── 🌐 Web Scraping for HR Contacts:
-   │   ├── 👥 HR Managers & Recruiters
-   │   ├── 📧 Email Addresses
-   │   └── 🏷️ Company & Role Information
-   └── 📋 Bulk Import Contacts → API Database
-
-4️⃣ AUTOMATED EMAIL CAMPAIGNS
-   📧 Smart Cold Email System
-   ├── 🎯 Select Appropriate Email Template
-   ├── 🔧 Personalize Content for Each Contact
-   ├── 📬 Send via Testmail.app Integration
-   ├── 📊 Track Email Delivery Status
-   └── 🔄 Schedule Follow-up Campaigns
-
-5️⃣ RESPONSE MONITORING & AI ANALYSIS
-   📨 Real-time Email Response Processing
-   ├── 🔍 Monitor Testmail.app for Replies
-   ├── 🧠 AI Sentiment Analysis on Responses:
-   │   ├── 🟢 Interview Invitations
-   │   ├── 🔴 Rejection Notices
-   │   ├── 🔵 Positive Interest
-   │   └── ⚫ Negative/No Interest
-   └── 🏷️ Apply Smart Badges to Mailbox
-
-6️⃣ USER DASHBOARD & INSIGHTS
-   📱 Real-time Progress Tracking
-   ├── 📊 Campaign Analytics & Statistics
-   ├── 📬 Smart Mailbox with AI-categorized responses
-   ├── 🎯 Interview Opportunity Highlights
-   └── 📈 Job Hunt Progress & Success Metrics
-```
-
-### 💻 Technology Stack Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   🎨 FRONTEND    │    │  🛠️ BACKEND      │    │ ☁️ INFRASTRUCTURE │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ React 19        │◄──►│ ASP.NET Core 8  │◄──►│ AWS Fargate     │
-│ TypeScript      │    │ Entity Framework│    │ Application LB  │
-│ Tailwind CSS    │    │ JWT Auth        │    │ CloudFront CDN  │
-│ Vite Build      │    │ Swagger API     │    │ S3 Storage      │
-│ React Router    │    │ SQLite Database │    │ ECR Registry    │
-│ Lucide Icons    │    │ CORS Enabled    │    │ Route 53 DNS    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                        │                        │
-         └────────────────────────┼────────────────────────┘
-                                  │
-        ┌─────────────────────────┼─────────────────────────┐
-        │                        │                        │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ 🤖 AUTOMATION   │    │ 📧 EMAIL SERVICE │    │ 🔐 SECURITY     │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ N8N Workflows   │    │ Testmail.app    │    │ JWT Tokens      │
-│ AI Integration  │    │ SMTP Service    │    │ HTTPS/TLS       │
-│ Web Scraping    │    │ Response Track  │    │ CORS Policies   │
-│ Webhook APIs    │    │ Email Analytics │    │ OAuth Google    │
-│ Cron Scheduling │    │ Template Engine │    │ Pre-signed URLs │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### 🌊 Data Flow & Integration Patterns
-
-**📄 Resume Processing Pipeline:**
-```
-Upload → S3 Secure Storage → Pre-signed URL → N8N Webhook → AI Analysis → JSON Response → Database Update
-```
-
-**📧 Email Campaign Lifecycle:**
-```
-Contact Discovery → Template Selection → AI Personalization → Testmail.app → Delivery Tracking → Response Analysis
-```
-
-**🔄 Real-time Dashboard Updates:**
-```
-N8N Event → API Webhook → In-Memory Update → Frontend Polling → Live UI Refresh
-```
-
-### 🚀 Deployment Environments
-
-| Environment | Frontend URL | Backend API | Database | Automation |
-|-------------|-------------|-------------|-----------|------------|
-| **Development** | `http://localhost:5173` | `http://localhost:8080` | SQLite File | Local N8N |
-| **Production** | `https://d2mddiq1c6w52v.cloudfront.net` | AWS Fargate ALB | In-Memory SQLite | Cloud N8N |
-| **Cost** | Free (Dev) | ~$15/month (Prod) | Included | Variable |
-
 ## 🎯 What It Does
 
 1. **Simple Onboarding**: Users upload resume + name only
@@ -162,6 +9,23 @@ N8N Event → API Webhook → In-Memory Update → Frontend Polling → Live UI 
 3. **HR Contact Scraping**: Finds relevant HR contacts grouped by industry/skills
 4. **Automated Cold Emails**: Sends personalized emails via testmail.app
 5. **Smart Mailbox**: Shows sent emails and replies with AI sentiment analysis badges (Interview/Rejection/Positive/Negative)
+
+## 🏗️ Architecture
+
+```
+Frontend (React 19 + TypeScript)
+├── Development: http://localhost:5173 → http://localhost:8080/api
+└── Production: http://localhost:8080 (Docker)
+
+Backend (ASP.NET Core 8)
+├── Development: http://localhost:8080 (Docker container)
+└── Production: AWS Fargate (containerized)
+
+N8N Workflows (Automation)
+├── Resume Analysis → AI extracts skills + generates email templates
+├── HR Scraping → Finds contacts by industry/skills
+└── Cold Email Campaign → Sends emails + tracks responses
+```
 
 ## 🚀 Quick Start
 

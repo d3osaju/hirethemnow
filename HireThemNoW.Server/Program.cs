@@ -67,6 +67,7 @@ builder.Services.AddCors(options =>
             // Fallback production URLs - CloudFront distributions
             allowedOrigins.AddRange(new[]
             {
+                "https://d2mddiq1c6w52v.cloudfront.net",
                 "https://d203avobknjbyh.cloudfront.net",
                 "https://doswhc5mmajby.cloudfront.net"
             });
