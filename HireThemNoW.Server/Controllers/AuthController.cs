@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
 using Google.Apis.Auth;
+using HireThemNoW.Server.Services;
+using HireThemNoW.Server.Models;
 
 namespace HireThemNoW.Server.Controllers;
 
@@ -14,11 +17,13 @@ public class AuthController : ControllerBase
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
+    private readonly IDataService _dataService;
 
-    public AuthController(IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(IConfiguration configuration, ILogger<AuthController> logger, IDataService dataService)
     {
         _configuration = configuration;
         _logger = logger;
+        _dataService = dataService;
     }
 
     private string GenerateJwtToken(string userId, string email, string name, string role = "candidate")
@@ -44,67 +49,103 @@ public class AuthController : ControllerBase
         return tokenHandler.WriteToken(token);
     }
     [HttpPost("login")]
-    public ActionResult<object> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<object>> Login([FromBody] LoginRequest request)
     {
-        // Mock authentication for testing
-        if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+        try
         {
-            return BadRequest(new { success = false, message = "Email and password are required" });
-        }
-
-        // Mock successful login
-        var mockUser = new
-        {
-            id = "1",
-            name = "Test User",
-            email = request.Email,
-            role = "candidate" // or "employer"
-        };
-
-        var mockToken = GenerateJwtToken("1", request.Email, "Test User");
-
-        return Ok(new
-        {
-            success = true,
-            message = "Login successful",
-            data = new
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
-                user = mockUser,
-                token = mockToken
+                return BadRequest(new { success = false, message = "Email and password are required" });
             }
-        });
+
+            // Find user by email
+            var user = await _dataService.GetUserByEmailAsync(request.Email);
+            if (user == null)
+            {
+                return BadRequest(new { success = false, message = "Invalid email or password" });
+            }
+
+            // Note: In production, you should verify the password hash
+            // For now, we'll accept any password for demo purposes
+            var token = GenerateJwtToken(user.Id, user.Email, user.Name, user.Role);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Login successful",
+                data = new
+                {
+                    user = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        role = user.Role,
+                        picture = user.Picture,
+                        isCompleted = user.IsCompleted
+                    },
+                    token = token
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during login");
+            return StatusCode(500, new { success = false, message = "Login failed" });
+        }
     }
 
     [HttpPost("register")]
-    public ActionResult<object> Register([FromBody] RegisterRequest request)
+    public async Task<ActionResult<object>> Register([FromBody] RegisterRequest request)
     {
-        // Mock registration for testing
-        if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+        try
         {
-            return BadRequest(new { success = false, message = "Email and password are required" });
-        }
-
-        // Mock successful registration
-        var mockUser = new
-        {
-            id = "1",
-            name = request.Name ?? "New User",
-            email = request.Email,
-            role = request.Role ?? "candidate"
-        };
-
-        var mockToken = GenerateJwtToken("1", request.Email, request.Name ?? "New User", request.Role ?? "candidate");
-
-        return Ok(new
-        {
-            success = true,
-            message = "Registration successful",
-            data = new
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
-                user = mockUser,
-                token = mockToken
+                return BadRequest(new { success = false, message = "Email and password are required" });
             }
-        });
+
+            // Check if user already exists
+            var existingUser = await _dataService.GetUserByEmailAsync(request.Email);
+            if (existingUser != null)
+            {
+                return BadRequest(new { success = false, message = "User with this email already exists" });
+            }
+
+            // Create new user
+            var newUser = new User
+            {
+                Name = request.Name ?? "New User",
+                Email = request.Email,
+                Role = request.Role ?? "candidate"
+            };
+
+            var createdUser = await _dataService.CreateUserAsync(newUser);
+            var token = GenerateJwtToken(createdUser.Id, createdUser.Email, createdUser.Name, createdUser.Role);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Registration successful",
+                data = new
+                {
+                    user = new
+                    {
+                        id = createdUser.Id,
+                        name = createdUser.Name,
+                        email = createdUser.Email,
+                        role = createdUser.Role,
+                        isCompleted = createdUser.IsCompleted
+                    },
+                    token = token
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during registration");
+            return StatusCode(500, new { success = false, message = "Registration failed" });
+        }
     }
 
     [HttpPost("google")]
@@ -141,18 +182,36 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Invalid Google token payload" });
             }
 
-            // Generate our own JWT token
-            var jwtToken = GenerateJwtToken(googleId, email, name ?? "Google User");
+            // Check if user exists, create if not
+            var existingUser = await _dataService.GetUserByEmailAsync(email);
+            User user;
 
-            // Create user object (in production, you'd save to database)
-            var user = new
+            if (existingUser == null)
             {
-                id = googleId,
-                name = name ?? "Google User",
-                email = email,
-                role = "candidate", // Default role for Google sign-in
-                picture = picture
-            };
+                // Create new user for Google sign-in
+                user = new User
+                {
+                    Id = googleId,
+                    Name = name ?? "Google User",
+                    Email = email,
+                    Role = "candidate", // Default role for Google sign-in
+                    Picture = picture
+                };
+                user = await _dataService.CreateUserAsync(user);
+            }
+            else
+            {
+                user = existingUser;
+                // Update picture if available
+                if (!string.IsNullOrEmpty(picture) && user.Picture != picture)
+                {
+                    user.Picture = picture;
+                    await _dataService.UpdateUserAsync(user);
+                }
+            }
+
+            // Generate our own JWT token
+            var jwtToken = GenerateJwtToken(user.Id, user.Email, user.Name, user.Role);
 
             _logger.LogInformation("Google authentication successful for user: {Email}", email);
 
@@ -162,7 +221,15 @@ public class AuthController : ControllerBase
                 message = "Google authentication successful",
                 data = new
                 {
-                    user = user,
+                    user = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        role = user.Role,
+                        picture = user.Picture,
+                        isCompleted = user.IsCompleted
+                    },
                     token = jwtToken
                 }
             });
@@ -206,23 +273,49 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("profile")]
-    public ActionResult<object> GetProfile()
+    [Authorize]
+    public async Task<ActionResult<object>> GetProfile()
     {
-        // Mock profile data
-        var mockUser = new
+        try
         {
-            id = "1",
-            name = "Test User",
-            email = "test@example.com",
-            role = "candidate"
-        };
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated" });
+            }
 
-        return Ok(new
+            var user = await _dataService.GetUserAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { success = false, message = "User not found" });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Profile retrieved successfully",
+                data = new
+                {
+                    id = user.Id,
+                    name = user.Name,
+                    email = user.Email,
+                    role = user.Role,
+                    picture = user.Picture,
+                    phone = user.Phone,
+                    location = user.Location,
+                    bio = user.Bio,
+                    skills = user.Skills,
+                    resumeUrl = user.ResumeUrl,
+                    isCompleted = user.IsCompleted,
+                    createdAt = user.CreatedAt
+                }
+            });
+        }
+        catch (Exception ex)
         {
-            success = true,
-            message = "Profile retrieved successfully",
-            data = mockUser
-        });
+            _logger.LogError(ex, "Error retrieving profile");
+            return StatusCode(500, new { success = false, message = "Profile retrieval failed" });
+        }
     }
 }
 

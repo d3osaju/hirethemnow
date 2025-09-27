@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { User, Mail, Calendar, Code, FileText, Camera, Save } from 'lucide-react';
+import { User, Mail, Code, FileText, Camera, Save } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -8,7 +8,6 @@ const Profile: React.FC = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
     skills: user?.skills || [],
   });
 
@@ -37,7 +36,6 @@ const Profile: React.FC = () => {
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
-      dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
       skills: user?.skills || [],
     });
     setEditing(false);
@@ -83,9 +81,9 @@ const Profile: React.FC = () => {
             <div className="flex items-center space-x-6">
               <div className="relative">
                 <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                  {user?.avatar ? (
+                  {user?.picture ? (
                     <img
-                      src={user.avatar}
+                      src={user.picture}
                       alt="Profile"
                       className="w-24 h-24 rounded-full object-cover"
                     />
@@ -141,26 +139,13 @@ const Profile: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">
-                    Date of Birth
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                    Role
                   </label>
-                  {editing ? (
-                    <input
-                      type="date"
-                      id="dateOfBirth"
-                      name="dateOfBirth"
-                      value={formData.dateOfBirth}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  ) : (
-                    <div className="mt-1 flex items-center">
-                      <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                      <p className="text-sm text-gray-900">
-                        {user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'Not provided'}
-                      </p>
-                    </div>
-                  )}
+                  <div className="mt-1 flex items-center">
+                    <User className="w-4 h-4 text-gray-400 mr-2" />
+                    <p className="text-sm text-gray-900">{user?.role === 'candidate' ? 'Job Seeker' : 'Employer'}</p>
+                  </div>
                 </div>
               </div>
             </div>

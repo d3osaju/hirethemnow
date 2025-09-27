@@ -7,7 +7,11 @@
       "Bash(xargs rm:*)",
       "Bash(aws ecs describe-services:*)",
       "Bash(aws cloudfront get-distribution-config:*)",
-      "Bash(aws acm describe-certificate:*)"
+      "Bash(aws acm describe-certificate:*)",
+      "Bash(dotnet run:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "ask": []

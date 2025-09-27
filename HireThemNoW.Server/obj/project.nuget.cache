@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "7GG1g1xrwzY=",
+  "dgSpecHash": "J+Fr7+Tn4j8=",
   "success": true,
   "projectFilePath": "F:\\DevProjects\\HireThemNow\\HireThemNoW.Server\\HireThemNoW.Server.csproj",
   "expectedPackageFiles": [
@@ -45,10 +45,7 @@
     "C:\\Users\\deosa\\.nuget\\packages\\system.management\\7.0.2\\system.management.7.0.2.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\system.memory\\4.5.0\\system.memory.4.5.0.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\4.5.0\\system.runtime.compilerservices.unsafe.4.5.0.nupkg.sha512",
-    "C:\\Users\\deosa\\.nuget\\packages\\microsoft.netcore.app.runtime.linux-x64\\8.0.20\\microsoft.netcore.app.runtime.linux-x64.8.0.20.nupkg.sha512",
-    "C:\\Users\\deosa\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.linux-x64\\8.0.20\\microsoft.aspnetcore.app.runtime.linux-x64.8.0.20.nupkg.sha512",
-    "C:\\Users\\deosa\\.nuget\\packages\\microsoft.netcore.app.crossgen2.win-x64\\8.0.20\\microsoft.netcore.app.crossgen2.win-x64.8.0.20.nupkg.sha512",
-    "C:\\Users\\deosa\\.nuget\\packages\\microsoft.netcore.app.host.linux-x64\\8.0.20\\microsoft.netcore.app.host.linux-x64.8.0.20.nupkg.sha512"
+    "C:\\Users\\deosa\\.nuget\\packages\\microsoft.netcore.app.crossgen2.win-x64\\8.0.20\\microsoft.netcore.app.crossgen2.win-x64.8.0.20.nupkg.sha512"
   ],
   "logs": []
 }

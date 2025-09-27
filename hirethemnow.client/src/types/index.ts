@@ -3,12 +3,15 @@ export interface User {
   email: string;
   name: string;
   role: 'employer' | 'candidate';
-  avatar?: string;
-  dateOfBirth?: Date;
-  skills?: string[];
+  picture?: string;
+  phone?: string;
+  location?: string;
+  bio?: string;
+  skills: string[];
   resumeUrl?: string;
-  onboardingCompleted?: boolean;
+  isCompleted: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Job {
@@ -33,10 +36,13 @@ export interface Application {
   id: string;
   jobId: string;
   candidateId: string;
-  status: 'pending' | 'reviewed' | 'interview' | 'offered' | 'rejected';
+  status: 'Applied' | 'Reviewing' | 'Interview' | 'Accepted' | 'Rejected';
   coverLetter?: string;
   resumeUrl?: string;
-  appliedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  job?: Job;
+  candidate?: User;
 }
 
 export interface ApiResponse<T> {
@@ -53,12 +59,35 @@ export interface OnboardingData {
 
 export interface MailboxMessage {
   id: string;
-  from: string;
+  type: 'sent' | 'received';
   subject: string;
   content: string;
-  jobTitle?: string;
-  company?: string;
-  receivedAt: Date;
-  read: boolean;
-  type: 'reply' | 'interview_invitation' | 'rejection' | 'offer';
+  fromEmail: string;
+  toEmail: string;
+  company: string;
+  contactName: string;
+  sentAt?: Date;
+  receivedAt?: Date;
+  status: string;
+
+  // AI Analysis results for badges
+  hasAnalysis: boolean;
+  sentiment: string; // "Positive", "Negative", "Interview", "Neutral"
+  emailType: string;
+  hasInterviewInvitation: boolean;
+  isRejection: boolean;
+  isPositiveResponse: boolean;
+  interviewDate?: Date;
+  interviewDetails?: string;
+  nextSteps?: string;
+}
+
+export interface MailboxStats {
+  totalSent: number;
+  totalReplies: number;
+  totalOpened: number;
+  interviewInvitations: number;
+  rejections: number;
+  positiveResponses: number;
+  pendingResponses: number;
 }
