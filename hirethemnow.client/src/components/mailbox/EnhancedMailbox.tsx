@@ -14,7 +14,9 @@ const EnhancedMailbox: React.FC = () => {
 
   useEffect(() => {
     loadMailboxData();
-    checkResumeStatus();
+    // Temporarily disable resume checking until backend is deployed
+    // checkResumeStatus();
+    setHasResume(true); // Assume user has resume for now
   }, []);
 
   const loadMailboxData = async () => {

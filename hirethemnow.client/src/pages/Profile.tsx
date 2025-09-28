@@ -16,7 +16,19 @@ const Profile: React.FC = () => {
   const [resumeLoading, setResumeLoading] = useState(true);
 
   useEffect(() => {
-    loadResumeData();
+    // Temporarily disable resume loading until backend is deployed
+    // loadResumeData();
+    setResumeLoading(false);
+    // Mock resume data for now
+    setResumeData({
+      id: '1',
+      userId: 'user1',
+      resumeFileName: 'resume.pdf',
+      resumeFilePath: 'path/to/resume.pdf',
+      analysisStatus: 'uploaded',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
   }, []);
 
   const loadResumeData = async () => {
