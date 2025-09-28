@@ -170,39 +170,25 @@ const EnhancedMailbox: React.FC = () => {
 
         {/* Resume Warning Banner */}
         {hasResume === false && (
-          <div className="mb-8 bg-warning-50 border border-warning-200 rounded-xl p-6">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-6 w-6 text-warning-600" />
-              </div>
+          <div className="mb-6 bg-warning-50 border border-warning-200 rounded-lg p-4">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="h-5 w-5 text-warning-600 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-warning-800 mb-2">
-                  Resume Required to Continue
-                </h3>
-                <p className="text-warning-700 mb-4">
-                  You need to upload your resume before you can start receiving job opportunities and email campaigns.
-                  Your resume helps our AI personalize outreach messages and match you with relevant positions.
+                <p className="text-sm text-warning-800">
+                  <span className="font-medium">Resume required:</span> Upload your resume to start receiving job opportunities.
                 </p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => window.location.href = '/onboarding'}
-                    className="inline-flex items-center px-4 py-2 bg-warning-600 text-white font-semibold rounded-lg hover:bg-warning-700 transition-colors duration-200"
-                  >
-                    Upload Resume Now
-                  </button>
-                  <button
-                    onClick={() => window.location.href = '/dashboard/resume'}
-                    className="inline-flex items-center px-4 py-2 border border-warning-300 text-warning-700 font-semibold rounded-lg hover:bg-warning-100 transition-colors duration-200"
-                  >
-                    View Resume Page
-                  </button>
-                </div>
               </div>
               <button
-                onClick={() => setHasResume(null)}
-                className="flex-shrink-0 p-1 text-warning-400 hover:text-warning-600 transition-colors duration-200"
+                onClick={() => window.location.href = '/onboarding'}
+                className="px-3 py-1.5 bg-warning-600 text-white text-sm font-medium rounded hover:bg-warning-700 transition-colors duration-200"
               >
-                <XCircle className="h-5 w-5" />
+                Upload
+              </button>
+              <button
+                onClick={() => setHasResume(null)}
+                className="p-1 text-warning-400 hover:text-warning-600 transition-colors duration-200"
+              >
+                <XCircle className="h-4 w-4" />
               </button>
             </div>
           </div>
