@@ -56,9 +56,17 @@ const EnhancedMailbox: React.FC = () => {
 
   const checkResumeStatus = async () => {
     try {
+      console.log('🔍 [MAILBOX] Checking resume status...');
       const response = await resumeAPI.getResumeAnalysis();
-      setHasResume(response.success && response.data !== null);
-    } catch {
+      console.log('📄 [MAILBOX] Resume API Response:', response);
+      console.log('📄 [MAILBOX] Response success:', response.success);
+      console.log('📄 [MAILBOX] Response data:', response.data);
+
+      const hasResumeData = response.success && response.data !== null;
+      console.log('✅ [MAILBOX] Setting hasResume to:', hasResumeData);
+      setHasResume(hasResumeData);
+    } catch (error) {
+      console.error('💥 [MAILBOX] Error checking resume:', error);
       setHasResume(false);
     }
   };
@@ -180,21 +188,43 @@ const EnhancedMailbox: React.FC = () => {
               </div>
               <button
                 onClick={() => {
+                  console.log('🎯 [MAILBOX] Upload button clicked');
                   const input = document.createElement('input');
                   input.type = 'file';
                   input.accept = '.pdf,.doc,.docx';
                   input.onchange = async (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
+                    console.log('📁 [MAILBOX] File selected:', file?.name);
                     if (file) {
+                      // Validate file type
+                      const allowedTypes = ['.pdf', '.doc', '.docx'];
+                      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+                      if (!allowedTypes.includes(fileExtension)) {
+                        alert('Please upload a PDF or Word document (.pdf, .doc, .docx)');
+                        return;
+                      }
+
+                      // Validate file size (2MB max)
+                      if (file.size > 2 * 1024 * 1024) {
+                        alert('File size must be less than 2MB');
+                        return;
+                      }
+
                       try {
+                        console.log('📤 [MAILBOX] Starting upload...');
                         const result = await resumeAPI.uploadResume(file);
+                        console.log('📤 [MAILBOX] Upload result:', result);
                         if (result.success) {
+                          console.log('✅ [MAILBOX] Upload successful, updating state');
                           setHasResume(true);
-                          window.location.reload();
+                          // Instead of reload, just refresh the resume check
+                          await checkResumeStatus();
                         } else {
+                          console.error('❌ [MAILBOX] Upload failed:', result.message);
                           alert('Upload failed: ' + result.message);
                         }
                       } catch (error) {
+                        console.error('💥 [MAILBOX] Upload error:', error);
                         alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
                       }
                     }
