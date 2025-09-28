@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { User, Mail, Code, FileText, Camera, Save } from 'lucide-react';
+import { resumeAPI } from '../services/api';
+import type { ResumeAnalysis } from '../types';
+import { User, Mail, Code, FileText, Camera, Save, Upload, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -10,6 +12,65 @@ const Profile: React.FC = () => {
     email: user?.email || '',
     skills: user?.skills || [],
   });
+  const [resumeData, setResumeData] = useState<ResumeAnalysis | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(true);
+
+  useEffect(() => {
+    loadResumeData();
+  }, []);
+
+  const loadResumeData = async () => {
+    try {
+      setResumeLoading(true);
+      const response = await resumeAPI.getResumeAnalysis();
+      if (response.success) {
+        setResumeData(response.data || null);
+      } else {
+        setResumeData(null);
+      }
+    } catch {
+      setResumeData(null);
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+
+  const formatDate = (date?: Date | string) => {
+    if (!date) return 'Unknown';
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'uploaded':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-success-100 text-success-800 border border-success-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Uploaded
+          </span>
+        );
+      case 'processing':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-warning-100 text-warning-800 border border-warning-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Processing
+          </span>
+        );
+      case 'analyzed':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-100 text-primary-800 border border-primary-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Analyzed
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -193,25 +254,61 @@ const Profile: React.FC = () => {
                 <FileText className="w-5 h-5 mr-2" />
                 Resume
               </h3>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                {user?.resumeUrl ? (
-                  <div>
-                    <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600">Resume uploaded</p>
-                    <button className="mt-2 text-sm text-blue-600 hover:text-blue-800">
-                      View Resume
+
+              {resumeLoading ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="animate-pulse flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : resumeData ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-primary-100 rounded-lg">
+                        <FileText className="h-6 w-6 text-primary-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">{resumeData.resumeFileName}</h4>
+                        <p className="text-xs text-gray-500">Uploaded on {formatDate(resumeData.createdAt)}</p>
+                        {resumeData.analysisStatus && (
+                          <div className="mt-1">
+                            {getStatusBadge(resumeData.analysisStatus)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => window.location.href = '/onboarding'}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-1" />
+                      Update
                     </button>
                   </div>
-                ) : (
-                  <div>
-                    <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600">No resume uploaded</p>
-                    <button className="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-warning-300 bg-warning-50 rounded-lg p-6">
+                  <div className="text-center">
+                    <AlertCircle className="mx-auto h-8 w-8 text-warning-600 mb-3" />
+                    <h4 className="text-sm font-medium text-warning-800 mb-2">Resume Required</h4>
+                    <p className="text-xs text-warning-700 mb-4">
+                      Upload your resume to start receiving job opportunities and enable automated applications.
+                    </p>
+                    <button
+                      onClick={() => window.location.href = '/onboarding'}
+                      className="inline-flex items-center px-4 py-2 bg-warning-600 text-white text-sm font-medium rounded-lg hover:bg-warning-700 transition-colors duration-200"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
                       Upload Resume
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

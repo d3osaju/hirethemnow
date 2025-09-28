@@ -13,7 +13,6 @@ import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
-import Resume from './pages/Resume';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -101,7 +100,6 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="jobs" element={<JobList />} />
-            <Route path="resume" element={<Resume />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
