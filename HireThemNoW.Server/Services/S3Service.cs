@@ -111,4 +111,34 @@ public class S3Service : IS3Service
             throw;
         }
     }
+
+    public async Task<Stream> DownloadFileAsync(string fileKey)
+    {
+        try
+        {
+            var request = new GetObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = fileKey
+            };
+
+            var response = await _s3Client.GetObjectAsync(request);
+
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            {
+                _logger.LogInformation("Successfully downloaded file with key {FileKey} from S3", fileKey);
+                return response.ResponseStream;
+            }
+            else
+            {
+                _logger.LogError("Failed to download file with key {FileKey} from S3. Status: {StatusCode}", fileKey, response.HttpStatusCode);
+                throw new Exception($"Failed to download file from S3. Status: {response.HttpStatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading file with key {FileKey} from S3", fileKey);
+            throw;
+        }
+    }
 }

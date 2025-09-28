@@ -13,6 +13,9 @@ builder.Services.AddControllers();
 // Add data service
 builder.Services.AddSingleton<IDataService, InMemoryDataService>();
 
+// Add email analytics service
+builder.Services.AddScoped<IEmailAnalyticsService, EmailAnalyticsService>();
+
 // Add AWS Services
 builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddScoped<IS3Service, S3Service>();

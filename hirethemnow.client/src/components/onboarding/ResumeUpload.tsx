@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, Zap, RefreshCw } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, Zap, RefreshCw, Download } from 'lucide-react';
 import { resumeAPI } from '../../services/api';
 import type { ResumeAnalysis } from '../../types';
 
@@ -23,21 +23,16 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const checkExistingResume = async () => {
     try {
       setLoadingExisting(true);
-      console.log('🔍 [ONBOARDING] Checking for existing resume...');
       const response = await resumeAPI.getResumeAnalysis();
-      console.log('📄 [ONBOARDING] Resume API Response:', response);
 
       if (response.success && response.data) {
-        console.log('✅ [ONBOARDING] Existing resume found:', response.data);
         setExistingResume(response.data);
         setIsUpdate(true);
       } else {
-        console.log('❌ [ONBOARDING] No existing resume found');
         setExistingResume(null);
         setIsUpdate(false);
       }
-    } catch (error) {
-      console.error('💥 [ONBOARDING] Error checking existing resume:', error);
+    } catch {
       setExistingResume(null);
       setIsUpdate(false);
     } finally {
@@ -55,18 +50,13 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('DEBUG: File selection triggered', event.target.files);
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      console.log('DEBUG: File selected:', selectedFile.name, 'Size:', selectedFile.size, 'Type:', selectedFile.type);
-
       // Validate file type
       const allowedTypes = ['.pdf', '.doc', '.docx'];
       const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'));
-      console.log('DEBUG: File extension:', fileExtension);
 
       if (!allowedTypes.includes(fileExtension)) {
-        console.log('DEBUG: File type validation failed');
         setErrorMessage('Please upload a PDF or Word document (.pdf, .doc, .docx)');
         setUploadStatus('error');
         return;
@@ -74,54 +64,50 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
       // Validate file size (2MB max)
       if (selectedFile.size > 2 * 1024 * 1024) {
-        console.log('DEBUG: File size validation failed:', selectedFile.size);
         setErrorMessage('File size must be less than 2MB');
         setUploadStatus('error');
         return;
       }
 
-      console.log('DEBUG: File validation passed, setting file state');
       setFile(selectedFile);
       setUploadStatus('idle');
       setErrorMessage('');
-    } else {
-      console.log('DEBUG: No file selected');
     }
   };
 
   const handleUpload = async () => {
-    console.log('DEBUG: Upload button clicked, file state:', file);
     if (!file) {
-      console.log('DEBUG: No file to upload, returning early');
       return;
     }
 
-    console.log('DEBUG: Starting upload process');
     setUploading(true);
     setUploadStatus('uploading');
 
     try {
-      console.log('DEBUG: Calling resumeAPI.uploadResume with file:', file.name);
       const result = await resumeAPI.uploadResume(file);
-      console.log('DEBUG: Upload API response:', result);
 
       if (result.success) {
-        console.log('DEBUG: Upload successful');
         setUploadStatus('success');
         setTimeout(() => {
           onUploadComplete();
         }, 2000);
       } else {
-        console.log('DEBUG: Upload failed:', result.message);
         setErrorMessage(result.message || 'Upload failed');
         setUploadStatus('error');
       }
     } catch (error: unknown) {
-      console.log('DEBUG: Upload error caught:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Network error. Please try again.');
       setUploadStatus('error');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDownloadResume = async () => {
+    try {
+      await resumeAPI.downloadResume();
+    } catch {
+      alert('Failed to download resume. Please try again.');
     }
   };
 
@@ -151,7 +137,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
     }
   };
 
-  console.log('DEBUG: Component render - file:', file?.name, 'uploadStatus:', uploadStatus);
 
   if (loadingExisting) {
     return (
@@ -187,15 +172,24 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       {/* Existing Resume Info */}
       {isUpdate && existingResume && (
         <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-center space-x-4">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">Current Resume</h3>
+                <p className="text-lg font-semibold text-blue-800">{existingResume.resumeFileName}</p>
+                <p className="text-sm text-blue-600">Uploaded on {formatDate(existingResume.createdAt)}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">Current Resume</h3>
-              <p className="text-lg font-semibold text-blue-800">{existingResume.resumeFileName}</p>
-              <p className="text-sm text-blue-600">Uploaded on {formatDate(existingResume.createdAt)}</p>
-            </div>
+            <button
+              onClick={handleDownloadResume}
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Download
+            </button>
           </div>
         </div>
       )}
@@ -236,7 +230,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
             {uploadStatus !== 'success' && (
               <button
                 onClick={() => {
-                  console.log('DEBUG: Choose different file clicked');
                   setFile(null);
                   setUploadStatus('idle');
                   setErrorMessage('');
@@ -267,8 +260,7 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       {file && uploadStatus !== 'success' && (
         <div className="mt-8">
           <button
-            onClick={(e) => {
-              console.log('DEBUG: Upload button click event:', e);
+            onClick={() => {
               handleUpload();
             }}
             disabled={uploading}

@@ -18,11 +18,7 @@ api.interceptors.request.use((requestConfig) => {
     requestConfig.headers.Authorization = `Bearer ${token}`;
   }
 
-  logger.debug('API Request:', {
-    method: requestConfig.method,
-    url: requestConfig.url,
-    baseURL: requestConfig.baseURL,
-  });
+  logger.debug();
 
   return requestConfig;
 });
@@ -30,18 +26,11 @@ api.interceptors.request.use((requestConfig) => {
 // Response interceptor for error handling and logging
 api.interceptors.response.use(
   (response) => {
-    logger.debug('API Response:', {
-      status: response.status,
-      url: response.config.url,
-    });
+    logger.debug();
     return response;
   },
   (error) => {
-    logger.error('API Error:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.message,
-    });
+    logger.error();
 
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
@@ -64,25 +53,8 @@ export const authAPI = {
   },
 
   googleAuth: async (token: string): Promise<ApiResponse<{ user: User; token: string }>> => {
-    console.log('🚀 API Service: Calling Google auth endpoint');
-    console.log('📍 URL:', `${API_BASE_URL}/auth/google`);
-    console.log('📦 Payload:', { token: token.substring(0, 50) + '...' });
-
-    try {
-      const response = await api.post('/auth/google', { token });
-      console.log('✅ API Response Status:', response.status);
-      console.log('📄 API Response Data:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('❌ API Error:', error);
-      console.error('📊 API Error Details:', {
-        status: (error as { response?: { status?: number } })?.response?.status,
-        statusText: (error as { response?: { statusText?: string } })?.response?.statusText,
-        data: (error as { response?: { data?: unknown } })?.response?.data,
-        url: (error as { config?: { url?: string } })?.config?.url
-      });
-      throw error;
-    }
+    const response = await api.post('/auth/google', { token });
+    return response.data;
   },
 
   logout: async (): Promise<void> => {
@@ -105,7 +77,7 @@ export const jobsAPI = {
     } catch (error) {
       // Fallback to mock data for local development
       if (config.enableMockData) {
-        logger.info('Using mock data for jobs');
+        logger.info();
         return getMockJobs();
       }
       throw error;
@@ -168,6 +140,34 @@ export const resumeAPI = {
   getResumeAnalysis: async (): Promise<ApiResponse<ResumeAnalysis>> => {
     const response = await api.get('/resume/analysis');
     return response.data;
+  },
+
+  downloadResume: async (): Promise<void> => {
+    const response = await api.get('/resume/download', {
+      responseType: 'blob',
+    });
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'resume.pdf';
+
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 };
 

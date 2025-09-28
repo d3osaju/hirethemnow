@@ -13,6 +13,8 @@ public class InMemoryDataService : IDataService
     private readonly ConcurrentDictionary<string, ColdEmailCampaign> _coldEmailCampaigns = new();
     private readonly ConcurrentDictionary<string, ColdEmailOutreach> _coldEmailOutreaches = new();
     private readonly ConcurrentDictionary<string, EmailAnalysis> _emailAnalyses = new();
+    private readonly ConcurrentDictionary<string, EmailSent> _emailsSent = new();
+    private readonly ConcurrentDictionary<string, EmailReceived> _emailsReceived = new();
 
     public InMemoryDataService()
     {
@@ -511,5 +513,87 @@ public class InMemoryDataService : IDataService
             .ToList();
 
         return Task.FromResult(userEmails);
+    }
+
+    // Email Sent Methods
+    public Task<List<EmailSent>> GetEmailsSentAsync(string? userId = null, string? campaignId = null)
+    {
+        var emails = _emailsSent.Values.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(userId))
+            emails = emails.Where(e => e.UserId == userId);
+
+        if (!string.IsNullOrEmpty(campaignId))
+            emails = emails.Where(e => e.CampaignId == campaignId);
+
+        return Task.FromResult(emails.OrderByDescending(e => e.DateSent).ToList());
+    }
+
+    public Task<EmailSent?> GetEmailSentAsync(string id)
+    {
+        _emailsSent.TryGetValue(id, out var email);
+        return Task.FromResult(email);
+    }
+
+    public Task<EmailSent> CreateEmailSentAsync(EmailSent emailSent)
+    {
+        emailSent.Id = Guid.NewGuid().ToString();
+        emailSent.CreatedAt = DateTime.UtcNow;
+        emailSent.UpdatedAt = DateTime.UtcNow;
+        _emailsSent.TryAdd(emailSent.Id, emailSent);
+        return Task.FromResult(emailSent);
+    }
+
+    public Task<EmailSent> UpdateEmailSentAsync(EmailSent emailSent)
+    {
+        emailSent.UpdatedAt = DateTime.UtcNow;
+        _emailsSent.AddOrUpdate(emailSent.Id, emailSent, (key, existing) => emailSent);
+        return Task.FromResult(emailSent);
+    }
+
+    public Task<bool> DeleteEmailSentAsync(string id)
+    {
+        return Task.FromResult(_emailsSent.TryRemove(id, out _));
+    }
+
+    // Email Received Methods
+    public Task<List<EmailReceived>> GetEmailsReceivedAsync(string? userId = null, string? originalEmailId = null)
+    {
+        var emails = _emailsReceived.Values.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(userId))
+            emails = emails.Where(e => e.UserId == userId);
+
+        if (!string.IsNullOrEmpty(originalEmailId))
+            emails = emails.Where(e => e.OriginalEmailId == originalEmailId);
+
+        return Task.FromResult(emails.OrderByDescending(e => e.DateReceived).ToList());
+    }
+
+    public Task<EmailReceived?> GetEmailReceivedAsync(string id)
+    {
+        _emailsReceived.TryGetValue(id, out var email);
+        return Task.FromResult(email);
+    }
+
+    public Task<EmailReceived> CreateEmailReceivedAsync(EmailReceived emailReceived)
+    {
+        emailReceived.Id = Guid.NewGuid().ToString();
+        emailReceived.CreatedAt = DateTime.UtcNow;
+        emailReceived.UpdatedAt = DateTime.UtcNow;
+        _emailsReceived.TryAdd(emailReceived.Id, emailReceived);
+        return Task.FromResult(emailReceived);
+    }
+
+    public Task<EmailReceived> UpdateEmailReceivedAsync(EmailReceived emailReceived)
+    {
+        emailReceived.UpdatedAt = DateTime.UtcNow;
+        _emailsReceived.AddOrUpdate(emailReceived.Id, emailReceived, (key, existing) => emailReceived);
+        return Task.FromResult(emailReceived);
+    }
+
+    public Task<bool> DeleteEmailReceivedAsync(string id)
+    {
+        return Task.FromResult(_emailsReceived.TryRemove(id, out _));
     }
 }

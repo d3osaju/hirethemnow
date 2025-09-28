@@ -1,0 +1,27 @@
+{
+  "testEmailSent": {
+    "toEmail": "hr@testcompany.com",
+    "fromEmail": "user@hirethemnow.com",
+    "subject": "Application for Software Developer Position",
+    "emailContentHtml": "<p>Dear Hiring Manager,</p><p>I am writing to express my interest in the Software Developer position...</p>",
+    "emailContentText": "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Developer position...",
+    "status": "sent",
+    "campaignId": "test-campaign-1",
+    "hrContactId": "hr-1",
+    "jobId": "job-1"
+  },
+  "testEmailReceived": {
+    "fromEmail": "hr@testcompany.com",
+    "toEmail": "user@hirethemnow.com",
+    "subject": "Re: Application for Software Developer Position",
+    "emailContentHtml": "<p>Thank you for your application. We would like to schedule an interview...</p>",
+    "emailContentText": "Thank you for your application. We would like to schedule an interview...",
+    "status": "approved",
+    "replyType": "interview_invitation",
+    "isPositiveResponse": true,
+    "hasInterviewInvitation": true,
+    "originalEmailId": "will-be-set-after-creating-sent-email",
+    "campaignId": "test-campaign-1",
+    "hrContactId": "hr-1"
+  }
+}

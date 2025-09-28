@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { resumeAPI } from '../services/api';
 import type { ResumeAnalysis } from '../types';
-import { User, Mail, Code, FileText, Camera, Save, Upload, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { User, Mail, Code, FileText, Camera, Save, Upload, CheckCircle, AlertCircle, RefreshCw, Download } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -34,19 +34,14 @@ const Profile: React.FC = () => {
   const loadResumeData = async () => {
     try {
       setResumeLoading(true);
-      console.log('🔍 Loading resume data...');
       const response = await resumeAPI.getResumeAnalysis();
-      console.log('📄 Resume API Response:', response);
 
       if (response.success) {
-        console.log('✅ Resume found:', response.data);
         setResumeData(response.data || null);
       } else {
-        console.log('❌ Resume API failed:', response.message);
         setResumeData(null);
       }
-    } catch (error) {
-      console.error('💥 Resume API error:', error);
+    } catch {
       setResumeData(null);
     } finally {
       setResumeLoading(false);
@@ -107,7 +102,6 @@ const Profile: React.FC = () => {
 
   const handleSave = () => {
     // TODO: Save profile data to backend
-    console.log('Saving profile:', formData);
     setEditing(false);
   };
 
@@ -118,6 +112,14 @@ const Profile: React.FC = () => {
       skills: user?.skills || [],
     });
     setEditing(false);
+  };
+
+  const handleDownloadResume = async () => {
+    try {
+      await resumeAPI.downloadResume();
+    } catch {
+      alert('Failed to download resume. Please try again.');
+    }
   };
 
   return (
@@ -300,33 +302,42 @@ const Profile: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = '.pdf,.doc,.docx';
-                        input.onchange = async (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            try {
-                              const result = await resumeAPI.uploadResume(file);
-                              if (result.success) {
-                                await loadResumeData(); // Reload the resume data
-                              } else {
-                                alert('Upload failed: ' + result.message);
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleDownloadResume}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        Download
+                      </button>
+                      <button
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.pdf,.doc,.docx';
+                          input.onchange = async (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              try {
+                                const result = await resumeAPI.uploadResume(file);
+                                if (result.success) {
+                                  await loadResumeData(); // Reload the resume data
+                                } else {
+                                  alert('Upload failed: ' + result.message);
+                                }
+                              } catch (error) {
+                                alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
                               }
-                            } catch (error) {
-                              alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
                             }
-                          }
-                        };
-                        input.click();
-                      }}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-1" />
-                      Update
-                    </button>
+                          };
+                          input.click();
+                        }}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Update
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (

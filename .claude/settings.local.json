@@ -12,7 +12,10 @@
       "Bash(docker-compose build:*)",
       "Bash(docker-compose up:*)",
       "Bash(docker-compose:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(npm run build:*)",
+      "Bash(aws s3 sync:*)",
+      "Bash(dotnet build)"
     ],
     "deny": [],
     "ask": []

@@ -64,4 +64,18 @@ public interface IDataService
 
     // Mailbox - Get emails for user dashboard
     Task<List<ColdEmailOutreach>> GetUserEmailsAsync(string userId);
+
+    // Email Sent
+    Task<List<EmailSent>> GetEmailsSentAsync(string? userId = null, string? campaignId = null);
+    Task<EmailSent?> GetEmailSentAsync(string id);
+    Task<EmailSent> CreateEmailSentAsync(EmailSent emailSent);
+    Task<EmailSent> UpdateEmailSentAsync(EmailSent emailSent);
+    Task<bool> DeleteEmailSentAsync(string id);
+
+    // Email Received
+    Task<List<EmailReceived>> GetEmailsReceivedAsync(string? userId = null, string? originalEmailId = null);
+    Task<EmailReceived?> GetEmailReceivedAsync(string id);
+    Task<EmailReceived> CreateEmailReceivedAsync(EmailReceived emailReceived);
+    Task<EmailReceived> UpdateEmailReceivedAsync(EmailReceived emailReceived);
+    Task<bool> DeleteEmailReceivedAsync(string id);
 }

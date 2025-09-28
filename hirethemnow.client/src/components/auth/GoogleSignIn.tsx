@@ -43,16 +43,12 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
           client_id: config.googleClientId,
           callback: async (response) => {
             try {
-              console.log('Google login successful, calling backend...');
-
               // Call the backend with the Google token
               await googleLogin(response.credential);
-              console.log('Backend login successful, calling onSuccess...');
 
               // Call onSuccess callback to trigger navigation
               onSuccess?.();
             } catch (error) {
-              console.error('Google Sign-In error:', error);
 
               // Get more specific error message
               let errorMessage = 'Google Sign-In failed. Please try again.';

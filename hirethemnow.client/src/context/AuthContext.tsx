@@ -55,35 +55,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const googleLogin = async (token: string) => {
     try {
-      console.log('🔑 Starting Google OAuth flow...');
-      console.log('📤 Sending token to backend:', token.substring(0, 50) + '...');
-      console.log('🌐 API URL:', authAPI.googleAuth.toString());
-
       const response = await authAPI.googleAuth(token);
-      console.log('📥 Backend response received:', response);
-      console.log('✅ Response success:', response?.success);
-      console.log('📄 Response data:', response?.data);
 
       if (response && response.success) {
-        console.log('🎉 Google authentication successful!');
-        console.log('👤 User data:', response.data.user);
-        console.log('🔐 JWT token received:', response.data.token.substring(0, 50) + '...');
-
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
       } else {
-        console.error('❌ Backend returned unsuccessful response:', response);
         throw new Error(`Backend error: ${response?.message || 'Unknown error'}`);
       }
-    } catch (error) {
-      console.error('💥 GoogleLogin error in AuthContext:', error);
-      console.error('📊 Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        response: (error as { response?: { data?: unknown } })?.response?.data
-      });
+    } catch {
       throw new Error('Google login failed');
     }
   };

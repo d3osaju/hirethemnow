@@ -165,4 +165,70 @@ public class ResumeController : ControllerBase
             });
         }
     }
+
+    [HttpGet("download")]
+    [Authorize]
+    public async Task<IActionResult> DownloadResume()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "User not authenticated"
+                });
+            }
+
+            var analysis = await _dataService.GetResumeAnalysisByUserIdAsync(userId);
+            if (analysis == null)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "No resume found"
+                });
+            }
+
+            // Download file from S3
+            try
+            {
+                var fileStream = await _s3Service.DownloadFileAsync(analysis.ResumeFilePath);
+
+                // Determine content type based on file extension
+                var fileExtension = Path.GetExtension(analysis.ResumeFileName).ToLower();
+                var contentType = fileExtension switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".doc" => "application/msword",
+                    ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    _ => "application/octet-stream"
+                };
+
+                return File(fileStream, contentType, analysis.ResumeFileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to download resume from S3 for user {UserId}", userId);
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Failed to download resume. Please try again.",
+                    Errors = new List<string> { "Storage download failed" }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading resume");
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "An error occurred while downloading the resume",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
 }

@@ -33,7 +33,6 @@ const Settings: React.FC = () => {
 
   const handleSave = () => {
     // Save settings logic would go here
-    console.log('Settings saved');
   };
 
   const renderProfileSettings = () => (

@@ -65,24 +65,18 @@ export const config = getEnvironmentConfig();
 export const isDevelopment = config.environment === 'development';
 export const isProduction = config.environment === 'production';
 
-// Logger utility
+// Logger utility - disabled for production
 export const logger = {
-  debug: (...args: unknown[]) => {
-    if (config.logLevel === 'debug' && config.enableDebug) {
-      console.log('[DEBUG]', ...args);
-    }
+  debug: () => {
+    // Logging disabled
   },
-  info: (...args: unknown[]) => {
-    if (['debug', 'info'].includes(config.logLevel)) {
-      console.info('[INFO]', ...args);
-    }
+  info: () => {
+    // Logging disabled
   },
-  warn: (...args: unknown[]) => {
-    if (['debug', 'info', 'warn'].includes(config.logLevel)) {
-      console.warn('[WARN]', ...args);
-    }
+  warn: () => {
+    // Logging disabled
   },
-  error: (...args: unknown[]) => {
-    console.error('[ERROR]', ...args);
+  error: () => {
+    // Logging disabled
   },
 };
