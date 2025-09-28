@@ -142,6 +142,27 @@ Resources:
             Action: s3:GetObject
             Resource: !Sub '${FrontendBucket.Arn}/*'
 
+  # S3 Bucket for Resume Storage
+  ResumesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: hirethemnow-resumes
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
   # CloudFront Distribution with custom domain support
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -357,6 +378,22 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3ResumeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                Resource: !Sub '${ResumesBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Ref ResumesBucket
 
   # CloudWatch Log Group
   CloudWatchLogGroup:
@@ -383,6 +420,12 @@ Outputs:
     Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
     Export:
       Name: !Sub '${AWS::StackName}-ecr-repository'
+
+  S3ResumesBucket:
+    Description: S3 Bucket for Resume Storage
+    Value: !Ref ResumesBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-resumes-bucket'
 
   S3FrontendBucket:
     Description: S3 Bucket for Frontend
