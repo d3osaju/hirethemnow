@@ -289,7 +289,27 @@ const Profile: React.FC = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => window.location.href = '/onboarding'}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.doc,.docx';
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            try {
+                              const result = await resumeAPI.uploadResume(file);
+                              if (result.success) {
+                                await loadResumeData(); // Reload the resume data
+                              } else {
+                                alert('Upload failed: ' + result.message);
+                              }
+                            } catch (error) {
+                              alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                            }
+                          }
+                        };
+                        input.click();
+                      }}
                       className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200"
                     >
                       <RefreshCw className="w-4 h-4 mr-1" />
@@ -306,7 +326,27 @@ const Profile: React.FC = () => {
                       Upload your resume to start receiving job opportunities and enable automated applications.
                     </p>
                     <button
-                      onClick={() => window.location.href = '/onboarding'}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.doc,.docx';
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            try {
+                              const result = await resumeAPI.uploadResume(file);
+                              if (result.success) {
+                                await loadResumeData(); // Reload the resume data
+                              } else {
+                                alert('Upload failed: ' + result.message);
+                              }
+                            } catch (error) {
+                              alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                            }
+                          }
+                        };
+                        input.click();
+                      }}
                       className="inline-flex items-center px-4 py-2 bg-warning-600 text-white text-sm font-medium rounded-lg hover:bg-warning-700 transition-colors duration-200"
                     >
                       <Upload className="w-4 h-4 mr-2" />

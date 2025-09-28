@@ -179,7 +179,28 @@ const EnhancedMailbox: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={() => window.location.href = '/onboarding'}
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.pdf,.doc,.docx';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      try {
+                        const result = await resumeAPI.uploadResume(file);
+                        if (result.success) {
+                          setHasResume(true);
+                          window.location.reload();
+                        } else {
+                          alert('Upload failed: ' + result.message);
+                        }
+                      } catch (error) {
+                        alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                      }
+                    }
+                  };
+                  input.click();
+                }}
                 className="px-3 py-1.5 bg-warning-600 text-white text-sm font-medium rounded hover:bg-warning-700 transition-colors duration-200"
               >
                 Upload
