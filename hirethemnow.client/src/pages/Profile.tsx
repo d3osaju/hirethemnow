@@ -36,8 +36,13 @@ const Profile: React.FC = () => {
       setResumeLoading(true);
       const response = await resumeAPI.getResumeAnalysis();
 
-      if (response.success) {
-        setResumeData(response.data || null);
+      if (response.success && response.data) {
+        // Check if response.data is a ResumeAnalysis object or a status object
+        if ('id' in response.data && 'userId' in response.data) {
+          setResumeData(response.data as ResumeAnalysis);
+        } else {
+          setResumeData(null);
+        }
       } else {
         setResumeData(null);
       }

@@ -140,18 +140,35 @@ public class ResumeController : ControllerBase
             var analysis = await _dataService.GetResumeAnalysisByUserIdAsync(userId);
             if (analysis == null)
             {
-                return NotFound(new ApiResponse<ResumeAnalysis>
+                return Ok(new ApiResponse<object>
                 {
-                    Success = false,
-                    Message = "No resume analysis found"
+                    Success = true,
+                    Message = "No resume found",
+                    Data = new
+                    {
+                        hasResume = false,
+                        needsUpload = true,
+                        uploadEndpoint = "/api/resume/upload",
+                        supportedFormats = new[] { ".pdf", ".doc", ".docx" },
+                        maxFileSize = "2MB",
+                        message = "Please upload your resume to get started"
+                    }
                 });
             }
 
-            return Ok(new ApiResponse<ResumeAnalysis>
+            return Ok(new ApiResponse<object>
             {
                 Success = true,
                 Message = "Resume analysis retrieved successfully",
-                Data = analysis
+                Data = new
+                {
+                    hasResume = true,
+                    needsUpload = false,
+                    analysis = analysis,
+                    downloadEndpoint = "/api/resume/download",
+                    canReupload = true,
+                    message = "Resume found and analyzed"
+                }
             });
         }
         catch (Exception ex)
@@ -185,10 +202,20 @@ public class ResumeController : ControllerBase
             var analysis = await _dataService.GetResumeAnalysisByUserIdAsync(userId);
             if (analysis == null)
             {
-                return NotFound(new ApiResponse<object>
+                return Ok(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "No resume found"
+                    Message = "No resume available for download",
+                    Data = new
+                    {
+                        hasResume = false,
+                        needsUpload = true,
+                        uploadEndpoint = "/api/resume/upload",
+                        supportedFormats = new[] { ".pdf", ".doc", ".docx" },
+                        maxFileSize = "2MB",
+                        action = "upload_required",
+                        message = "Please upload your resume first to enable download"
+                    }
                 });
             }
 
@@ -227,6 +254,83 @@ public class ResumeController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while downloading the resume",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    [HttpGet("status")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> GetResumeStatus()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "User not authenticated"
+                });
+            }
+
+            var analysis = await _dataService.GetResumeAnalysisByUserIdAsync(userId);
+
+            if (analysis == null)
+            {
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "Resume status checked",
+                    Data = new
+                    {
+                        hasResume = false,
+                        needsUpload = true,
+                        status = "no_resume",
+                        uploadEndpoint = "/api/resume/upload",
+                        supportedFormats = new[] { ".pdf", ".doc", ".docx" },
+                        maxFileSize = "2MB",
+                        instructions = new[]
+                        {
+                            "Click 'Upload Resume' to get started",
+                            "Supported formats: PDF, DOC, DOCX",
+                            "Maximum file size: 2MB"
+                        }
+                    }
+                });
+            }
+
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Resume status checked",
+                Data = new
+                {
+                    hasResume = true,
+                    needsUpload = false,
+                    status = "resume_available",
+                    fileName = analysis.ResumeFileName,
+                    uploadedAt = analysis.AnalyzedAt,
+                    analysisStatus = analysis.AnalysisStatus,
+                    downloadEndpoint = "/api/resume/download",
+                    canReupload = true,
+                    actions = new[]
+                    {
+                        "View resume analysis",
+                        "Download resume file",
+                        "Upload new resume (replace current)"
+                    }
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking resume status");
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "An error occurred while checking resume status",
                 Errors = new List<string> { ex.Message }
             });
         }

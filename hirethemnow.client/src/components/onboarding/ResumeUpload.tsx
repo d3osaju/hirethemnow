@@ -26,8 +26,14 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
       const response = await resumeAPI.getResumeAnalysis();
 
       if (response.success && response.data) {
-        setExistingResume(response.data);
-        setIsUpdate(true);
+        // Check if response.data is a ResumeAnalysis object or a status object
+        if ('id' in response.data && 'userId' in response.data) {
+          setExistingResume(response.data as ResumeAnalysis);
+          setIsUpdate(true);
+        } else {
+          setExistingResume(null);
+          setIsUpdate(false);
+        }
       } else {
         setExistingResume(null);
         setIsUpdate(false);
