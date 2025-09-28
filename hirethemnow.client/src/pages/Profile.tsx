@@ -22,13 +22,19 @@ const Profile: React.FC = () => {
   const loadResumeData = async () => {
     try {
       setResumeLoading(true);
+      console.log('🔍 Loading resume data...');
       const response = await resumeAPI.getResumeAnalysis();
+      console.log('📄 Resume API Response:', response);
+
       if (response.success) {
+        console.log('✅ Resume found:', response.data);
         setResumeData(response.data || null);
       } else {
+        console.log('❌ Resume API failed:', response.message);
         setResumeData(null);
       }
-    } catch {
+    } catch (error) {
+      console.error('💥 Resume API error:', error);
       setResumeData(null);
     } finally {
       setResumeLoading(false);

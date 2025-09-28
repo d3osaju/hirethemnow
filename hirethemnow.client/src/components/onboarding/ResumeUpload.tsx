@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Star, Zap, RefreshCw } from 'lucide-react';
 import { resumeAPI } from '../../services/api';
+import type { ResumeAnalysis } from '../../types';
 
 interface ResumeUploadProps {
   onUploadComplete: () => void;
@@ -11,6 +12,47 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [existingResume, setExistingResume] = useState<ResumeAnalysis | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [isUpdate, setIsUpdate] = useState(false);
+
+  useEffect(() => {
+    checkExistingResume();
+  }, []);
+
+  const checkExistingResume = async () => {
+    try {
+      setLoadingExisting(true);
+      console.log('🔍 [ONBOARDING] Checking for existing resume...');
+      const response = await resumeAPI.getResumeAnalysis();
+      console.log('📄 [ONBOARDING] Resume API Response:', response);
+
+      if (response.success && response.data) {
+        console.log('✅ [ONBOARDING] Existing resume found:', response.data);
+        setExistingResume(response.data);
+        setIsUpdate(true);
+      } else {
+        console.log('❌ [ONBOARDING] No existing resume found');
+        setExistingResume(null);
+        setIsUpdate(false);
+      }
+    } catch (error) {
+      console.error('💥 [ONBOARDING] Error checking existing resume:', error);
+      setExistingResume(null);
+      setIsUpdate(false);
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+
+  const formatDate = (date?: Date | string) => {
+    if (!date) return 'Unknown';
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log('DEBUG: File selection triggered', event.target.files);
@@ -111,17 +153,52 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
 
   console.log('DEBUG: Component render - file:', file?.name, 'uploadStatus:', uploadStatus);
 
+  if (loadingExisting) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center p-3 bg-gray-100 rounded-full mb-6">
+            <Loader className="h-8 w-8 text-gray-700 animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
+          <p className="text-gray-600">Checking your existing resume...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-10">
         <div className="inline-flex items-center justify-center p-3 bg-gray-100 rounded-full mb-6">
-          <Zap className="h-8 w-8 text-gray-700" />
+          {isUpdate ? <RefreshCw className="h-8 w-8 text-gray-700" /> : <Zap className="h-8 w-8 text-gray-700" />}
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Upload Your Resume</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          {isUpdate ? 'Update Your Resume' : 'Upload Your Resume'}
+        </h2>
         <p className="text-lg text-gray-600 max-w-lg mx-auto">
-          Our AI will analyze your resume and automatically launch a personalized job hunting campaign
+          {isUpdate
+            ? 'Upload a new version of your resume to update your job hunting campaign'
+            : 'Our AI will analyze your resume and automatically launch a personalized job hunting campaign'
+          }
         </p>
       </div>
+
+      {/* Existing Resume Info */}
+      {isUpdate && existingResume && (
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center space-x-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <FileText className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-blue-900">Current Resume</h3>
+              <p className="text-lg font-semibold text-blue-800">{existingResume.resumeFileName}</p>
+              <p className="text-sm text-blue-600">Uploaded on {formatDate(existingResume.createdAt)}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-gradient-to-br from-gray-50 to-white hover:border-gray-400 transition-all duration-300">
@@ -208,8 +285,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUploadComplete }) => {
               </>
             ) : (
               <>
-                <Zap className="w-5 h-5 mr-3" />
-                Start AI Job Hunt
+                {isUpdate ? <RefreshCw className="w-5 h-5 mr-3" /> : <Zap className="w-5 h-5 mr-3" />}
+                {isUpdate ? 'Update Resume' : 'Start AI Job Hunt'}
               </>
             )}
           </button>
