@@ -18,6 +18,21 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public bool IsCompleted { get; set; } = false; // Onboarding completion status
+
+    // Trial/Subscription fields
+    public DateTime TrialStartDate { get; set; } = DateTime.UtcNow;
+    public DateTime TrialEndDate { get; set; } = DateTime.UtcNow.AddDays(7);
+    public bool IsTrialActive { get; set; } = true;
+    public bool HasSeenTrialEndMessage { get; set; } = false;
+    public bool HasActiveSubscription { get; set; } = false;
+
+    // Helper method to check if user has access
+    public bool HasAccess()
+    {
+        // User has access if trial is active OR subscription is active
+        var isTrialValid = IsTrialActive && DateTime.UtcNow < TrialEndDate;
+        return isTrialValid || HasActiveSubscription;
+    }
 }
 
 public class CreateUserRequest

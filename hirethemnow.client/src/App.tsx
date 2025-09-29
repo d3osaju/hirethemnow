@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import SubscriptionExpired from './pages/SubscriptionExpired';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -64,6 +65,7 @@ function App() {
                 </PublicRoute>
               }
             />
+            <Route path="subscription-expired" element={<SubscriptionExpired />} />
           </Route>
 
           {/* Onboarding - special case with no navigation */}

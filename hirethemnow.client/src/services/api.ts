@@ -170,6 +170,12 @@ export const emailPreferencesAPI = {
   },
 };
 
-
+// Trial API
+export const trialAPI = {
+  acknowledgeTrialEnd: async (): Promise<ApiResponse<void>> => {
+    const response = await api.post('/auth/trial/acknowledge');
+    return response.data;
+  },
+};
 
 export default api;

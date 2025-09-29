@@ -5,6 +5,7 @@ import { config } from '../../config/environment';
 interface GoogleSignInProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  onTrialExpired?: () => void;
 }
 
 declare global {
@@ -32,7 +33,7 @@ declare global {
   }
 }
 
-const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
+const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError, onTrialExpired }) => {
   const { googleLogin } = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +50,14 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
               // Call onSuccess callback to trigger navigation
               onSuccess?.();
             } catch (error) {
+              // Check if error is trial expired
+              if (error && typeof error === 'object' && 'response' in error) {
+                const err = error as { response?: { data?: { trialExpired?: boolean; message?: string } } };
+                if (err.response?.data?.trialExpired) {
+                  onTrialExpired?.();
+                  return;
+                }
+              }
 
               // Get more specific error message
               let errorMessage = 'Google Sign-In failed. Please try again.';
@@ -87,7 +96,7 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError }) => {
       };
       checkGoogle();
     }
-  }, [googleLogin, onSuccess, onError]);
+  }, [googleLogin, onSuccess, onError, onTrialExpired]);
 
   return (
     <div className="flex flex-col items-center space-y-4">

@@ -13,6 +13,12 @@ export interface User {
   experience?: string;
   resumeUrl?: string;
   isCompleted: boolean;
+  trialStartDate: Date;
+  trialEndDate: Date;
+  isTrialActive: boolean;
+  hasSeenTrialEndMessage: boolean;
+  hasActiveSubscription: boolean;
+  hasAccess: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -30,6 +30,12 @@ public class DatabaseDataService : IDataService
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
 
+        // Set 7-day free trial for all new users
+        user.TrialStartDate = DateTime.UtcNow;
+        user.TrialEndDate = DateTime.UtcNow.AddDays(7);
+        user.IsTrialActive = true;
+        user.HasSeenTrialEndMessage = false;
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
         return user;

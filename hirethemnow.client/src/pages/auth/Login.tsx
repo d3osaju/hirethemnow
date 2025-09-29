@@ -25,8 +25,18 @@ const Login: React.FC = () => {
     try {
       await login(email, password);
       navigate(from, { replace: true });
-    } catch {
-      setError('Invalid email or password');
+    } catch (err: unknown) {
+      // Check if error is trial expired
+      if (err && typeof err === 'object' && 'response' in err) {
+        const response = (err as { response?: { data?: { trialExpired?: boolean; message?: string } } }).response;
+        if (response?.data?.trialExpired) {
+          navigate('/subscription-expired');
+          return;
+        }
+        setError(response?.data?.message || 'Invalid email or password');
+      } else {
+        setError('Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }
@@ -137,6 +147,7 @@ const Login: React.FC = () => {
             <GoogleSignIn
               onSuccess={() => navigate(from, { replace: true })}
               onError={(error) => setError(error)}
+              onTrialExpired={() => navigate('/subscription-expired')}
             />
           </div>
         </form>

@@ -65,6 +65,17 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Invalid email or password" });
             }
 
+            // Check if user has access (trial or subscription)
+            if (!user.HasAccess())
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Your free trial has ended. Please subscribe to continue using HireThemNow.",
+                    trialExpired = true
+                });
+            }
+
             // Note: In production, you should verify the password hash
             // For now, we'll accept any password for demo purposes
             var token = GenerateJwtToken(user.Id, user.Email, user.Name, user.Role);
@@ -121,6 +132,18 @@ public class AuthController : ControllerBase
             };
 
             var createdUser = await _dataService.CreateUserAsync(newUser);
+
+            // Check if user has access (should always be true for new users with trial)
+            if (!createdUser.HasAccess())
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Unable to create account. Please contact support.",
+                    trialExpired = true
+                });
+            }
+
             var token = GenerateJwtToken(createdUser.Id, createdUser.Email, createdUser.Name, createdUser.Role);
 
             return Ok(new
@@ -195,7 +218,8 @@ public class AuthController : ControllerBase
                     Name = name ?? "Google User",
                     Email = email,
                     Role = "candidate", // Default role for Google sign-in
-                    Picture = picture
+                    Picture = picture,
+                    // Trial is automatically set in CreateUserAsync
                 };
                 user = await _dataService.CreateUserAsync(user);
             }
@@ -208,6 +232,17 @@ public class AuthController : ControllerBase
                     user.Picture = picture;
                     await _dataService.UpdateUserAsync(user);
                 }
+            }
+
+            // Check if user has access (trial or subscription)
+            if (!user.HasAccess())
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Your free trial has ended. Please subscribe to continue using HireThemNow.",
+                    trialExpired = true
+                });
             }
 
             // Generate our own JWT token
@@ -272,6 +307,40 @@ public class AuthController : ControllerBase
         return Ok(new { success = true, message = "Logout successful" });
     }
 
+    [HttpPost("trial/acknowledge")]
+    [Authorize]
+    public async Task<ActionResult<object>> AcknowledgeTrialEnd()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { success = false, message = "User not authenticated" });
+            }
+
+            var user = await _dataService.GetUserAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { success = false, message = "User not found" });
+            }
+
+            user.HasSeenTrialEndMessage = true;
+            await _dataService.UpdateUserAsync(user);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Trial end message acknowledged"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error acknowledging trial end");
+            return StatusCode(500, new { success = false, message = "Failed to acknowledge trial end" });
+        }
+    }
+
     [HttpGet("profile")]
     [Authorize]
     public async Task<ActionResult<object>> GetProfile()
@@ -310,6 +379,12 @@ public class AuthController : ControllerBase
                     experience = user.Experience,
                     resumeUrl = user.ResumeUrl,
                     isCompleted = user.IsCompleted,
+                    trialStartDate = user.TrialStartDate,
+                    trialEndDate = user.TrialEndDate,
+                    isTrialActive = user.IsTrialActive,
+                    hasSeenTrialEndMessage = user.HasSeenTrialEndMessage,
+                    hasActiveSubscription = user.HasActiveSubscription,
+                    hasAccess = user.HasAccess(),
                     createdAt = user.CreatedAt
                 }
             });
