@@ -145,7 +145,10 @@ const Login: React.FC = () => {
 
           <div className="mt-6">
             <GoogleSignIn
-              onSuccess={() => navigate(from, { replace: true })}
+              onSuccess={() => {
+                setError('');
+                navigate(from, { replace: true });
+              }}
               onError={(error) => setError(error)}
               onTrialExpired={() => navigate('/subscription-expired')}
             />

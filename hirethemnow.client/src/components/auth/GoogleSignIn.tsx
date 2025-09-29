@@ -48,13 +48,27 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError, onTrial
               await googleLogin(response.credential);
 
               // Call onSuccess callback to trigger navigation
-              onSuccess?.();
+              if (onSuccess) {
+                onSuccess();
+              }
             } catch (error) {
+              console.error('Google Sign-In error:', error);
+
               // Check if error is trial expired
               if (error && typeof error === 'object' && 'response' in error) {
                 const err = error as { response?: { data?: { trialExpired?: boolean; message?: string } } };
                 if (err.response?.data?.trialExpired) {
-                  onTrialExpired?.();
+                  if (onTrialExpired) {
+                    onTrialExpired();
+                  }
+                  return;
+                }
+
+                // Show specific backend error message if available
+                if (err.response?.data?.message) {
+                  if (onError) {
+                    onError(err.response.data.message);
+                  }
                   return;
                 }
               }
@@ -62,10 +76,12 @@ const GoogleSignIn: React.FC<GoogleSignInProps> = ({ onSuccess, onError, onTrial
               // Get more specific error message
               let errorMessage = 'Google Sign-In failed. Please try again.';
               if (error instanceof Error) {
-                errorMessage = `Google Sign-In failed: ${error.message}`;
+                errorMessage = error.message;
               }
 
-              onError?.(errorMessage);
+              if (onError) {
+                onError(errorMessage);
+              }
             }
           },
         });

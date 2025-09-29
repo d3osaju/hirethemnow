@@ -28,44 +28,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login(email, password);
-      if (response.success) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-        localStorage.setItem('token', response.data.token);
-      }
-    } catch {
-      throw new Error('Login failed');
+    const response = await authAPI.login(email, password);
+    if (response.success) {
+      setUser(response.data.user);
+      setToken(response.data.token);
+      localStorage.setItem('token', response.data.token);
     }
   };
 
   const register = async (userData: Partial<User> & { password: string }) => {
-    try {
-      const response = await authAPI.register(userData);
-      if (response.success) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-        localStorage.setItem('token', response.data.token);
-      }
-    } catch {
-      throw new Error('Registration failed');
+    const response = await authAPI.register(userData);
+    if (response.success) {
+      setUser(response.data.user);
+      setToken(response.data.token);
+      localStorage.setItem('token', response.data.token);
     }
   };
 
   const googleLogin = async (token: string) => {
-    try {
-      const response = await authAPI.googleAuth(token);
+    const response = await authAPI.googleAuth(token);
 
-      if (response && response.success) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-        localStorage.setItem('token', response.data.token);
-      } else {
-        throw new Error(`Backend error: ${response?.message || 'Unknown error'}`);
-      }
-    } catch {
-      throw new Error('Google login failed');
+    if (response && response.success) {
+      setUser(response.data.user);
+      setToken(response.data.token);
+      localStorage.setItem('token', response.data.token);
+    } else {
+      throw new Error(`Backend error: ${response?.message || 'Unknown error'}`);
     }
   };
 
