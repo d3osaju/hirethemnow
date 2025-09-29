@@ -66,6 +66,11 @@ export const authAPI = {
     const response = await api.get('/auth/profile');
     return response.data;
   },
+
+  updateProfile: async (profileData: { name?: string; phone?: string; location?: string; bio?: string; skills?: string[]; title?: string; industry?: string; experience?: string }): Promise<ApiResponse<User>> => {
+    const response = await api.put('/users/profile', profileData);
+    return response.data;
+  },
 };
 
 // Resume API
@@ -152,8 +157,18 @@ export const resumeAPI = {
   },
 };
 
+// Email Preferences API
+export const emailPreferencesAPI = {
+  getPreferences: async (): Promise<ApiResponse<{ weeklyPerformanceReport: boolean; marketingEmails: boolean }>> => {
+    const response = await api.get('/emailpreferences');
+    return response.data;
+  },
 
-
+  updatePreferences: async (preferences: { weeklyPerformanceReport?: boolean; marketingEmails?: boolean }): Promise<ApiResponse<{ weeklyPerformanceReport: boolean; marketingEmails: boolean }>> => {
+    const response = await api.put('/emailpreferences', preferences);
+    return response.data;
+  },
+};
 
 
 

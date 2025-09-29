@@ -15,7 +15,9 @@
       "Bash(docker build:*)",
       "Bash(npm run build:*)",
       "Bash(aws s3 sync:*)",
-      "Bash(dotnet build)"
+      "Bash(dotnet build)",
+      "Bash(dotnet ef migrations:*)",
+      "Bash(dotnet ef database:*)"
     ],
     "deny": [],
     "ask": []

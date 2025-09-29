@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<EmailPreference> EmailPreferences { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,6 +33,19 @@ public class ApplicationDbContext : DbContext
                     (c1, c2) => c1!.SequenceEqual(c2!),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
+        });
+
+        // EmailPreference configuration
+        modelBuilder.Entity<EmailPreference>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.UserId).IsRequired();
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.HasOne(e => e.User)
+                .WithOne()
+                .HasForeignKey<EmailPreference>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
 

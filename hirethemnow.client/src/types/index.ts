@@ -8,6 +8,9 @@ export interface User {
   location?: string;
   bio?: string;
   skills: string[];
+  title?: string;
+  industry?: string;
+  experience?: string;
   resumeUrl?: string;
   isCompleted: boolean;
   createdAt: Date;

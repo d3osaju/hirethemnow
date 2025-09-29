@@ -305,6 +305,9 @@ public class AuthController : ControllerBase
                     location = user.Location,
                     bio = user.Bio,
                     skills = user.Skills,
+                    title = user.Title,
+                    industry = user.Industry,
+                    experience = user.Experience,
                     resumeUrl = user.ResumeUrl,
                     isCompleted = user.IsCompleted,
                     createdAt = user.CreatedAt

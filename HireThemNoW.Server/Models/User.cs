@@ -11,6 +11,9 @@ public class User
     public string? Location { get; set; }
     public string? Bio { get; set; }
     public List<string> Skills { get; set; } = new();
+    public string? Title { get; set; }
+    public string? Industry { get; set; }
+    public string? Experience { get; set; }
     public string? ResumeUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -32,6 +35,9 @@ public class UpdateUserRequest
     public string? Location { get; set; }
     public string? Bio { get; set; }
     public List<string>? Skills { get; set; }
+    public string? Title { get; set; }
+    public string? Industry { get; set; }
+    public string? Experience { get; set; }
     public string? ResumeUrl { get; set; }
     public bool? IsCompleted { get; set; }
 }

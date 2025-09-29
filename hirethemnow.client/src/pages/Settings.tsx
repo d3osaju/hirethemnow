@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import {
-  User,
-  Bell,
   Shield,
   CreditCard,
   Download,
@@ -13,19 +10,10 @@ import {
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState('privacy');
   const [showPassword, setShowPassword] = useState(false);
-  const [emailNotifications, setEmailNotifications] = useState({
-    newResponses: true,
-    campaignUpdates: true,
-    weeklyReport: false,
-    marketingEmails: false,
-  });
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'data', label: 'Data Management', icon: Download },
@@ -34,121 +22,6 @@ const Settings: React.FC = () => {
   const handleSave = () => {
     // Save settings logic would go here
   };
-
-  const renderProfileSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-            <input
-              type="text"
-              defaultValue={user?.name || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-            <input
-              type="email"
-              defaultValue={user?.email || ''}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-            <input
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-            <input
-              type="text"
-              placeholder="City, State/Country"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Current Title</label>
-            <input
-              type="text"
-              placeholder="Software Engineer"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Industry</label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-              <option>Technology</option>
-              <option>Finance</option>
-              <option>Healthcare</option>
-              <option>Education</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-              <option>Entry Level (0-2 years)</option>
-              <option>Mid Level (3-5 years)</option>
-              <option>Senior Level (6-10 years)</option>
-              <option>Executive Level (10+ years)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderNotificationSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Notifications</h3>
-        <div className="space-y-4">
-          {Object.entries(emailNotifications).map(([key, value]) => (
-            <div key={key} className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div>
-                <p className="font-medium text-gray-900">
-                  {key === 'newResponses' && 'New Response Alerts'}
-                  {key === 'campaignUpdates' && 'Campaign Updates'}
-                  {key === 'weeklyReport' && 'Weekly Performance Report'}
-                  {key === 'marketingEmails' && 'Marketing & Promotional Emails'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {key === 'newResponses' && 'Get notified when employers respond to your applications'}
-                  {key === 'campaignUpdates' && 'Updates about your active job search campaigns'}
-                  {key === 'weeklyReport' && 'Weekly summary of your job search performance'}
-                  {key === 'marketingEmails' && 'Tips, features, and promotional content'}
-                </p>
-              </div>
-              <button
-                onClick={() => setEmailNotifications(prev => ({ ...prev, [key]: !value }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  value ? 'bg-gray-600' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    value ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 
   const renderPrivacySettings = () => (
     <div className="space-y-6">
@@ -336,8 +209,6 @@ const Settings: React.FC = () => {
         {/* Content */}
         <div className="flex-1">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            {activeTab === 'profile' && renderProfileSettings()}
-            {activeTab === 'notifications' && renderNotificationSettings()}
             {activeTab === 'privacy' && renderPrivacySettings()}
             {activeTab === 'billing' && renderBillingSettings()}
             {activeTab === 'data' && renderDataSettings()}

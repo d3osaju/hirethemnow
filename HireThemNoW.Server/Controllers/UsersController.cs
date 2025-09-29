@@ -109,6 +109,12 @@ public class UsersController : ControllerBase
                 user.Bio = request.Bio;
             if (request.Skills != null)
                 user.Skills = request.Skills;
+            if (!string.IsNullOrEmpty(request.Title))
+                user.Title = request.Title;
+            if (!string.IsNullOrEmpty(request.Industry))
+                user.Industry = request.Industry;
+            if (!string.IsNullOrEmpty(request.Experience))
+                user.Experience = request.Experience;
             if (!string.IsNullOrEmpty(request.ResumeUrl))
                 user.ResumeUrl = request.ResumeUrl;
             if (request.IsCompleted.HasValue)
@@ -170,6 +176,9 @@ public class UsersController : ControllerBase
                 Location = user.Location,
                 Bio = user.Bio,
                 Skills = user.Skills,
+                Title = user.Title,
+                Industry = user.Industry,
+                Experience = user.Experience,
                 CreatedAt = user.CreatedAt
             };
 

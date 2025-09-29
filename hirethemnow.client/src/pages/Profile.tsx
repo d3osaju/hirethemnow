@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { resumeAPI } from '../services/api';
-import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { resumeAPI, authAPI, emailPreferencesAPI } from '../services/api';
+import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -9,20 +9,33 @@ const Profile: React.FC = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    phone: user?.phone || '',
+    location: user?.location || '',
+    bio: user?.bio || '',
     skills: user?.skills || [],
+    title: user?.title || '',
+    industry: user?.industry || '',
+    experience: user?.experience || '',
   });
   const [resumeData, setResumeData] = useState<{ hasResume: boolean; status: string; resumeUrl?: string } | null>(null);
   const [resumeLoading, setResumeLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [emailPreferences, setEmailPreferences] = useState({
+    weeklyPerformanceReport: false,
+    marketingEmails: false,
+  });
+  const [preferencesLoading, setPreferencesLoading] = useState(true);
 
   useEffect(() => {
     // Only load resume data if user is authenticated and has a token
     const token = localStorage.getItem('token');
     if (user && token) {
       loadResumeData();
+      loadEmailPreferences();
     } else {
       setResumeLoading(false);
       setResumeData({ hasResume: false, status: 'none' });
+      setPreferencesLoading(false);
     }
   }, [user]);
 
@@ -44,6 +57,34 @@ const Profile: React.FC = () => {
       }
     } finally {
       setResumeLoading(false);
+    }
+  };
+
+  const loadEmailPreferences = async () => {
+    try {
+      setPreferencesLoading(true);
+      const response = await emailPreferencesAPI.getPreferences();
+      if (response.success) {
+        setEmailPreferences(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load email preferences:', error);
+    } finally {
+      setPreferencesLoading(false);
+    }
+  };
+
+  const handlePreferenceToggle = async (preference: 'weeklyPerformanceReport' | 'marketingEmails') => {
+    const newValue = !emailPreferences[preference];
+    setEmailPreferences(prev => ({ ...prev, [preference]: newValue }));
+
+    try {
+      await emailPreferencesAPI.updatePreferences({ [preference]: newValue });
+    } catch (error) {
+      console.error('Failed to update preference:', error);
+      // Revert on error
+      setEmailPreferences(prev => ({ ...prev, [preference]: !newValue }));
+      alert('Failed to update preference. Please try again.');
     }
   };
 
@@ -105,7 +146,7 @@ const Profile: React.FC = () => {
 
 
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
@@ -120,16 +161,44 @@ const Profile: React.FC = () => {
     }));
   };
 
-  const handleSave = () => {
-    // TODO: Save profile data to backend
-    setEditing(false);
+  const handleSave = async () => {
+    try {
+      const response = await authAPI.updateProfile({
+        name: formData.name,
+        phone: formData.phone,
+        location: formData.location,
+        bio: formData.bio,
+        skills: formData.skills,
+        title: formData.title,
+        industry: formData.industry,
+        experience: formData.experience
+      });
+
+      if (response.success) {
+        // Update the user context with new data
+        // The auth context should be updated with the new user data
+        setEditing(false);
+        alert('Profile updated successfully!');
+      } else {
+        alert('Failed to update profile: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    }
   };
 
   const handleCancel = () => {
     setFormData({
       name: user?.name || '',
       email: user?.email || '',
+      phone: user?.phone || '',
+      location: user?.location || '',
+      bio: user?.bio || '',
       skills: user?.skills || [],
+      title: user?.title || '',
+      industry: user?.industry || '',
+      experience: user?.experience || '',
     });
     setEditing(false);
   };
@@ -233,6 +302,44 @@ const Profile: React.FC = () => {
                 </div>
 
                 <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    Phone Number
+                  </label>
+                  {editing ? (
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="+1 (555) 123-4567"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">{user?.phone || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                    Location
+                  </label>
+                  {editing ? (
+                    <input
+                      type="text"
+                      id="location"
+                      name="location"
+                      value={formData.location}
+                      onChange={handleInputChange}
+                      placeholder="City, State/Country"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">{user?.location || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div>
                   <label htmlFor="role" className="block text-sm font-medium text-gray-700">
                     Role
                   </label>
@@ -244,41 +351,145 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Skills */}
+            {/* Bio */}
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <Code className="w-5 h-5 mr-2" />
-                Skills & Expertise
+                <User className="w-5 h-5 mr-2" />
+                About
               </h3>
               {editing ? (
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Enter skills separated by commas"
-                    value={formData.skills.join(', ')}
-                    onChange={handleSkillsChange}
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={4}
+                    placeholder="Tell us about yourself, your experience, and what you're looking for..."
                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Separate skills with commas (e.g., JavaScript, React, Node.js)
+                    Write a brief description about yourself and your professional background.
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {user?.skills && user.skills.length > 0 ? (
-                    user.skills.map((skill, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                      >
-                        {skill}
-                      </span>
-                    ))
+                <div>
+                  {user?.bio ? (
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{user.bio}</p>
                   ) : (
-                    <p className="text-sm text-gray-500">No skills added yet</p>
+                    <p className="text-sm text-gray-500">No bio added yet</p>
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Professional Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Code className="w-5 h-5 mr-2" />
+                Professional Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                    Current Title
+                  </label>
+                  {editing ? (
+                    <input
+                      type="text"
+                      id="title"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleInputChange}
+                      placeholder="Software Engineer"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">{user?.title || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
+                    Industry
+                  </label>
+                  {editing ? (
+                    <select
+                      id="industry"
+                      name="industry"
+                      value={formData.industry}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Industry</option>
+                      <option value="Technology">Technology</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Education">Education</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">{user?.industry || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="experience" className="block text-sm font-medium text-gray-700">
+                    Experience Level
+                  </label>
+                  {editing ? (
+                    <select
+                      id="experience"
+                      name="experience"
+                      value={formData.experience}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Experience Level</option>
+                      <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
+                      <option value="Mid Level (3-5 years)">Mid Level (3-5 years)</option>
+                      <option value="Senior Level (6-10 years)">Senior Level (6-10 years)</option>
+                      <option value="Executive Level (10+ years)">Executive Level (10+ years)</option>
+                    </select>
+                  ) : (
+                    <p className="mt-1 text-sm text-gray-900">{user?.experience || 'Not provided'}</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Skills & Expertise
+                </label>
+                {editing ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Enter skills separated by commas"
+                      value={formData.skills.join(', ')}
+                      onChange={handleSkillsChange}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Separate skills with commas (e.g., JavaScript, React, Node.js)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {user?.skills && user.skills.length > 0 ? (
+                      user.skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                        >
+                          {skill}
+                        </span>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No skills added yet</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Resume */}
@@ -386,6 +597,87 @@ const Profile: React.FC = () => {
                       )}
                     </button>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Email Preferences */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Bell className="w-5 h-5 mr-2" />
+                Email Preferences
+              </h3>
+
+              {preferencesLoading ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email Type
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Description
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">Weekly Performance Report</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-500">Weekly summary of your job search performance</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => handlePreferenceToggle('weeklyPerformanceReport')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              emailPreferences.weeklyPerformanceReport ? 'bg-blue-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                emailPreferences.weeklyPerformanceReport ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">Marketing & Promotional Emails</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-500">Tips, features, and promotional content</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => handlePreferenceToggle('marketingEmails')}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              emailPreferences.marketingEmails ? 'bg-blue-600' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                emailPreferences.marketingEmails ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

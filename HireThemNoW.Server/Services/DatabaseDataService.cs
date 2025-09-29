@@ -52,4 +52,29 @@ public class DatabaseDataService : IDataService
         await _context.SaveChangesAsync();
         return true;
     }
+
+    // Email Preferences
+    public async Task<EmailPreference?> GetEmailPreferencesAsync(string userId)
+    {
+        return await _context.EmailPreferences.FirstOrDefaultAsync(ep => ep.UserId == userId);
+    }
+
+    public async Task<EmailPreference> CreateEmailPreferencesAsync(EmailPreference preferences)
+    {
+        preferences.Id = Guid.NewGuid().ToString();
+        preferences.CreatedAt = DateTime.UtcNow;
+        preferences.UpdatedAt = DateTime.UtcNow;
+
+        _context.EmailPreferences.Add(preferences);
+        await _context.SaveChangesAsync();
+        return preferences;
+    }
+
+    public async Task<EmailPreference> UpdateEmailPreferencesAsync(EmailPreference preferences)
+    {
+        preferences.UpdatedAt = DateTime.UtcNow;
+        _context.EmailPreferences.Update(preferences);
+        await _context.SaveChangesAsync();
+        return preferences;
+    }
 }
