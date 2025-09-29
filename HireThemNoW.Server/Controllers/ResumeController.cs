@@ -49,9 +49,8 @@ public class ResumeController : ControllerBase
                 return Unauthorized(new { success = false, message = "User not found" });
             }
 
-            // Upload to S3
-            var fileName = $"resumes/{userId}/{Guid.NewGuid()}{extension}";
-            var fileUrl = await _s3Service.UploadFileAsync(resume.OpenReadStream(), fileName, resume.ContentType);
+            // Upload to S3 (S3Service will generate the key)
+            var s3Key = await _s3Service.UploadFileAsync(resume.OpenReadStream(), resume.FileName, resume.ContentType);
 
             // Update user's resume URL
             var user = await _dataService.GetUserAsync(userId);
@@ -60,13 +59,13 @@ public class ResumeController : ControllerBase
                 return NotFound(new { success = false, message = "User not found" });
             }
 
-            user.ResumeUrl = fileUrl;
+            user.ResumeUrl = s3Key;
             await _dataService.UpdateUserAsync(user);
 
             return Ok(new {
                 success = true,
                 message = "Resume uploaded successfully",
-                data = new { resumeUrl = fileUrl, fileName = resume.FileName }
+                data = new { resumeUrl = s3Key, fileName = resume.FileName }
             });
         }
         catch (Exception ex)
@@ -92,9 +91,8 @@ public class ResumeController : ControllerBase
                 return NotFound(new { success = false, message = "No resume found", needsUpload = true });
             }
 
-            // Extract S3 key from URL
-            var uri = new Uri(user.ResumeUrl);
-            var s3Key = uri.AbsolutePath.TrimStart('/');
+            // S3 key is stored directly in ResumeUrl (not a full URL)
+            var s3Key = user.ResumeUrl;
 
             // Get file from S3
             var fileStream = await _s3Service.DownloadFileAsync(s3Key);
