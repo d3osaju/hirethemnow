@@ -16,8 +16,15 @@ const Profile: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
 
   useEffect(() => {
-    loadResumeData();
-  }, []);
+    // Only load resume data if user is authenticated and has a token
+    const token = localStorage.getItem('token');
+    if (user && token) {
+      loadResumeData();
+    } else {
+      setResumeLoading(false);
+      setResumeData({ hasResume: false, status: 'none' });
+    }
+  }, [user]);
 
   const loadResumeData = async () => {
     try {
@@ -30,7 +37,11 @@ const Profile: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load resume data:', error);
-      setResumeData({ hasResume: false, status: 'none' });
+      // Don't set resume data if it's an auth error - let the interceptor handle it
+      if (error && typeof error === 'object' && 'response' in error &&
+          (error as { response?: { status?: number } }).response?.status !== 401) {
+        setResumeData({ hasResume: false, status: 'none' });
+      }
     } finally {
       setResumeLoading(false);
     }

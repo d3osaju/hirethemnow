@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using HireThemNoW.Server.Services;
+using System.Security.Claims;
 
 namespace HireThemNoW.Server.Controllers;
 
@@ -42,7 +43,7 @@ public class ResumeController : ControllerBase
                 return BadRequest(new { success = false, message = "File size must be less than 5MB" });
             }
 
-            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { success = false, message = "User not found" });
@@ -79,7 +80,7 @@ public class ResumeController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { success = false, message = "User not found" });
@@ -113,7 +114,7 @@ public class ResumeController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new { success = false, message = "User not found" });
