@@ -85,14 +85,14 @@ const Profile: React.FC = () => {
     switch (status?.toLowerCase()) {
       case 'uploaded':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-success-100 text-success-800 border border-success-200">
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
             <CheckCircle className="w-3 h-3 mr-1" />
             Uploaded
           </span>
         );
       case 'processing':
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-warning-100 text-warning-800 border border-warning-200">
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
             <AlertCircle className="w-3 h-3 mr-1" />
             Processing
           </span>
@@ -302,8 +302,8 @@ const Profile: React.FC = () => {
                 <div className="border border-gray-200 rounded-lg p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-primary-100 rounded-lg">
-                        <FileText className="h-6 w-6 text-primary-600" />
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <FileText className="h-6 w-6 text-blue-600" />
                       </div>
                       <div>
                         <h4 className="text-sm font-medium text-gray-900">Resume Uploaded</h4>
@@ -337,7 +337,7 @@ const Profile: React.FC = () => {
                           input.click();
                         }}
                         disabled={uploadLoading}
-                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200 disabled:opacity-50"
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200 disabled:opacity-50"
                       >
                         {uploadLoading ? (
                           <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
@@ -350,11 +350,11 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-warning-300 bg-warning-50 rounded-lg p-6">
+                <div className="border-2 border-dashed border-yellow-300 bg-yellow-50 rounded-lg p-6">
                   <div className="text-center">
-                    <AlertCircle className="mx-auto h-8 w-8 text-warning-600 mb-3" />
-                    <h4 className="text-sm font-medium text-warning-800 mb-2">Resume Required</h4>
-                    <p className="text-xs text-warning-700 mb-4">
+                    <AlertCircle className="mx-auto h-8 w-8 text-yellow-600 mb-3" />
+                    <h4 className="text-sm font-medium text-yellow-800 mb-2">Resume Required</h4>
+                    <p className="text-xs text-yellow-700 mb-4">
                       Upload your resume to enhance your profile and job opportunities.
                     </p>
                     <button
@@ -371,7 +371,7 @@ const Profile: React.FC = () => {
                         input.click();
                       }}
                       disabled={uploadLoading}
-                      className="inline-flex items-center px-4 py-2 bg-warning-600 text-white text-sm font-medium rounded-lg hover:bg-warning-700 transition-colors duration-200 disabled:opacity-50"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
                     >
                       {uploadLoading ? (
                         <>
