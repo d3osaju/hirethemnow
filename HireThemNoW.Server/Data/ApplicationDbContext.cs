@@ -37,12 +37,4 @@ public class ApplicationDbContext : DbContext
 
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
-        {
-            // This will only be used if no options are provided in DI
-            optionsBuilder.UseNpgsql("Host=localhost;Database=hirethemnow;Username=postgres;Password=postgres");
-        }
-    }
 }

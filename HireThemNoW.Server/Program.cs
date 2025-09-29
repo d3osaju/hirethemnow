@@ -27,6 +27,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         !string.IsNullOrEmpty(dbUser) && !string.IsNullOrEmpty(dbPassword))
     {
         connectionString = $"Host={dbHost};Database={dbName};Username={dbUser};Password={dbPassword};";
+        Console.WriteLine($"Using production database connection: Host={dbHost};Database={dbName};Username={dbUser}");
+    }
+    else
+    {
+        Console.WriteLine("Using default connection string from appsettings.json");
     }
 
     options.UseNpgsql(connectionString);
