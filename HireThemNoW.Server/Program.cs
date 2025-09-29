@@ -16,6 +16,19 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    // Override with environment variables if they exist (for production deployment)
+    var dbHost = builder.Configuration["DATABASE_HOST"];
+    var dbName = builder.Configuration["DATABASE_NAME"];
+    var dbUser = builder.Configuration["DATABASE_USER"];
+    var dbPassword = builder.Configuration["DATABASE_PASSWORD"];
+
+    if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName) &&
+        !string.IsNullOrEmpty(dbUser) && !string.IsNullOrEmpty(dbPassword))
+    {
+        connectionString = $"Host={dbHost};Database={dbName};Username={dbUser};Password={dbPassword};";
+    }
+
     options.UseNpgsql(connectionString);
 });
 
