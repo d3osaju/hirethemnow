@@ -23,7 +23,7 @@ namespace HireThemNoW.Server.Migrations
                 table: "Users",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: true);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "TrialEndDate",
@@ -38,6 +38,16 @@ namespace HireThemNoW.Server.Migrations
                 type: "timestamp with time zone",
                 nullable: false,
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+
+            // Set trial dates for existing users - give them 7 days from now
+            migrationBuilder.Sql(@"
+                UPDATE ""Users""
+                SET ""TrialStartDate"" = NOW(),
+                    ""TrialEndDate"" = NOW() + INTERVAL '7 days',
+                    ""IsTrialActive"" = true,
+                    ""HasSeenTrialEndMessage"" = false
+                WHERE ""TrialStartDate"" = '0001-01-01 00:00:00+00'::timestamp with time zone;
+            ");
         }
 
         /// <inheritdoc />
