@@ -131,7 +131,7 @@ jobs:
         echo "Database Host: $DATABASE_HOST"
 
         # Install EF Core tools globally
-        dotnet tool install --global dotnet-ef --version 8.0.* || echo "EF Core tools already installed"
+        dotnet tool install --global dotnet-ef --version 9.0.* || echo "EF Core tools already installed"
 
         # Navigate to server project and run migrations
         cd HireThemNoW.Server
