@@ -136,8 +136,10 @@ jobs:
         # Navigate to server project and run migrations
         cd HireThemNoW.Server
 
-        # Clean any old build artifacts
+        # Clear NuGet cache and clean build artifacts
+        dotnet nuget locals all --clear
         dotnet clean
+        rm -rf bin obj
 
         # Create appsettings.json with production connection string
         cat > appsettings.json << EOF
@@ -169,7 +171,8 @@ jobs:
 
         echo "✅ Connection string configured for production"
 
-        # Build with fresh configuration
+        # Restore packages and build with fresh configuration
+        dotnet restore
         dotnet build --configuration Release
 
         # Run migrations with the updated connection string
