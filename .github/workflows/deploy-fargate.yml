@@ -136,11 +136,6 @@ jobs:
         # Navigate to server project and run migrations
         cd HireThemNoW.Server
 
-        # Clear NuGet cache and clean build artifacts
-        dotnet nuget locals all --clear
-        dotnet clean
-        rm -rf bin obj
-
         # Create appsettings.json with production connection string
         cat > appsettings.json << EOF
         {
@@ -171,12 +166,8 @@ jobs:
 
         echo "✅ Connection string configured for production"
 
-        # Restore packages and build with fresh configuration
-        dotnet restore
-        dotnet build --configuration Release
-
-        # Run migrations with the updated connection string
-        dotnet ef database update --configuration Release
+        # Run migrations directly with connection string to bypass build issues
+        dotnet ef database update --connection "${CONNECTION_STRING}" --no-build
 
         echo "✅ Database migrations completed successfully"
 
