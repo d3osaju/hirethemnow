@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import ResumeUpload from '../../components/onboarding/ResumeUpload';
+import { CheckCircle } from 'lucide-react';
 
 const Onboarding: React.FC = () => {
   const { user } = useAuth();
@@ -28,8 +28,22 @@ const Onboarding: React.FC = () => {
             </p>
           </div>
 
-          {/* Resume Upload Component */}
-          <ResumeUpload onUploadComplete={handleUploadComplete} />
+          {/* Onboarding Complete */}
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Profile Setup Complete</h2>
+            <p className="text-gray-600 mb-8">
+              Your account is ready! You can now access your dashboard and manage your profile.
+            </p>
+            <button
+              onClick={handleUploadComplete}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Continue to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     </div>

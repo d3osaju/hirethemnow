@@ -7,11 +7,9 @@ import DashboardLayout from './components/Layout/DashboardLayout';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
-import JobList from './pages/Jobs/JobList';
 import Dashboard from './pages/Dashboard';
 import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
-import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -99,8 +97,6 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="jobs" element={<JobList />} />
-            <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

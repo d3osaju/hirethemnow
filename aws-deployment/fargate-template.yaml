@@ -25,6 +25,13 @@ Parameters:
     Description: Google OAuth Client Secret
     Default: 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
 
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    Description: PostgreSQL database password
+    MinLength: 8
+    Default: hirethem4us
+
   DomainName:
     Type: String
     Default: ""
@@ -295,6 +302,60 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-ecs-sg'
 
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS PostgreSQL
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-db-sg'
+
+  # RDS Subnet Group
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for PostgreSQL database
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-db-subnet-group'
+
+  # PostgreSQL RDS Instance
+  PostgreSQLDatabase:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub '${AWS::StackName}-postgres'
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '15.8'
+      MasterUsername: postgres
+      MasterUserPassword: !Ref DatabasePassword
+      AllocatedStorage: 20
+      MaxAllocatedStorage: 100
+      StorageType: gp2
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: "03:00-04:00"
+      PreferredMaintenanceWindow: "sun:04:00-sun:05:00"
+      DeletionProtection: false
+      PubliclyAccessible: false
+      DBName: hirethemnow
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-postgres'
+
   # ECS Task Definition
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -324,6 +385,14 @@ Resources:
               Value: !Ref GoogleClientId
             - Name: GOOGLE_CLIENT_SECRET
               Value: !Ref GoogleClientSecret
+            - Name: DATABASE_HOST
+              Value: !GetAtt PostgreSQLDatabase.Endpoint.Address
+            - Name: DATABASE_NAME
+              Value: hirethemnow
+            - Name: DATABASE_USER
+              Value: postgres
+            - Name: DATABASE_PASSWORD
+              Value: !Ref DatabasePassword
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -432,3 +501,9 @@ Outputs:
     Value: !Ref FrontendBucket
     Export:
       Name: !Sub '${AWS::StackName}-frontend-bucket'
+
+  DatabaseEndpoint:
+    Description: PostgreSQL Database Endpoint
+    Value: !GetAtt PostgreSQLDatabase.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-database-endpoint'

@@ -58,6 +58,7 @@ jobs:
             JWTSecret="${{ secrets.JWT_SECRET }}" \
             GoogleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
             GoogleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
           --capabilities CAPABILITY_IAM \
           --no-fail-on-empty-changeset
 
@@ -74,17 +75,20 @@ jobs:
         API_URL=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiURL") | .OutputValue')
         FRONTEND_URL=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="FrontendURL") | .OutputValue')
         ECR_REPOSITORY=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ECRRepository") | .OutputValue')
+        DATABASE_ENDPOINT=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="DatabaseEndpoint") | .OutputValue')
 
         echo "frontend-bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
         echo "api-url=$API_URL" >> $GITHUB_OUTPUT
         echo "frontend-url=$FRONTEND_URL" >> $GITHUB_OUTPUT
         echo "ecr-repository=$ECR_REPOSITORY" >> $GITHUB_OUTPUT
+        echo "database-endpoint=$DATABASE_ENDPOINT" >> $GITHUB_OUTPUT
 
         echo "✅ Infrastructure Outputs:"
         echo "  Frontend Bucket: $FRONTEND_BUCKET"
         echo "  API URL: $API_URL"
         echo "  Frontend URL: $FRONTEND_URL"
         echo "  ECR Repository: $ECR_REPOSITORY"
+        echo "  Database Endpoint: $DATABASE_ENDPOINT"
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -111,6 +115,53 @@ jobs:
 
         echo "✅ Docker image pushed successfully"
         echo "image-uri=$ECR_REPOSITORY_URI:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Run database migrations
+      id: database-migration
+      run: |
+        echo "🗄️ Running database migrations..."
+
+        # Build connection string
+        DATABASE_HOST="${{ steps.stack-outputs.outputs.database-endpoint }}"
+        DATABASE_NAME="hirethemnow"
+        DATABASE_USER="postgres"
+        DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}"
+        CONNECTION_STRING="Host=${DATABASE_HOST};Database=${DATABASE_NAME};Username=${DATABASE_USER};Password=${DATABASE_PASSWORD}"
+
+        echo "Database Host: $DATABASE_HOST"
+
+        # Install EF Core tools globally
+        dotnet tool install --global dotnet-ef --version 8.0.* || echo "EF Core tools already installed"
+
+        # Navigate to server project and run migrations
+        cd HireThemNoW.Server
+
+        # Update connection string in appsettings
+        cat > appsettings.Production.json << EOF
+        {
+          "Logging": {
+            "LogLevel": {
+              "Default": "Warning",
+              "Microsoft.AspNetCore": "Warning",
+              "Microsoft.Hosting.Lifetime": "Information"
+            }
+          },
+          "AllowedOrigins": [
+            "https://d203avobknjbyh.cloudfront.net",
+            "https://doswhc5mmajby.cloudfront.net"
+          ],
+          "ConnectionStrings": {
+            "DefaultConnection": "${CONNECTION_STRING}"
+          }
+        }
+        EOF
+
+        echo "✅ Connection string configured for production"
+
+        # Run migrations
+        dotnet ef database update --configuration Release
+
+        echo "✅ Database migrations completed successfully"
 
     - name: Update ECS service
       id: update-service

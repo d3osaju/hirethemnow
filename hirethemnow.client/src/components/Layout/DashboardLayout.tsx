@@ -8,7 +8,6 @@ import {
   LogOut,
   Menu,
   X,
-  BarChart3,
   Bell
 } from 'lucide-react';
 
@@ -21,7 +20,6 @@ const DashboardLayout: React.FC = () => {
   const navigation = [
     { name: 'Email Center', href: '/dashboard', icon: Mail, current: location.pathname === '/dashboard' },
     { name: 'Profile', href: '/dashboard/profile', icon: User, current: location.pathname === '/dashboard/profile' },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, current: location.pathname === '/dashboard/analytics' },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings, current: location.pathname === '/dashboard/settings' },
   ];
 

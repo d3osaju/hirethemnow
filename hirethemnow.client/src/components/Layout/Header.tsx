@@ -41,10 +41,6 @@ const Header: React.FC = () => {
                 <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gray-800 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
               </Link>
             )}
-            <Link to="/jobs" className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105 relative group">
-              Jobs
-              <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gray-800 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
-            </Link>
             {user?.role === 'employer' && (
               <Link to="/jobs/create" className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105 relative group">
                 Post Job
@@ -119,12 +115,6 @@ const Header: React.FC = () => {
               Dashboard
             </Link>
           )}
-          <Link
-            to="/jobs"
-            className="text-neutral-600 hover:text-primary-600 block px-4 py-3 text-base font-medium rounded-lg hover:bg-primary-50 transition-all duration-300"
-          >
-            Jobs
-          </Link>
           {user?.role === 'employer' && (
             <Link
               to="/jobs/create"

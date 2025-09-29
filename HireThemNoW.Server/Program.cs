@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using HireThemNoW.Server.Services;
+using HireThemNoW.Server.Data;
 using Amazon.S3;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,11 +12,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// Add data service
-builder.Services.AddSingleton<IDataService, InMemoryDataService>();
+// Add database context
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    options.UseNpgsql(connectionString);
+});
 
-// Add email analytics service
-builder.Services.AddScoped<IEmailAnalyticsService, EmailAnalyticsService>();
+// Add data service
+builder.Services.AddScoped<IDataService, DatabaseDataService>();
 
 // Add AWS Services
 builder.Services.AddAWSService<IAmazonS3>();
