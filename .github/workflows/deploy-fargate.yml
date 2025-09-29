@@ -136,29 +136,43 @@ jobs:
         # Navigate to server project and run migrations
         cd HireThemNoW.Server
 
-        # Update connection string in appsettings
-        cat > appsettings.Production.json << EOF
+        # Clean any old build artifacts
+        dotnet clean
+
+        # Create appsettings.json with production connection string
+        cat > appsettings.json << EOF
         {
           "Logging": {
             "LogLevel": {
-              "Default": "Warning",
-              "Microsoft.AspNetCore": "Warning",
-              "Microsoft.Hosting.Lifetime": "Information"
+              "Default": "Information",
+              "Microsoft.AspNetCore": "Warning"
             }
           },
+          "AllowedHosts": "*",
           "AllowedOrigins": [
             "https://d203avobknjbyh.cloudfront.net",
             "https://doswhc5mmajby.cloudfront.net"
           ],
           "ConnectionStrings": {
             "DefaultConnection": "${CONNECTION_STRING}"
+          },
+          "AWS": {
+            "S3": {
+              "BucketName": "hirethemnow-resumes"
+            }
           }
         }
         EOF
 
+        echo "Created appsettings.json with connection string: ${CONNECTION_STRING}"
+        cat appsettings.json | grep DefaultConnection
+
         echo "✅ Connection string configured for production"
 
-        # Run migrations
+        # Build with fresh configuration
+        dotnet build --configuration Release
+
+        # Run migrations with the updated connection string
         dotnet ef database update --configuration Release
 
         echo "✅ Database migrations completed successfully"
