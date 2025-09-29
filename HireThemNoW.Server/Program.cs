@@ -112,6 +112,24 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Run database migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Console.WriteLine("Running database migrations...");
+        context.Database.Migrate();
+        Console.WriteLine("Database migrations completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database migration failed: {ex.Message}");
+        // Don't stop the application, continue to serve requests
+        // This allows the app to start even if migrations fail
+    }
+}
+
 // Serve static files from wwwroot (frontend files)
 app.UseDefaultFiles();
 app.UseStaticFiles();

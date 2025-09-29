@@ -116,60 +116,12 @@ jobs:
         echo "✅ Docker image pushed successfully"
         echo "image-uri=$ECR_REPOSITORY_URI:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Run database migrations
+    - name: Skip database migrations (will run in container)
       id: database-migration
       run: |
-        echo "🗄️ Running database migrations..."
-
-        # Build connection string
-        DATABASE_HOST="${{ steps.stack-outputs.outputs.database-endpoint }}"
-        DATABASE_NAME="hirethemnow"
-        DATABASE_USER="postgres"
-        DATABASE_PASSWORD="${{ secrets.DATABASE_PASSWORD }}"
-        CONNECTION_STRING="Host=${DATABASE_HOST};Database=${DATABASE_NAME};Username=${DATABASE_USER};Password=${DATABASE_PASSWORD}"
-
-        echo "Database Host: $DATABASE_HOST"
-
-        # Install EF Core tools globally
-        dotnet tool install --global dotnet-ef --version 9.0.* || echo "EF Core tools already installed"
-
-        # Navigate to server project and run migrations
-        cd HireThemNoW.Server
-
-        # Create appsettings.json with production connection string
-        cat > appsettings.json << EOF
-        {
-          "Logging": {
-            "LogLevel": {
-              "Default": "Information",
-              "Microsoft.AspNetCore": "Warning"
-            }
-          },
-          "AllowedHosts": "*",
-          "AllowedOrigins": [
-            "https://d203avobknjbyh.cloudfront.net",
-            "https://doswhc5mmajby.cloudfront.net"
-          ],
-          "ConnectionStrings": {
-            "DefaultConnection": "${CONNECTION_STRING}"
-          },
-          "AWS": {
-            "S3": {
-              "BucketName": "hirethemnow-resumes"
-            }
-          }
-        }
-        EOF
-
-        echo "Created appsettings.json with connection string: ${CONNECTION_STRING}"
-        cat appsettings.json | grep DefaultConnection
-
-        echo "✅ Connection string configured for production"
-
-        # Run migrations directly with connection string to bypass build issues
-        dotnet ef database update --connection "${CONNECTION_STRING}" --no-build
-
-        echo "✅ Database migrations completed successfully"
+        echo "🗄️ Skipping database migrations - will run automatically in container startup"
+        echo "Database Host: ${{ steps.stack-outputs.outputs.database-endpoint }}"
+        echo "✅ Migration will be handled by container startup script"
 
     - name: Update ECS service
       id: update-service
