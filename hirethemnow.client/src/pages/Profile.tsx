@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { User, Mail, Code, Camera, Save } from 'lucide-react';
+import { resumeAPI } from '../services/api';
+import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -10,7 +11,85 @@ const Profile: React.FC = () => {
     email: user?.email || '',
     skills: user?.skills || [],
   });
+  const [resumeData, setResumeData] = useState<{ hasResume: boolean; status: string; resumeUrl?: string } | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(true);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
+  useEffect(() => {
+    loadResumeData();
+  }, []);
+
+  const loadResumeData = async () => {
+    try {
+      setResumeLoading(true);
+      const response = await resumeAPI.getResumeStatus();
+      if (response.success) {
+        setResumeData(response.data);
+      } else {
+        setResumeData({ hasResume: false, status: 'none' });
+      }
+    } catch (error) {
+      console.error('Failed to load resume data:', error);
+      setResumeData({ hasResume: false, status: 'none' });
+    } finally {
+      setResumeLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      setUploadLoading(true);
+      const response = await resumeAPI.uploadResume(file);
+      if (response.success) {
+        await loadResumeData(); // Reload resume data
+        alert('Resume uploaded successfully!');
+      } else {
+        alert('Upload failed: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDownloadResume = async () => {
+    try {
+      const result = await resumeAPI.downloadResume();
+      if (!result.success) {
+        if (result.needsUpload) {
+          alert('No resume found. Please upload a resume first.');
+        } else {
+          alert('Failed to download resume: ' + result.message);
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download resume. Please try again.');
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'uploaded':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-success-100 text-success-800 border border-success-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Uploaded
+          </span>
+        );
+      case 'processing':
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-warning-100 text-warning-800 border border-warning-200">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Processing
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
 
 
@@ -187,6 +266,115 @@ const Profile: React.FC = () => {
                   ) : (
                     <p className="text-sm text-gray-500">No skills added yet</p>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Resume */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <FileText className="w-5 h-5 mr-2" />
+                Resume
+              </h3>
+
+              {resumeLoading ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="animate-pulse flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gray-200 rounded"></div>
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : resumeData?.hasResume ? (
+                <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-primary-100 rounded-lg">
+                        <FileText className="h-6 w-6 text-primary-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">Resume Uploaded</h4>
+                        <p className="text-xs text-gray-500">Click download to view your resume</p>
+                        {resumeData.status && (
+                          <div className="mt-1">
+                            {getStatusBadge(resumeData.status)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleDownloadResume}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors duration-200"
+                      >
+                        <Download className="w-4 h-4 mr-1" />
+                        Download
+                      </button>
+                      <button
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.pdf,.doc,.docx';
+                          input.onchange = async (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              await handleFileUpload(file);
+                            }
+                          };
+                          input.click();
+                        }}
+                        disabled={uploadLoading}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-700 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors duration-200 disabled:opacity-50"
+                      >
+                        {uploadLoading ? (
+                          <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                        )}
+                        {uploadLoading ? 'Updating...' : 'Update'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-warning-300 bg-warning-50 rounded-lg p-6">
+                  <div className="text-center">
+                    <AlertCircle className="mx-auto h-8 w-8 text-warning-600 mb-3" />
+                    <h4 className="text-sm font-medium text-warning-800 mb-2">Resume Required</h4>
+                    <p className="text-xs text-warning-700 mb-4">
+                      Upload your resume to enhance your profile and job opportunities.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.doc,.docx';
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            await handleFileUpload(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                      disabled={uploadLoading}
+                      className="inline-flex items-center px-4 py-2 bg-warning-600 text-white text-sm font-medium rounded-lg hover:bg-warning-700 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Resume
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

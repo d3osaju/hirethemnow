@@ -68,6 +68,90 @@ export const authAPI = {
   },
 };
 
+// Resume API
+export const resumeAPI = {
+  uploadResume: async (file: File): Promise<ApiResponse<{ resumeUrl: string; fileName: string }>> => {
+    const formData = new FormData();
+    formData.append('resume', file);
+
+    const response = await api.post('/resume/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getResumeStatus: async (): Promise<ApiResponse<{ hasResume: boolean; needsUpload: boolean; status: string; resumeUrl?: string }>> => {
+    const response = await api.get('/resume/status');
+    return response.data;
+  },
+
+  downloadResume: async (): Promise<{ success: boolean; message?: string; needsUpload?: boolean }> => {
+    try {
+      const response = await api.get('/resume/download', {
+        responseType: 'blob',
+      });
+
+      // Check if response is JSON (error case) vs blob (success case)
+      if (response.headers['content-type']?.includes('application/json')) {
+        // Convert blob to text to read JSON error response
+        const text = await response.data.text();
+        const errorData = JSON.parse(text);
+        return {
+          success: false,
+          message: errorData.message,
+          needsUpload: errorData.needsUpload || false
+        };
+      }
+
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'resume.pdf';
+
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return { success: true };
+    } catch (error: unknown) {
+      // Handle JSON error responses
+      if (error && typeof error === 'object' && 'response' in error && (error as { response?: { data?: unknown } }).response?.data) {
+        try {
+          const errorData = (error as { response: { data: { message?: string; needsUpload?: boolean } } }).response.data;
+          return {
+            success: false,
+            message: errorData.message,
+            needsUpload: errorData.needsUpload || false
+          };
+        } catch {
+          // Fall back to generic error
+        }
+      }
+
+      return {
+        success: false,
+        message: 'Failed to download resume',
+        needsUpload: true
+      };
+    }
+  },
+};
+
 
 
 
