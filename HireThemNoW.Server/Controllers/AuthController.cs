@@ -65,6 +65,9 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Invalid email or password" });
             }
 
+            // Ensure trial dates are set for existing users (migration safety)
+            UserTrialHelper.EnsureTrialDatesSet(user);
+
             // Check if user has access (trial or subscription)
             if (!user.HasAccess())
             {
@@ -75,6 +78,9 @@ public class AuthController : ControllerBase
                     trialExpired = true
                 });
             }
+
+            // Save user if trial dates were just set
+            await _dataService.UpdateUserAsync(user);
 
             // Note: In production, you should verify the password hash
             // For now, we'll accept any password for demo purposes
@@ -226,12 +232,17 @@ public class AuthController : ControllerBase
             else
             {
                 user = existingUser;
+
+                // Ensure trial dates are set for existing users (migration safety)
+                UserTrialHelper.EnsureTrialDatesSet(user);
+
                 // Update picture if available
                 if (!string.IsNullOrEmpty(picture) && user.Picture != picture)
                 {
                     user.Picture = picture;
-                    await _dataService.UpdateUserAsync(user);
                 }
+
+                await _dataService.UpdateUserAsync(user);
             }
 
             // Check if user has access (trial or subscription)
