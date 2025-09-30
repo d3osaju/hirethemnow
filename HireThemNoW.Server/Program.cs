@@ -131,6 +131,17 @@ if (app.Environment.IsDevelopment())
 // Enable CORS - MUST be before Authentication
 app.UseCors("AllowReactApp");
 
+// Add exception handler that preserves CORS headers
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync("{\"success\":false,\"message\":\"An error occurred processing your request\"}");
+    });
+});
+
 // Add Authentication before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
