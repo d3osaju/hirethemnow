@@ -4,7 +4,7 @@ import { resumeAPI, authAPI, emailPreferencesAPI, industriesAPI } from '../servi
 import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell, X } from 'lucide-react';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -221,7 +221,7 @@ const Profile: React.FC = () => {
 
       if (response.success) {
         // Update the user context with new data
-        // The auth context should be updated with the new user data
+        updateUser(response.data);
         setEditing(false);
         alert('Profile updated successfully!');
       } else {

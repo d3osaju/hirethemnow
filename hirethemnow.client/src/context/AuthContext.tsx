@@ -64,6 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authAPI.logout().catch(() => {}); // Fire and forget
   };
 
+  const updateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
   const value = {
     user,
     token,
@@ -71,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     googleLogin,
     logout,
+    updateUser,
     loading,
   };
 
