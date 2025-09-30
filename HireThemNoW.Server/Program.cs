@@ -87,44 +87,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        var allowedOrigins = new List<string>();
-
-        // Add development URLs
-        if (builder.Environment.IsDevelopment())
-        {
-            allowedOrigins.AddRange(new[]
-            {
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://localhost:5175",
-                "http://localhost:3000"
-            });
-        }
-
-        // Add production URLs from environment or configuration
-        var productionOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
-        if (productionOrigins != null && productionOrigins.Length > 0)
-        {
-            allowedOrigins.AddRange(productionOrigins);
-        }
-        else
-        {
-            // Fallback production URLs - CloudFront distributions
-            allowedOrigins.AddRange(new[]
-            {
-                "https://d2mddiq1c6w52v.cloudfront.net",
-                "https://d203avobknjbyh.cloudfront.net",
-                "https://doswhc5mmajby.cloudfront.net"
-            });
-
-            // Allow any CloudFront distribution and ALB for flexibility
-            allowedOrigins.Add("*");
-        }
-
-        // For simplicity in containerized deployment, allow all origins
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => true) // Allow any origin
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 

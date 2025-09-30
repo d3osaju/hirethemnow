@@ -31,7 +31,9 @@
       "Bash(export AWS_ACCESS_KEY_ID=\"AKIATY6KSOHA4ELP7TWZ\")",
       "Bash(export AWS_SECRET_ACCESS_KEY=\"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\")",
       "Bash(aws cloudfront list-distributions:*)",
-      "Bash(aws cloudfront update-distribution:*)"
+      "Bash(aws cloudfront update-distribution:*)",
+      "Bash(docker tag:*)",
+      "Bash(docker push:*)"
     ],
     "deny": [],
     "ask": []
