@@ -33,7 +33,8 @@
       "Bash(aws cloudfront list-distributions:*)",
       "Bash(aws cloudfront update-distribution:*)",
       "Bash(docker tag:*)",
-      "Bash(docker push:*)"
+      "Bash(docker push:*)",
+      "Bash(aws ecs describe-task-definition:*)"
     ],
     "deny": [],
     "ask": []
