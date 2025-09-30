@@ -162,7 +162,7 @@ if (app.Environment.IsDevelopment())
 // No HTTPS redirection - ALB handles this
 // app.UseHttpsRedirection();
 
-// Enable CORS
+// Enable CORS - MUST be before Authentication
 app.UseCors("AllowReactApp");
 
 // Add Authentication before Authorization
