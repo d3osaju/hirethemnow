@@ -20,7 +20,8 @@
       "Bash(dotnet ef database:*)",
       "Bash(export DATABASE_PASSWORD=\"hirethem4us\")",
       "Bash(export JWT_SECRET=\"7907248c76370fc472097c98a09f9296\")",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

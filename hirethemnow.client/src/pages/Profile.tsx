@@ -60,8 +60,12 @@ const Profile: React.FC = () => {
     try {
       setIndustriesLoading(true);
       const response = await industriesAPI.getIndustries();
+      console.log('Industries API response:', response);
       if (response.success) {
+        console.log('Industries data:', response.data);
         setIndustries(response.data);
+      } else {
+        console.error('Failed to load industries:', response.message);
       }
     } catch (error) {
       console.error('Failed to load industries:', error);
