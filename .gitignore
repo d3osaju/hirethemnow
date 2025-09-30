@@ -49,3 +49,6 @@ Thumbs.db
 
 # LocalStack data
 localstack_data/
+
+# Claude Code local settings
+.claude/settings.local.json
