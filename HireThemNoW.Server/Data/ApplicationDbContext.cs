@@ -13,6 +13,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<EmailPreference> EmailPreferences { get; set; }
+    public DbSet<Industry> Industries { get; set; }
+    public DbSet<SkillExpertise> SkillExpertises { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,7 +50,165 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // Industry configuration
+        modelBuilder.Entity<Industry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.Name).IsUnique();
+        });
 
+        // SkillExpertise configuration
+        modelBuilder.Entity<SkillExpertise>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasOne(e => e.Industry)
+                .WithMany(i => i.Skills)
+                .HasForeignKey(e => e.IndustryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Seed data
+        modelBuilder.Entity<Industry>().HasData(
+            new Industry { Id = 1, Name = "Technology" },
+            new Industry { Id = 2, Name = "Finance" },
+            new Industry { Id = 3, Name = "Healthcare" },
+            new Industry { Id = 4, Name = "Education" },
+            new Industry { Id = 5, Name = "Marketing" },
+            new Industry { Id = 6, Name = "Sales" },
+            new Industry { Id = 7, Name = "Manufacturing" },
+            new Industry { Id = 8, Name = "Retail" },
+            new Industry { Id = 9, Name = "Hospitality" },
+            new Industry { Id = 10, Name = "Construction" }
+        );
+
+        modelBuilder.Entity<SkillExpertise>().HasData(
+            // Technology skills
+            new SkillExpertise { Id = 1, Name = "JavaScript", IndustryId = 1 },
+            new SkillExpertise { Id = 2, Name = "Python", IndustryId = 1 },
+            new SkillExpertise { Id = 3, Name = "React", IndustryId = 1 },
+            new SkillExpertise { Id = 4, Name = "Node.js", IndustryId = 1 },
+            new SkillExpertise { Id = 5, Name = "TypeScript", IndustryId = 1 },
+            new SkillExpertise { Id = 6, Name = "C#", IndustryId = 1 },
+            new SkillExpertise { Id = 7, Name = "Java", IndustryId = 1 },
+            new SkillExpertise { Id = 8, Name = "SQL", IndustryId = 1 },
+            new SkillExpertise { Id = 9, Name = "AWS", IndustryId = 1 },
+            new SkillExpertise { Id = 10, Name = "Docker", IndustryId = 1 },
+            new SkillExpertise { Id = 11, Name = "Kubernetes", IndustryId = 1 },
+            new SkillExpertise { Id = 12, Name = "DevOps", IndustryId = 1 },
+            new SkillExpertise { Id = 13, Name = "Machine Learning", IndustryId = 1 },
+            new SkillExpertise { Id = 14, Name = "Data Science", IndustryId = 1 },
+            new SkillExpertise { Id = 15, Name = "Cybersecurity", IndustryId = 1 },
+
+            // Finance skills
+            new SkillExpertise { Id = 16, Name = "Financial Analysis", IndustryId = 2 },
+            new SkillExpertise { Id = 17, Name = "Accounting", IndustryId = 2 },
+            new SkillExpertise { Id = 18, Name = "Risk Management", IndustryId = 2 },
+            new SkillExpertise { Id = 19, Name = "Investment Banking", IndustryId = 2 },
+            new SkillExpertise { Id = 20, Name = "Portfolio Management", IndustryId = 2 },
+            new SkillExpertise { Id = 21, Name = "Financial Modeling", IndustryId = 2 },
+            new SkillExpertise { Id = 22, Name = "Excel", IndustryId = 2 },
+            new SkillExpertise { Id = 23, Name = "QuickBooks", IndustryId = 2 },
+            new SkillExpertise { Id = 24, Name = "Tax Preparation", IndustryId = 2 },
+            new SkillExpertise { Id = 25, Name = "Auditing", IndustryId = 2 },
+
+            // Healthcare skills
+            new SkillExpertise { Id = 26, Name = "Patient Care", IndustryId = 3 },
+            new SkillExpertise { Id = 27, Name = "Medical Coding", IndustryId = 3 },
+            new SkillExpertise { Id = 28, Name = "Nursing", IndustryId = 3 },
+            new SkillExpertise { Id = 29, Name = "EMR Systems", IndustryId = 3 },
+            new SkillExpertise { Id = 30, Name = "Healthcare Administration", IndustryId = 3 },
+            new SkillExpertise { Id = 31, Name = "Medical Terminology", IndustryId = 3 },
+            new SkillExpertise { Id = 32, Name = "HIPAA Compliance", IndustryId = 3 },
+            new SkillExpertise { Id = 33, Name = "Clinical Research", IndustryId = 3 },
+            new SkillExpertise { Id = 34, Name = "Pharmacy", IndustryId = 3 },
+            new SkillExpertise { Id = 35, Name = "Physical Therapy", IndustryId = 3 },
+
+            // Education skills
+            new SkillExpertise { Id = 36, Name = "Curriculum Development", IndustryId = 4 },
+            new SkillExpertise { Id = 37, Name = "Classroom Management", IndustryId = 4 },
+            new SkillExpertise { Id = 38, Name = "Educational Technology", IndustryId = 4 },
+            new SkillExpertise { Id = 39, Name = "Lesson Planning", IndustryId = 4 },
+            new SkillExpertise { Id = 40, Name = "Student Assessment", IndustryId = 4 },
+            new SkillExpertise { Id = 41, Name = "Online Teaching", IndustryId = 4 },
+            new SkillExpertise { Id = 42, Name = "Special Education", IndustryId = 4 },
+            new SkillExpertise { Id = 43, Name = "Tutoring", IndustryId = 4 },
+            new SkillExpertise { Id = 44, Name = "Academic Advising", IndustryId = 4 },
+            new SkillExpertise { Id = 45, Name = "Educational Psychology", IndustryId = 4 },
+
+            // Marketing skills
+            new SkillExpertise { Id = 46, Name = "Digital Marketing", IndustryId = 5 },
+            new SkillExpertise { Id = 47, Name = "SEO", IndustryId = 5 },
+            new SkillExpertise { Id = 48, Name = "Content Marketing", IndustryId = 5 },
+            new SkillExpertise { Id = 49, Name = "Social Media Marketing", IndustryId = 5 },
+            new SkillExpertise { Id = 50, Name = "Email Marketing", IndustryId = 5 },
+            new SkillExpertise { Id = 51, Name = "Google Analytics", IndustryId = 5 },
+            new SkillExpertise { Id = 52, Name = "Brand Management", IndustryId = 5 },
+            new SkillExpertise { Id = 53, Name = "Market Research", IndustryId = 5 },
+            new SkillExpertise { Id = 54, Name = "Copywriting", IndustryId = 5 },
+            new SkillExpertise { Id = 55, Name = "PPC Advertising", IndustryId = 5 },
+
+            // Sales skills
+            new SkillExpertise { Id = 56, Name = "B2B Sales", IndustryId = 6 },
+            new SkillExpertise { Id = 57, Name = "B2C Sales", IndustryId = 6 },
+            new SkillExpertise { Id = 58, Name = "CRM Software", IndustryId = 6 },
+            new SkillExpertise { Id = 59, Name = "Lead Generation", IndustryId = 6 },
+            new SkillExpertise { Id = 60, Name = "Negotiation", IndustryId = 6 },
+            new SkillExpertise { Id = 61, Name = "Account Management", IndustryId = 6 },
+            new SkillExpertise { Id = 62, Name = "Sales Strategy", IndustryId = 6 },
+            new SkillExpertise { Id = 63, Name = "Cold Calling", IndustryId = 6 },
+            new SkillExpertise { Id = 64, Name = "Salesforce", IndustryId = 6 },
+            new SkillExpertise { Id = 65, Name = "Customer Relationship", IndustryId = 6 },
+
+            // Manufacturing skills
+            new SkillExpertise { Id = 66, Name = "Quality Control", IndustryId = 7 },
+            new SkillExpertise { Id = 67, Name = "Lean Manufacturing", IndustryId = 7 },
+            new SkillExpertise { Id = 68, Name = "Six Sigma", IndustryId = 7 },
+            new SkillExpertise { Id = 69, Name = "Production Planning", IndustryId = 7 },
+            new SkillExpertise { Id = 70, Name = "Supply Chain Management", IndustryId = 7 },
+            new SkillExpertise { Id = 71, Name = "CAD/CAM", IndustryId = 7 },
+            new SkillExpertise { Id = 72, Name = "Process Improvement", IndustryId = 7 },
+            new SkillExpertise { Id = 73, Name = "Safety Compliance", IndustryId = 7 },
+            new SkillExpertise { Id = 74, Name = "Inventory Management", IndustryId = 7 },
+            new SkillExpertise { Id = 75, Name = "Equipment Maintenance", IndustryId = 7 },
+
+            // Retail skills
+            new SkillExpertise { Id = 76, Name = "Customer Service", IndustryId = 8 },
+            new SkillExpertise { Id = 77, Name = "Merchandising", IndustryId = 8 },
+            new SkillExpertise { Id = 78, Name = "Point of Sale (POS)", IndustryId = 8 },
+            new SkillExpertise { Id = 79, Name = "Visual Merchandising", IndustryId = 8 },
+            new SkillExpertise { Id = 80, Name = "Store Management", IndustryId = 8 },
+            new SkillExpertise { Id = 81, Name = "Retail Analytics", IndustryId = 8 },
+            new SkillExpertise { Id = 82, Name = "Loss Prevention", IndustryId = 8 },
+            new SkillExpertise { Id = 83, Name = "Cash Handling", IndustryId = 8 },
+            new SkillExpertise { Id = 84, Name = "Product Knowledge", IndustryId = 8 },
+            new SkillExpertise { Id = 85, Name = "E-commerce", IndustryId = 8 },
+
+            // Hospitality skills
+            new SkillExpertise { Id = 86, Name = "Guest Relations", IndustryId = 9 },
+            new SkillExpertise { Id = 87, Name = "Hotel Management", IndustryId = 9 },
+            new SkillExpertise { Id = 88, Name = "Food Service", IndustryId = 9 },
+            new SkillExpertise { Id = 89, Name = "Event Planning", IndustryId = 9 },
+            new SkillExpertise { Id = 90, Name = "Housekeeping Management", IndustryId = 9 },
+            new SkillExpertise { Id = 91, Name = "Front Desk Operations", IndustryId = 9 },
+            new SkillExpertise { Id = 92, Name = "Culinary Arts", IndustryId = 9 },
+            new SkillExpertise { Id = 93, Name = "Bartending", IndustryId = 9 },
+            new SkillExpertise { Id = 94, Name = "Tourism", IndustryId = 9 },
+            new SkillExpertise { Id = 95, Name = "Reservation Systems", IndustryId = 9 },
+
+            // Construction skills
+            new SkillExpertise { Id = 96, Name = "Project Management", IndustryId = 10 },
+            new SkillExpertise { Id = 97, Name = "Blueprint Reading", IndustryId = 10 },
+            new SkillExpertise { Id = 98, Name = "Carpentry", IndustryId = 10 },
+            new SkillExpertise { Id = 99, Name = "Electrical Work", IndustryId = 10 },
+            new SkillExpertise { Id = 100, Name = "Plumbing", IndustryId = 10 },
+            new SkillExpertise { Id = 101, Name = "OSHA Compliance", IndustryId = 10 },
+            new SkillExpertise { Id = 102, Name = "Estimating", IndustryId = 10 },
+            new SkillExpertise { Id = 103, Name = "Heavy Equipment Operation", IndustryId = 10 },
+            new SkillExpertise { Id = 104, Name = "Welding", IndustryId = 10 },
+            new SkillExpertise { Id = 105, Name = "Site Supervision", IndustryId = 10 }
+        );
     }
 
 }

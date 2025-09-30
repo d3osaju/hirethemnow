@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { resumeAPI, authAPI, emailPreferencesAPI } from '../services/api';
-import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell } from 'lucide-react';
+import { resumeAPI, authAPI, emailPreferencesAPI, industriesAPI } from '../services/api';
+import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell, X } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +25,10 @@ const Profile: React.FC = () => {
     marketingEmails: false,
   });
   const [preferencesLoading, setPreferencesLoading] = useState(true);
+  const [industries, setIndustries] = useState<Array<{ id: number; name: string; skills: Array<{ id: number; name: string; industryId: number }> }>>([]);
+  const [selectedIndustryId, setSelectedIndustryId] = useState<number | null>(null);
+  const [availableSkills, setAvailableSkills] = useState<Array<{ id: number; name: string; industryId: number }>>([]);
+  const [industriesLoading, setIndustriesLoading] = useState(true);
 
   useEffect(() => {
     // Only load resume data if user is authenticated and has a token
@@ -32,12 +36,57 @@ const Profile: React.FC = () => {
     if (user && token) {
       loadResumeData();
       loadEmailPreferences();
+      loadIndustries();
     } else {
       setResumeLoading(false);
       setResumeData({ hasResume: false, status: 'none' });
       setPreferencesLoading(false);
+      setIndustriesLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    // Initialize selected industry when industries are loaded and editing starts
+    if (editing && industries.length > 0 && user?.industry) {
+      const industry = industries.find(i => i.name === user.industry);
+      if (industry) {
+        setSelectedIndustryId(industry.id);
+        setAvailableSkills(industry.skills);
+      }
+    }
+  }, [editing, industries, user?.industry]);
+
+  const loadIndustries = async () => {
+    try {
+      setIndustriesLoading(true);
+      const response = await industriesAPI.getIndustries();
+      if (response.success) {
+        setIndustries(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load industries:', error);
+    } finally {
+      setIndustriesLoading(false);
+    }
+  };
+
+  const handleIndustryChange = (industryId: number) => {
+    setSelectedIndustryId(industryId);
+    const selectedIndustry = industries.find(i => i.id === industryId);
+    if (selectedIndustry) {
+      setAvailableSkills(selectedIndustry.skills);
+      setFormData(prev => ({ ...prev, industry: selectedIndustry.name }));
+    }
+  };
+
+  const handleSkillToggle = (skillName: string) => {
+    setFormData(prev => {
+      const skills = prev.skills.includes(skillName)
+        ? prev.skills.filter(s => s !== skillName)
+        : [...prev.skills, skillName];
+      return { ...prev, skills };
+    });
+  };
 
   const loadResumeData = async () => {
     try {
@@ -153,14 +202,6 @@ const Profile: React.FC = () => {
     }));
   };
 
-  const handleSkillsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const skillsArray = e.target.value.split(',').map(skill => skill.trim()).filter(Boolean);
-    setFormData(prev => ({
-      ...prev,
-      skills: skillsArray
-    }));
-  };
-
   const handleSave = async () => {
     try {
       const response = await authAPI.updateProfile({
@@ -200,6 +241,8 @@ const Profile: React.FC = () => {
       industry: user?.industry || '',
       experience: user?.experience || '',
     });
+    setSelectedIndustryId(null);
+    setAvailableSkills([]);
     setEditing(false);
   };
 
@@ -414,20 +457,26 @@ const Profile: React.FC = () => {
                     Industry
                   </label>
                   {editing ? (
-                    <select
-                      id="industry"
-                      name="industry"
-                      value={formData.industry}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Industry</option>
-                      <option value="Technology">Technology</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Healthcare">Healthcare</option>
-                      <option value="Education">Education</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    industriesLoading ? (
+                      <div className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50">
+                        <span className="text-gray-400">Loading industries...</span>
+                      </div>
+                    ) : (
+                      <select
+                        id="industry"
+                        name="industry"
+                        value={selectedIndustryId || ''}
+                        onChange={(e) => handleIndustryChange(Number(e.target.value))}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Industry</option>
+                        {industries.map((industry) => (
+                          <option key={industry.id} value={industry.id}>
+                            {industry.name}
+                          </option>
+                        ))}
+                      </select>
+                    )
                   ) : (
                     <p className="mt-1 text-sm text-gray-900">{user?.industry || 'Not provided'}</p>
                   )}
@@ -462,16 +511,51 @@ const Profile: React.FC = () => {
                 </label>
                 {editing ? (
                   <div>
-                    <input
-                      type="text"
-                      placeholder="Enter skills separated by commas"
-                      value={formData.skills.join(', ')}
-                      onChange={handleSkillsChange}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Separate skills with commas (e.g., JavaScript, React, Node.js)
-                    </p>
+                    {selectedIndustryId && availableSkills.length > 0 ? (
+                      <div>
+                        <div className="mb-3 p-3 border border-gray-300 rounded-md max-h-60 overflow-y-auto">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {availableSkills.map((skill) => (
+                              <label
+                                key={skill.id}
+                                className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.skills.includes(skill.name)}
+                                  onChange={() => handleSkillToggle(skill.name)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <span className="text-sm text-gray-700">{skill.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        {formData.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {formData.skills.map((skill, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                              >
+                                {skill}
+                                <button
+                                  type="button"
+                                  onClick={() => handleSkillToggle(skill)}
+                                  className="ml-1 hover:text-blue-900"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500 p-3 border border-gray-300 rounded-md bg-gray-50">
+                        Please select an industry first to choose skills
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">

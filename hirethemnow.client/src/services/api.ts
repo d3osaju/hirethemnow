@@ -178,4 +178,17 @@ export const trialAPI = {
   },
 };
 
+// Industries API
+export const industriesAPI = {
+  getIndustries: async (): Promise<ApiResponse<Array<{ id: number; name: string; skills: Array<{ id: number; name: string; industryId: number }> }>>> => {
+    const response = await api.get('/industries');
+    return response.data;
+  },
+
+  getSkillsByIndustry: async (industryId: number): Promise<ApiResponse<Array<{ id: number; name: string; industryId: number }>>> => {
+    const response = await api.get(`/industries/${industryId}/skills`);
+    return response.data;
+  },
+};
+
 export default api;
