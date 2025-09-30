@@ -191,4 +191,34 @@ export const industriesAPI = {
   },
 };
 
+// Privacy Settings API
+export const privacyAPI = {
+  getSettings: async (): Promise<ApiResponse<{ profileVisibility: string; allowAnalyticsDataSharing: boolean }>> => {
+    const response = await api.get('/privacy');
+    return response.data;
+  },
+
+  updateSettings: async (settings: { profileVisibility?: string; allowAnalyticsDataSharing?: boolean }): Promise<ApiResponse<{ profileVisibility: string; allowAnalyticsDataSharing: boolean }>> => {
+    const response = await api.put('/privacy', settings);
+    return response.data;
+  },
+};
+
+// Data Management API
+export const dataAPI = {
+  exportData: async (): Promise<Blob> => {
+    const response = await api.get('/data/export', {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  deleteAccount: async (confirmation: string): Promise<ApiResponse<void>> => {
+    const response = await api.delete('/data/account', {
+      data: { confirmation }
+    });
+    return response.data;
+  },
+};
+
 export default api;

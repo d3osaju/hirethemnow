@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { privacyAPI, dataAPI } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import {
   Shield,
   CreditCard,
@@ -12,10 +14,18 @@ import {
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('privacy');
   const [showPassword, setShowPassword] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
+  const [privacySettings, setPrivacySettings] = useState({
+    profileVisibility: 'public',
+    allowAnalyticsDataSharing: true
+  });
+  const [privacyLoading, setPrivacyLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -25,13 +35,97 @@ const Settings: React.FC = () => {
     const diffTime = trialEnd.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     setDaysRemaining(diffDays);
+
+    // Load privacy settings
+    loadPrivacySettings();
   }, [user]);
+
+  const loadPrivacySettings = async () => {
+    try {
+      setPrivacyLoading(true);
+      const response = await privacyAPI.getSettings();
+      if (response.success) {
+        setPrivacySettings(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load privacy settings:', error);
+    } finally {
+      setPrivacyLoading(false);
+    }
+  };
+
+  const handlePrivacySettingChange = async (key: 'profileVisibility' | 'allowAnalyticsDataSharing', value: string | boolean) => {
+    const newSettings = { ...privacySettings, [key]: value };
+    setPrivacySettings(newSettings);
+
+    try {
+      await privacyAPI.updateSettings({ [key]: value });
+    } catch (error) {
+      console.error('Failed to update privacy setting:', error);
+      // Revert on error
+      setPrivacySettings(privacySettings);
+      alert('Failed to update setting. Please try again.');
+    }
+  };
 
   const tabs = [
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'data', label: 'Data Management', icon: Download },
   ];
+
+  const handleExportData = async () => {
+    try {
+      setExportLoading(true);
+      const blob = await dataAPI.exportData();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `hirethemnow_data_export_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert('Your data has been exported successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export data. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmation = prompt(
+      'Are you sure you want to delete your account? This action cannot be undone.\n\nType "DELETE" to confirm:'
+    );
+
+    if (!confirmation) return;
+
+    try {
+      setDeleteLoading(true);
+      const response = await dataAPI.deleteAccount(confirmation);
+
+      if (response.success) {
+        alert('Your account has been deleted successfully. You will now be logged out.');
+        logout();
+        navigate('/');
+      } else {
+        alert(response.message || 'Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Delete failed:', error);
+      const errorMessage = error instanceof Error && 'response' in error
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined;
+      alert(errorMessage || 'Failed to delete account. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const handleSave = () => {
     // Save settings logic would go here
@@ -81,28 +175,46 @@ const Settings: React.FC = () => {
 
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Privacy Controls</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
-            <div>
-              <p className="font-medium text-gray-900">Profile Visibility</p>
-              <p className="text-sm text-gray-500">Control who can see your profile information</p>
-            </div>
-            <select className="px-3 py-1 border border-gray-300 rounded-lg">
-              <option>Public</option>
-              <option>Private</option>
-              <option>Recruiters Only</option>
-            </select>
+        {privacyLoading ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="h-16 bg-gray-200 rounded"></div>
+            <div className="h-16 bg-gray-200 rounded"></div>
           </div>
-          <div className="flex items-center justify-between py-3 border-b border-gray-100">
-            <div>
-              <p className="font-medium text-gray-900">Analytics Data Sharing</p>
-              <p className="text-sm text-gray-500">Allow anonymous data sharing for service improvement</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div>
+                <p className="font-medium text-gray-900">Profile Visibility</p>
+                <p className="text-sm text-gray-500">Control who can see your profile information</p>
+              </div>
+              <select
+                value={privacySettings.profileVisibility}
+                onChange={(e) => handlePrivacySettingChange('profileVisibility', e.target.value)}
+                className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+                <option value="connections">Connections Only</option>
+              </select>
             </div>
-            <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-600">
-              <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
-            </button>
+            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+              <div>
+                <p className="font-medium text-gray-900">Analytics Data Sharing</p>
+                <p className="text-sm text-gray-500">Allow anonymous data sharing for service improvement</p>
+              </div>
+              <button
+                onClick={() => handlePrivacySettingChange('allowAnalyticsDataSharing', !privacySettings.allowAnalyticsDataSharing)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  privacySettings.allowAnalyticsDataSharing ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  privacySettings.allowAnalyticsDataSharing ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -168,11 +280,15 @@ const Settings: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-gray-900">Download Your Data</p>
-                <p className="text-sm text-gray-500">Export all your account data including campaigns, responses, and analytics</p>
+                <p className="text-sm text-gray-500">Export all your account data including profile, preferences, and settings</p>
               </div>
-              <button className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">
+              <button
+                onClick={handleExportData}
+                disabled={exportLoading}
+                className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <Download className="w-4 h-4 mr-2" />
-                Export Data
+                {exportLoading ? 'Exporting...' : 'Export Data'}
               </button>
             </div>
           </div>
@@ -189,8 +305,12 @@ const Settings: React.FC = () => {
               <p className="text-sm text-red-700 mt-1">
                 Permanently delete your account and all associated data. This action cannot be undone.
               </p>
-              <button className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                Delete Account
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Account'}
               </button>
             </div>
           </div>

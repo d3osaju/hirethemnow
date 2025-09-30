@@ -34,7 +34,11 @@
       "Bash(aws cloudfront update-distribution:*)",
       "Bash(docker tag:*)",
       "Bash(docker push:*)",
-      "Bash(aws ecs describe-task-definition:*)"
+      "Bash(aws ecs describe-task-definition:*)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet add package:*)",
+      "Bash(export ASPNETCORE_URLS=\"http://localhost:8080\")",
+      "Bash(dotnet test:*)"
     ],
     "deny": [],
     "ask": []

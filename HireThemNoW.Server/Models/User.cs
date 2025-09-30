@@ -26,6 +26,10 @@ public class User
     public bool HasSeenTrialEndMessage { get; set; } = false;
     public bool HasActiveSubscription { get; set; } = false;
 
+    // Privacy settings
+    public string ProfileVisibility { get; set; } = "public"; // "public", "private", "connections"
+    public bool AllowAnalyticsDataSharing { get; set; } = true;
+
     // Helper method to check if user has access
     public bool HasAccess()
     {
