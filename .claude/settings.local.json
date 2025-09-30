@@ -21,7 +21,17 @@
       "Bash(export DATABASE_PASSWORD=\"hirethem4us\")",
       "Bash(export JWT_SECRET=\"7907248c76370fc472097c98a09f9296\")",
       "Bash(docker exec:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(export AWS_ACCESS_KEY_ID=\"AKIATY6KSOHAWPGDK7CO\")",
+      "Bash(export AWS_SECRET_ACCESS_KEY=\"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\")",
+      "Bash(aws ecr get-login-password:*)",
+      "Bash(docker login:*)",
+      "Bash(aws acm request-certificate:*)",
+      "Bash(aws sts:*)",
+      "Bash(export AWS_ACCESS_KEY_ID=\"AKIATY6KSOHA4ELP7TWZ\")",
+      "Bash(export AWS_SECRET_ACCESS_KEY=\"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\")",
+      "Bash(aws cloudfront list-distributions:*)",
+      "Bash(aws cloudfront update-distribution:*)"
     ],
     "deny": [],
     "ask": []
