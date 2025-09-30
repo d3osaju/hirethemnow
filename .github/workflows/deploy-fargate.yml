@@ -59,6 +59,8 @@ jobs:
             GoogleClientId="${{ secrets.GOOGLE_CLIENT_ID }}" \
             GoogleClientSecret="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
             DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
+            DomainName="hirethemnow.xyz" \
+            CertificateArn="arn:aws:acm:us-east-1:259733483969:certificate/9e129f76-2637-4d75-a2b0-808f2cbc3a35" \
           --capabilities CAPABILITY_IAM \
           --no-fail-on-empty-changeset
 
@@ -160,13 +162,14 @@ jobs:
         cd hirethemnow.client
         cat > .env.production << EOF
         VITE_APP_ENV=production
-        VITE_API_URL=${{ steps.stack-outputs.outputs.api-url }}/api
+        VITE_API_URL=https://api.hirethemnow.xyz/api
         VITE_APP_NAME=HireThemNow
-        VITE_BACKEND_URL=${{ steps.stack-outputs.outputs.api-url }}
-        VITE_API_BASE_URL=${{ steps.stack-outputs.outputs.api-url }}/api
+        VITE_BACKEND_URL=https://api.hirethemnow.xyz
+        VITE_API_BASE_URL=https://api.hirethemnow.xyz/api
         VITE_ENABLE_DEBUG=false
         VITE_ENABLE_MOCK_DATA=false
         VITE_LOG_LEVEL=error
+        VITE_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         EOF
 
         echo "✅ Environment file created:"

@@ -265,6 +265,20 @@ Resources:
       Port: 80
       Protocol: HTTP
 
+  ALBListenerHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCertificate
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      SslPolicy: ELBSecurityPolicy-2016-08
+
   # Security Groups
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
