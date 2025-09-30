@@ -5,10 +5,13 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-hirethem4us}
-      - JWT_SECRET=${JWT_SECRET:-ae9d27decc25cb45671ce98206e402e2}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-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}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
     volumes:
       - app_data:/app/data
     restart: unless-stopped

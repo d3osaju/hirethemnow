@@ -41,14 +41,32 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IDataService, DatabaseDataService>();
 
 // Add AWS Services
-builder.Services.AddAWSService<IAmazonS3>();
+var awsServiceUrl = builder.Configuration["AWS_SERVICE_URL"];
+if (!string.IsNullOrEmpty(awsServiceUrl))
+{
+    // LocalStack configuration for local development
+    builder.Services.AddSingleton<IAmazonS3>(sp =>
+    {
+        var config = new Amazon.S3.AmazonS3Config
+        {
+            ServiceURL = awsServiceUrl,
+            ForcePathStyle = true // Required for LocalStack
+        };
+        return new Amazon.S3.AmazonS3Client(config);
+    });
+}
+else
+{
+    // Production AWS configuration
+    builder.Services.AddAWSService<IAmazonS3>();
+}
 builder.Services.AddScoped<IS3Service, S3Service>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add JWT Authentication
-var jwtSecret = builder.Configuration["JWT_SECRET"] ?? "ae9d27decc25cb45671ce98206e402e2";
+var jwtSecret = builder.Configuration["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET environment variable is required");
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -182,7 +182,7 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var googleClientId = _configuration["GOOGLE_CLIENT_ID"] ?? "419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com";
+            var googleClientId = _configuration["GOOGLE_CLIENT_ID"] ?? throw new InvalidOperationException("GOOGLE_CLIENT_ID environment variable is required");
 
             _logger.LogInformation("Starting Google token validation. Client ID: {ClientId}", googleClientId);
             _logger.LogInformation("Current server time: {CurrentTime}", DateTime.UtcNow);

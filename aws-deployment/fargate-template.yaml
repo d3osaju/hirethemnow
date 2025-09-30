@@ -10,27 +10,23 @@ Parameters:
   JWTSecret:
     Type: String
     NoEcho: true
-    Description: JWT Secret for authentication
+    Description: JWT Secret for authentication (min 32 characters)
     MinLength: 32
-    Default: ae9d27decc25cb45671ce98206e402e2
 
   GoogleClientId:
     Type: String
     Description: Google OAuth Client ID
-    Default: 419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com
 
   GoogleClientSecret:
     Type: String
     NoEcho: true
     Description: Google OAuth Client Secret
-    Default: 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
 
   DatabasePassword:
     Type: String
     NoEcho: true
     Description: PostgreSQL database password
     MinLength: 8
-    Default: hirethem4us
 
   DomainName:
     Type: String

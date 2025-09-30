@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import {
   Shield,
   CreditCard,
@@ -6,12 +7,25 @@ import {
   Trash2,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('privacy');
   const [showPassword, setShowPassword] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const now = new Date();
+    const trialEnd = new Date(user.trialEndDate);
+    const diffTime = trialEnd.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    setDaysRemaining(diffDays);
+  }, [user]);
 
   const tabs = [
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
@@ -93,49 +107,57 @@ const Settings: React.FC = () => {
     </div>
   );
 
-  const renderBillingSettings = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Plan</h3>
-        <div className="bg-gray-50 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-lg font-medium text-gray-900">Professional Plan</h4>
-              <p className="text-gray-600">Unlimited campaigns and advanced analytics</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">$29/month</p>
-              <p className="text-sm text-gray-500">Billed monthly</p>
-            </div>
-          </div>
-          <div className="mt-4 flex space-x-3">
-            <button className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">
-              Upgrade Plan
-            </button>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-              Cancel Subscription
-            </button>
-          </div>
-        </div>
-      </div>
+  const renderBillingSettings = () => {
+    const isTrialActive = user && daysRemaining > 0;
 
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Method</h3>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <CreditCard className="w-8 h-8 text-gray-400" />
-              <div>
-                <p className="font-medium text-gray-900">•••• •••• •••• 4242</p>
-                <p className="text-sm text-gray-500">Expires 12/2025</p>
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Plan</h3>
+          {isTrialActive ? (
+            <div className="bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-lg p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center">
+                    <Clock className="w-6 h-6 text-green-600 mr-2" />
+                    <h4 className="text-lg font-semibold text-gray-900">Free Trial Active</h4>
+                  </div>
+                  <p className="text-gray-600 mt-2">
+                    Enjoy full access to all features during your trial period.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-green-600">{daysRemaining}</p>
+                  <p className="text-sm text-gray-600">{daysRemaining === 1 ? 'day' : 'days'} remaining</p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-green-200">
+                <p className="text-sm text-gray-600 mb-3">
+                  <strong>What happens next?</strong> Payment options will be available soon. We'll notify you before your trial ends.
+                </p>
               </div>
             </div>
-            <button className="text-gray-600 hover:text-gray-800">Edit</button>
-          </div>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-lg font-semibold text-red-900">Trial Ended</h4>
+                  <p className="text-red-700 mt-2">
+                    Your free trial has ended. Thank you for participating in our Beta!
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-red-800">
+                  Payment options will be available soon. We'll notify you via email when subscriptions are ready.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderDataSettings = () => (
     <div className="space-y-6">

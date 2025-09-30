@@ -336,26 +336,34 @@ git commit --no-verify -m "Emergency commit"
 
 ## 🔐 Environment Variables
 
-### Required Configuration
+Copy `.env.example` to `.env` and configure:
+
 ```bash
 # Database
-DATABASE_PASSWORD=hirethem4us
+DATABASE_PASSWORD=your_secure_password
 
 # Authentication
-JWT_SECRET=your-jwt-secret-here
+JWT_SECRET=your_secure_jwt_secret_min_32_chars
 
-# Google OAuth (Optional)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# N8N Integration
+# AWS S3 (for resume uploads)
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=us-east-1
+
+# N8N Integration (Optional)
 N8N_RESUME_ANALYSIS_WEBHOOK=https://your-n8n-instance.com/webhook/resume-analysis
 N8N_HR_SCRAPING_WEBHOOK=https://your-n8n-instance.com/webhook/hr-scraping
 N8N_COLD_EMAIL_WEBHOOK=https://your-n8n-instance.com/webhook/cold-email-campaign
 
-# Email Service
+# Email Service (Optional)
 TESTMAIL_API_KEY=your-testmail-api-key
 ```
+
+**See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup instructions.**
 
 ## 📁 Project Structure
 

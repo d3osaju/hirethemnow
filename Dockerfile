@@ -9,8 +9,9 @@ RUN npm ci
 
 # Copy client source and build
 COPY hirethemnow.client/ ./
-# Set environment variable for Docker build to use local API
-ENV VITE_API_BASE_URL=http://localhost:8080/api
+# Set environment variable for Docker build to use API on same host
+ENV VITE_API_BASE_URL=/api
+ENV VITE_GOOGLE_CLIENT_ID=419725254966-5i7rgg3h7j984od6mi3ib4tt3rqq8o4j.apps.googleusercontent.com
 RUN npm run build
 
 # Stage 2: Build .NET server
