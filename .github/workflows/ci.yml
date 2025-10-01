@@ -181,30 +181,48 @@ jobs:
     - name: Test container startup
       run: |
         echo "🧪 Testing container startup..."
-        # Run container in background
+        # Run container in background with all required environment variables
         docker run -d --name test-container \
           -p 8080:8080 \
           -e ASPNETCORE_ENVIRONMENT=Production \
-          -e JWT_SECRET=test-secret-for-ci \
+          -e JWT_SECRET=test-secret-for-ci-testing-only \
           -e GOOGLE_CLIENT_ID=test-client-id \
           -e GOOGLE_CLIENT_SECRET=test-client-secret \
+          -e DATABASE_HOST=localhost \
+          -e DATABASE_NAME=testdb \
+          -e DATABASE_USER=testuser \
+          -e DATABASE_PASSWORD=testpassword \
           hirethemnow-test
 
-        # Wait for startup
-        sleep 10
+        # Wait for startup and check logs
+        echo "⏳ Waiting for container startup (15 seconds)..."
+        sleep 15
 
-        # Check if container is running
+        echo "📋 Container logs:"
+        docker logs test-container
+
+        # Check if container is still running
         if docker ps | grep test-container; then
           echo "✅ Container started successfully"
+
+          # Test if the application responds
+          echo "🔍 Testing application health..."
+          sleep 5
+          if curl -f http://localhost:8080/api/health || curl -f http://localhost:8080 ; then
+            echo "✅ Application is responding"
+          else
+            echo "⚠️ Application not responding (may be normal for test without DB)"
+          fi
         else
           echo "❌ Container failed to start"
+          echo "📋 Full logs:"
           docker logs test-container
           exit 1
         fi
 
         # Cleanup
-        docker stop test-container
-        docker rm test-container
+        docker stop test-container || true
+        docker rm test-container || true
 
   summary:
     runs-on: ubuntu-latest

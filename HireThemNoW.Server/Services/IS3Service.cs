@@ -4,7 +4,7 @@ namespace HireThemNoW.Server.Services;
 
 public interface IS3Service
 {
-    Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType);
+    Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string? prefix = null);
     Task<bool> DeleteFileAsync(string fileKey);
     Task<string> GetPreSignedUrlAsync(string fileKey, int expirationMinutes = 60);
     Task<Stream> DownloadFileAsync(string fileKey);

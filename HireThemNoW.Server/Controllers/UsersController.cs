@@ -13,11 +13,13 @@ public class UsersController : ControllerBase
 {
     private readonly IDataService _dataService;
     private readonly ILogger<UsersController> _logger;
+    private readonly IS3Service _s3Service;
 
-    public UsersController(IDataService dataService, ILogger<UsersController> logger)
+    public UsersController(IDataService dataService, ILogger<UsersController> logger, IS3Service s3Service)
     {
         _dataService = dataService;
         _logger = logger;
+        _s3Service = s3Service;
     }
 
     [HttpGet("profile")]
@@ -189,47 +191,51 @@ public class UsersController : ControllerBase
                 });
             }
 
-            // Create uploads directory if it doesn't exist
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "profile-pictures");
-            Directory.CreateDirectory(uploadsPath);
-
-            // Generate unique filename
-            var fileName = $"{userId}_{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(uploadsPath, fileName);
-
-            // Save file
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await picture.CopyToAsync(stream);
-            }
-
-            // Generate URL (relative path that can be served by the API)
-            var pictureUrl = $"/uploads/profile-pictures/{fileName}";
-
-            // Update user's picture URL in database
+            // Get user before upload
             var user = await _dataService.GetUserAsync(userId);
-            if (user != null)
+            if (user == null)
             {
-                // Delete old picture file if it exists and is not from Google
-                if (!string.IsNullOrEmpty(user.Picture) && !user.Picture.StartsWith("http"))
+                return NotFound(new ApiResponse<string>
                 {
-                    var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), user.Picture.TrimStart('/'));
-                    if (System.IO.File.Exists(oldFilePath))
-                    {
-                        System.IO.File.Delete(oldFilePath);
-                    }
-                }
-
-                user.Picture = pictureUrl;
-                await _dataService.UpdateUserAsync(user);
+                    Success = false,
+                    Message = "User not found"
+                });
             }
 
-            return Ok(new ApiResponse<string>
+            // Delete old profile picture from S3 if it exists and is not from Google
+            if (!string.IsNullOrEmpty(user.Picture) &&
+                !user.Picture.StartsWith("http") &&
+                user.Picture.StartsWith("profile-pictures/"))
             {
-                Success = true,
-                Message = "Profile picture uploaded successfully",
-                Data = pictureUrl
-            });
+                await _s3Service.DeleteFileAsync(user.Picture);
+                _logger.LogInformation("Deleted old profile picture for user {UserId}", userId);
+            }
+
+            // Upload new picture to S3
+            using (var stream = picture.OpenReadStream())
+            {
+                var fileName = $"{userId}_{Guid.NewGuid()}{extension}";
+                var contentType = picture.ContentType ?? "image/jpeg";
+
+                // Upload to S3 with profile-pictures prefix
+                var s3Key = await _s3Service.UploadFileAsync(stream, fileName, contentType, "profile-pictures");
+
+                // Generate pre-signed URL for immediate access (valid for 7 days)
+                var pictureUrl = await _s3Service.GetPreSignedUrlAsync(s3Key, 10080); // 7 days in minutes
+
+                // Update user's picture URL in database (store S3 key)
+                user.Picture = s3Key; // Store the S3 key, not the pre-signed URL
+                await _dataService.UpdateUserAsync(user);
+
+                _logger.LogInformation("Uploaded profile picture to S3 for user {UserId} with key {S3Key}", userId, s3Key);
+
+                return Ok(new ApiResponse<string>
+                {
+                    Success = true,
+                    Message = "Profile picture uploaded successfully",
+                    Data = pictureUrl // Return pre-signed URL to frontend
+                });
+            }
         }
         catch (Exception ex)
         {

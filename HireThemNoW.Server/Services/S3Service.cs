@@ -18,12 +18,13 @@ public class S3Service : IS3Service
         _bucketName = _configuration["AWS:S3:BucketName"] ?? "hirethemnow-resumes";
     }
 
-    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
+    public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string? prefix = null)
     {
         try
         {
-            // Generate unique file key
-            var fileKey = $"resumes/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}_{fileName}";
+            // Generate unique file key with optional custom prefix
+            var folder = prefix ?? "resumes";
+            var fileKey = $"{folder}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}_{fileName}";
 
             var request = new PutObjectRequest
             {
