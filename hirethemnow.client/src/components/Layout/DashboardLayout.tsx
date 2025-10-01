@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import Navbar from '../Navbar';
 import {
   Mail,
   User,
   Settings,
   LogOut,
   Menu,
-  X,
-  Bell
+  X
 } from 'lucide-react';
 
 const DashboardLayout: React.FC = () => {
@@ -149,22 +149,16 @@ const DashboardLayout: React.FC = () => {
 
       {/* Main content */}
       <div className="lg:pl-64">
-        {/* Top bar for mobile */}
+        {/* Navbar */}
+        <Navbar />
+
+        {/* Mobile menu button */}
         <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
           >
             <Menu className="w-6 h-6" />
-          </button>
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">HT</span>
-            </div>
-            <span className="text-lg font-semibold text-gray-900">HireThemNow</span>
-          </div>
-          <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-            <Bell className="w-6 h-6" />
           </button>
         </div>
 

@@ -15,6 +15,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<EmailPreference> EmailPreferences { get; set; }
     public DbSet<Industry> Industries { get; set; }
     public DbSet<SkillExpertise> SkillExpertises { get; set; }
+    public DbSet<ReleaseNote> ReleaseNotes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +68,21 @@ public class ApplicationDbContext : DbContext
                 .WithMany(i => i.Skills)
                 .HasForeignKey(e => e.IndustryId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ReleaseNote configuration
+        modelBuilder.Entity<ReleaseNote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Version).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Features)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions)null!) ?? new List<string>())
+                .Metadata.SetValueComparer(new ValueComparer<List<string>>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()));
         });
 
         // Seed data
@@ -208,6 +224,43 @@ public class ApplicationDbContext : DbContext
             new SkillExpertise { Id = 103, Name = "Heavy Equipment Operation", IndustryId = 10 },
             new SkillExpertise { Id = 104, Name = "Welding", IndustryId = 10 },
             new SkillExpertise { Id = 105, Name = "Site Supervision", IndustryId = 10 }
+        );
+
+        // Seed Release Notes
+        modelBuilder.Entity<ReleaseNote>().HasData(
+            new ReleaseNote
+            {
+                Id = 1,
+                Version = "1.2.0",
+                ReleaseDate = new DateTime(2025, 9, 30),
+                Features = new List<string>
+                {
+                    "Added Privacy Controls (Profile Visibility & Analytics)",
+                    "Implemented Data Export functionality",
+                    "Added Account Deletion feature",
+                    "Fixed CORS issues with Industries endpoint",
+                    "Added top navbar with search and notifications",
+                    "Implemented notification badge showing trial days remaining"
+                },
+                IsPublished = true,
+                CreatedAt = new DateTime(2025, 9, 30)
+            },
+            new ReleaseNote
+            {
+                Id = 2,
+                Version = "1.1.0",
+                ReleaseDate = new DateTime(2025, 9, 25),
+                Features = new List<string>
+                {
+                    "Email preferences management",
+                    "Profile update functionality",
+                    "Resume upload and download",
+                    "Trial period tracking",
+                    "User onboarding flow"
+                },
+                IsPublished = true,
+                CreatedAt = new DateTime(2025, 9, 25)
+            }
         );
     }
 

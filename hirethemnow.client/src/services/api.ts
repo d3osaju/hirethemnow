@@ -221,4 +221,12 @@ export const dataAPI = {
   },
 };
 
+// Release Notes API
+export const releaseNotesAPI = {
+  getReleaseNotes: async (): Promise<ApiResponse<Array<{ id: number; version: string; releaseDate: string; features: string[]; isPublished: boolean; createdAt: string }>>> => {
+    const response = await api.get('/releasenotes');
+    return response.data;
+  },
+};
+
 export default api;

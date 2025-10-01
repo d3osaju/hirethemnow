@@ -12,6 +12,9 @@ import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import SubscriptionExpired from './pages/SubscriptionExpired';
+import NotFound from './pages/NotFound';
+import ServerError from './pages/ServerError';
+import Unauthorized from './pages/Unauthorized';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -101,6 +104,11 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+
+          {/* Error routes */}
+          <Route path="/401" element={<Unauthorized />} />
+          <Route path="/500" element={<ServerError />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </AuthProvider>
