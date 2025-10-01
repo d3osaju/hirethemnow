@@ -50,10 +50,10 @@ const HeroSection: React.FC = () => {
                   </Link>
                 ) : (
                   <Link
-                    to="/jobs"
+                    to="/dashboard"
                     className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-neutral-900 hover:bg-neutral-800 md:py-4 md:text-lg md:px-10 transition-all duration-200"
                   >
-                    Browse Jobs
+                    Dashboard
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 )}

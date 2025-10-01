@@ -7,7 +7,6 @@ import {
   CreditCard,
   Download,
   Trash2,
-  Save,
   Eye,
   EyeOff,
   Clock
@@ -125,10 +124,6 @@ const Settings: React.FC = () => {
     } finally {
       setDeleteLoading(false);
     }
-  };
-
-  const handleSave = () => {
-    // Save settings logic would go here
   };
 
   const renderPrivacySettings = () => (
@@ -354,19 +349,6 @@ const Settings: React.FC = () => {
             {activeTab === 'privacy' && renderPrivacySettings()}
             {activeTab === 'billing' && renderBillingSettings()}
             {activeTab === 'data' && renderDataSettings()}
-
-            {/* Save Button */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSave}
-                  className="flex items-center px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Changes
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

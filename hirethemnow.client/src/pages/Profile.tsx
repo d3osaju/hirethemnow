@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { resumeAPI, authAPI, emailPreferencesAPI, industriesAPI } from '../services/api';
+import { config } from '../config/environment';
 import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell, X } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -20,6 +21,7 @@ const Profile: React.FC = () => {
   const [resumeData, setResumeData] = useState<{ hasResume: boolean; status: string; resumeUrl?: string } | null>(null);
   const [resumeLoading, setResumeLoading] = useState(true);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [pictureUploadLoading, setPictureUploadLoading] = useState(false);
   const [emailPreferences, setEmailPreferences] = useState({
     weeklyPerformanceReport: false,
     marketingEmails: false,
@@ -175,6 +177,30 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleProfilePictureUpload = async (file: File) => {
+    try {
+      setPictureUploadLoading(true);
+      const response = await authAPI.uploadProfilePicture(file);
+      if (response.success) {
+        // Update user context with new picture URL
+        if (user && response.data) {
+          const pictureUrl = response.data.startsWith('http')
+            ? response.data
+            : `${config.apiUrl.replace('/api', '')}${response.data}`;
+          updateUser({ ...user, picture: pictureUrl });
+        }
+        alert('Profile picture updated successfully!');
+      } else {
+        alert('Upload failed: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Profile picture upload error:', error);
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setPictureUploadLoading(false);
+    }
+  };
+
   const getStatusBadge = (status?: string) => {
     switch (status?.toLowerCase()) {
       case 'uploaded':
@@ -290,7 +316,7 @@ const Profile: React.FC = () => {
             {/* Profile Picture */}
             <div className="flex items-center space-x-6">
               <div className="relative">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                   {user?.picture ? (
                     <img
                       src={user.picture}
@@ -302,14 +328,54 @@ const Profile: React.FC = () => {
                   )}
                 </div>
                 {editing && (
-                  <button className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700">
-                    <Camera className="w-4 h-4" />
+                  <button
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/jpeg,image/jpg,image/png,image/gif';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          await handleProfilePictureUpload(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                    disabled={pictureUploadLoading}
+                    className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Change profile picture"
+                  >
+                    {pictureUploadLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
                   </button>
                 )}
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{user?.name}</h2>
                 <p className="text-gray-600">{user?.role === 'candidate' ? 'Job Seeker' : 'Employer'}</p>
+                {editing && (
+                  <button
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/jpeg,image/jpg,image/png,image/gif';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          await handleProfilePictureUpload(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                    disabled={pictureUploadLoading}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  >
+                    {pictureUploadLoading ? 'Uploading...' : 'Change picture'}
+                  </button>
+                )}
               </div>
             </div>
 

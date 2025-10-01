@@ -35,24 +35,7 @@ const Header: React.FC = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            {user && (
-              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105 relative group">
-                Dashboard
-                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gray-800 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
-              </Link>
-            )}
-            {user?.role === 'employer' && (
-              <Link to="/jobs/create" className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105 relative group">
-                Post Job
-                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gray-800 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
-              </Link>
-            )}
-            {user && (
-              <Link to="/profile" className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105 relative group">
-                Profile
-                <span className="absolute inset-x-0 -bottom-1 h-0.5 bg-gray-800 scale-x-0 group-hover:scale-x-100 transition-transform origin-center duration-300"></span>
-              </Link>
-            )}
+            {/* Navigation links removed - users access profile via profile button */}
           </nav>
 
           {/* User Menu */}
@@ -69,12 +52,24 @@ const Header: React.FC = () => {
                   </Link>
                 )}
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-3 bg-neutral-100 rounded-xl px-4 py-2 border border-neutral-200">
-                    <div className="h-10 w-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center shadow-lg">
-                      <User className="h-5 w-5 text-white" />
+                  <Link
+                    to="/profile"
+                    className="flex items-center space-x-3 bg-neutral-100 rounded-xl px-4 py-2 border border-neutral-200 hover:bg-neutral-200 transition-all duration-300 cursor-pointer"
+                    title="Go to Profile"
+                  >
+                    <div className="h-10 w-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                      {user.picture ? (
+                        <img
+                          src={user.picture}
+                          alt={user.name}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-5 w-5 text-white" />
+                      )}
                     </div>
                     <span className="text-sm font-medium text-jobpilot-navy">{user.name}</span>
-                  </div>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="text-neutral-500 hover:text-error-600 p-2 rounded-lg hover:bg-neutral-100 transition-all duration-300 group"
@@ -104,35 +99,6 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile menu */}
-      <div className="md:hidden border-t border-neutral-200 bg-neutral-50">
-        <div className="px-4 pt-4 pb-4 space-y-2">
-          {user && (
-            <Link
-              to="/dashboard"
-              className="text-neutral-600 hover:text-primary-600 block px-4 py-3 text-base font-medium rounded-lg hover:bg-primary-50 transition-all duration-300"
-            >
-              Dashboard
-            </Link>
-          )}
-          {user?.role === 'employer' && (
-            <Link
-              to="/jobs/create"
-              className="text-neutral-600 hover:text-primary-600 block px-4 py-3 text-base font-medium rounded-lg hover:bg-primary-50 transition-all duration-300"
-            >
-              Post Job
-            </Link>
-          )}
-          {user && (
-            <Link
-              to="/profile"
-              className="text-neutral-600 hover:text-primary-600 block px-4 py-3 text-base font-medium rounded-lg hover:bg-primary-50 transition-all duration-300"
-            >
-              Profile
-            </Link>
-          )}
-        </div>
-      </div>
     </header>
   );
 };

@@ -57,7 +57,7 @@ const CTASection: React.FC = () => {
               </>
             ) : (
               <Link
-                to="/jobs"
+                to="/dashboard"
                 className="group inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-neutral-900 bg-lime-400 rounded-lg hover:bg-lime-300 transition-all duration-200 min-w-[200px]"
               >
                 Go to Dashboard

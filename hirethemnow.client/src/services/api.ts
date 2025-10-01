@@ -71,6 +71,18 @@ export const authAPI = {
     const response = await api.put('/users/profile', profileData);
     return response.data;
   },
+
+  uploadProfilePicture: async (file: File): Promise<ApiResponse<string>> => {
+    const formData = new FormData();
+    formData.append('picture', file);
+
+    const response = await api.post('/users/profile/picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Resume API

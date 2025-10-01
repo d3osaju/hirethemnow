@@ -71,26 +71,26 @@ const ServicesSection: React.FC = () => {
             return (
               <div
                 key={service.name}
-                className="group relative bg-white border border-neutral-200 rounded-xl p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                className="group relative bg-white border border-neutral-200 rounded-xl p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden"
               >
+                {/* Hover Effect Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-lime-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+
                 {/* Background Pattern */}
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-lime-400 to-lime-600 rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                 {/* Icon */}
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg ${service.iconBg} mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`relative inline-flex items-center justify-center w-12 h-12 rounded-lg ${service.iconBg} mb-6 group-hover:scale-110 transition-transform duration-300`}>
                   <IconComponent className={`h-6 w-6 ${service.iconColor}`} />
                 </div>
 
                 {/* Content */}
-                <h4 className="text-xl font-semibold text-neutral-900 mb-4">
+                <h4 className="relative text-xl font-semibold text-neutral-900 mb-4">
                   {service.name}
                 </h4>
-                <p className="text-neutral-600 leading-relaxed">
+                <p className="relative text-neutral-600 leading-relaxed">
                   {service.description}
                 </p>
-
-                {/* Hover Effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-lime-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none"></div>
               </div>
             );
           })}

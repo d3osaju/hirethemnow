@@ -58,5 +58,6 @@ public class UpdateUserRequest
     public string? Industry { get; set; }
     public string? Experience { get; set; }
     public string? ResumeUrl { get; set; }
+    public string? Picture { get; set; }
     public bool? IsCompleted { get; set; }
 }

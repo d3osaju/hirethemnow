@@ -117,6 +117,8 @@ public class UsersController : ControllerBase
                 user.Experience = request.Experience;
             if (!string.IsNullOrEmpty(request.ResumeUrl))
                 user.ResumeUrl = request.ResumeUrl;
+            if (!string.IsNullOrEmpty(request.Picture))
+                user.Picture = request.Picture;
             if (request.IsCompleted.HasValue)
                 user.IsCompleted = request.IsCompleted.Value;
 
@@ -136,6 +138,106 @@ public class UsersController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while updating your profile",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    [HttpPost("profile/picture")]
+    public async Task<ActionResult<ApiResponse<string>>> UploadProfilePicture([FromForm] IFormFile picture)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = "User not authenticated"
+                });
+            }
+
+            if (picture == null || picture.Length == 0)
+            {
+                return BadRequest(new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = "No file uploaded"
+                });
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var extension = Path.GetExtension(picture.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest(new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = "Invalid file type. Only JPG, PNG, and GIF are allowed."
+                });
+            }
+
+            // Validate file size (max 5MB)
+            if (picture.Length > 5 * 1024 * 1024)
+            {
+                return BadRequest(new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = "File size too large. Maximum size is 5MB."
+                });
+            }
+
+            // Create uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "profile-pictures");
+            Directory.CreateDirectory(uploadsPath);
+
+            // Generate unique filename
+            var fileName = $"{userId}_{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+
+            // Save file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await picture.CopyToAsync(stream);
+            }
+
+            // Generate URL (relative path that can be served by the API)
+            var pictureUrl = $"/uploads/profile-pictures/{fileName}";
+
+            // Update user's picture URL in database
+            var user = await _dataService.GetUserAsync(userId);
+            if (user != null)
+            {
+                // Delete old picture file if it exists and is not from Google
+                if (!string.IsNullOrEmpty(user.Picture) && !user.Picture.StartsWith("http"))
+                {
+                    var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), user.Picture.TrimStart('/'));
+                    if (System.IO.File.Exists(oldFilePath))
+                    {
+                        System.IO.File.Delete(oldFilePath);
+                    }
+                }
+
+                user.Picture = pictureUrl;
+                await _dataService.UpdateUserAsync(user);
+            }
+
+            return Ok(new ApiResponse<string>
+            {
+                Success = true,
+                Message = "Profile picture uploaded successfully",
+                Data = pictureUrl
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading profile picture");
+            return StatusCode(500, new ApiResponse<string>
+            {
+                Success = false,
+                Message = "An error occurred while uploading the profile picture",
                 Errors = new List<string> { ex.Message }
             });
         }
