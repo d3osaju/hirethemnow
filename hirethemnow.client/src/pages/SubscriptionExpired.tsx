@@ -48,8 +48,8 @@ const SubscriptionExpired: React.FC = () => {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500">
               Need help? Contact us at{' '}
-              <a href="mailto:support@hirethemnow.com" className="text-blue-600 hover:underline">
-                support@hirethemnow.com
+              <a href="mailto:support@hirethemnow.xyz" className="text-blue-600 hover:underline">
+                support@hirethemnow.xyz
               </a>
             </p>
           </div>

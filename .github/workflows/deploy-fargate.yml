@@ -140,15 +140,56 @@ jobs:
 
     - name: Wait for service deployment
       id: wait-deployment
+      timeout-minutes: 20
       run: |
         echo "⏳ Waiting for ECS service to be stable..."
 
-        aws ecs wait services-stable \
+        # Check service status before waiting
+        echo "📊 Current service status:"
+        aws ecs describe-services \
           --cluster "${{ env.STACK_NAME }}-cluster" \
           --services "${{ env.STACK_NAME }}-service" \
-          --region ${{ env.AWS_REGION }}
+          --region ${{ env.AWS_REGION }} \
+          --query 'services[0].{Status:status,DesiredCount:desiredCount,RunningCount:runningCount,PendingCount:pendingCount}' \
+          --output table
 
-        echo "✅ ECS service is now stable"
+        # Wait with timeout handling
+        if aws ecs wait services-stable \
+          --cluster "${{ env.STACK_NAME }}-cluster" \
+          --services "${{ env.STACK_NAME }}-service" \
+          --region ${{ env.AWS_REGION }}; then
+          echo "✅ ECS service is now stable"
+        else
+          echo "⚠️ Service stabilization timed out. Checking service details..."
+
+          # Get detailed failure information
+          echo "🔍 Service events (last 10):"
+          aws ecs describe-services \
+            --cluster "${{ env.STACK_NAME }}-cluster" \
+            --services "${{ env.STACK_NAME }}-service" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].events[:10]' \
+            --output table
+
+          echo "🔍 Task failures:"
+          TASK_ARNS=$(aws ecs list-tasks \
+            --cluster "${{ env.STACK_NAME }}-cluster" \
+            --service-name "${{ env.STACK_NAME }}-service" \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+
+          if [ ! -z "$TASK_ARNS" ]; then
+            aws ecs describe-tasks \
+              --cluster "${{ env.STACK_NAME }}-cluster" \
+              --tasks $TASK_ARNS \
+              --region ${{ env.AWS_REGION }} \
+              --query 'tasks[0].{LastStatus:lastStatus,StopReason:stoppedReason,Containers:containers[*].{Name:name,Status:lastStatus,Reason:reason}}' \
+              --output json
+          fi
+
+          exit 1
+        fi
 
     - name: Install frontend dependencies
       run: |
