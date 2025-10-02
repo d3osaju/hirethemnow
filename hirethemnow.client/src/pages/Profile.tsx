@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { resumeAPI, authAPI, emailPreferencesAPI, industriesAPI } from '../services/api';
-import { config } from '../config/environment';
 import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell, X } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -182,12 +181,9 @@ const Profile: React.FC = () => {
       setPictureUploadLoading(true);
       const response = await authAPI.uploadProfilePicture(file);
       if (response.success) {
-        // Update user context with new picture URL
+        // Update user context with new picture URL (response.data is already a pre-signed URL)
         if (user && response.data) {
-          const pictureUrl = response.data.startsWith('http')
-            ? response.data
-            : `${config.apiUrl.replace('/api', '')}${response.data}`;
-          updateUser({ ...user, picture: pictureUrl });
+          updateUser({ ...user, picture: response.data });
         }
         alert('Profile picture updated successfully!');
       } else {

@@ -2,13 +2,24 @@
 
 # HireThemNow Quick Deploy Script
 # Runs all checks, creates smart commit, and pushes to GitHub
+#
+# Usage:
+#   ./quick-deploy.sh           - Normal deployment
+#   ./quick-deploy.sh --release - Enhanced deployment with release notes
 
 set -e  # Exit on any error
 
-echo "🚀 HireThemNow Quick Deploy Starting..."
+# Check for release mode
+RELEASE_MODE=false
+if [ "$1" == "--release" ] || [ "$1" == "-r" ]; then
+    RELEASE_MODE=true
+    echo "🚀 HireThemNow Quick Deploy Starting (Release Mode)..."
+else
+    echo "🚀 HireThemNow Quick Deploy Starting..."
+fi
 
-# Navigate to project root
-cd "$(dirname "$0")"
+# Navigate to project root (go up one level from scripts folder)
+cd "$(dirname "$0")/.."
 
 echo "📁 Working directory: $(pwd)"
 
@@ -69,6 +80,24 @@ echo "✅ Backend checks passed!"
 
 # Navigate back to project root
 cd ..
+
+# Generate release notes if in release mode
+if [ "$RELEASE_MODE" == "true" ]; then
+    echo "📝 Generating release notes..."
+    bash scripts/generate-release-note.sh || true
+
+    # Check if release note was generated
+    if [ -f ".release-note-env" ]; then
+        source .release-note-env
+        echo "📦 Release version: ${RELEASE_VERSION}"
+
+        # Apply database migration if migration file exists
+        if [ ! -z "$RELEASE_MIGRATION" ] && [ -f "$RELEASE_MIGRATION" ]; then
+            echo "🔄 Release note migration created: ${RELEASE_MIGRATION}"
+            echo "ℹ️  Migration will be committed and deployed"
+        fi
+    fi
+fi
 
 echo "📝 Creating commit..."
 
@@ -145,8 +174,15 @@ else
     fi
 fi
 
+# Add release version to commit message if in release mode
+if [ "$RELEASE_MODE" == "true" ] && [ ! -z "$RELEASE_VERSION" ]; then
+    VERSION_TAG=" [v${RELEASE_VERSION}]"
+else
+    VERSION_TAG=""
+fi
+
 # Create the commit message
-COMMIT_MSG="${COMMIT_TYPE}(${SCOPE}): ${DESCRIPTION}
+COMMIT_MSG="${COMMIT_TYPE}(${SCOPE}): ${DESCRIPTION}${VERSION_TAG}
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
@@ -161,9 +197,21 @@ git commit -m "$COMMIT_MSG"
 
 echo "✅ Commit created successfully!"
 
+# Create git tag if in release mode and version exists
+if [ "$RELEASE_MODE" == "true" ] && [ ! -z "$RELEASE_VERSION" ]; then
+    echo "🏷️  Creating git tag: v${RELEASE_VERSION}"
+    git tag -a "v${RELEASE_VERSION}" -m "Release version ${RELEASE_VERSION}" 2>/dev/null || echo "⚠️  Tag already exists"
+fi
+
 # Push to GitHub
 echo "🚀 Pushing to GitHub..."
 git push
+
+# Push tags if in release mode
+if [ "$RELEASE_MODE" == "true" ] && [ ! -z "$RELEASE_VERSION" ]; then
+    echo "🏷️  Pushing tags..."
+    git push --tags || true
+fi
 
 echo "✅ Successfully pushed to GitHub!"
 echo "🎉 Quick deploy completed!"
@@ -176,3 +224,12 @@ echo "  - Backend files changed: $BACKEND_CHANGES"
 echo "  - Config files changed: $CONFIG_CHANGES"
 echo "  - Commit type: $COMMIT_TYPE($SCOPE)"
 echo "  - Description: $DESCRIPTION"
+if [ "$RELEASE_MODE" == "true" ] && [ ! -z "$RELEASE_VERSION" ]; then
+    echo "  - Release version: v${RELEASE_VERSION}"
+fi
+
+# Clean up
+rm -f .release-note-env
+
+echo ""
+echo "✨ All done! Your changes are live."

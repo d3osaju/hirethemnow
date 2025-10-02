@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Briefcase, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import GoogleSignIn from '../../components/auth/GoogleSignIn';
+import Logo from '../../components/Logo';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -47,10 +48,7 @@ const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
-            <div className="relative">
-              <Briefcase className="h-12 w-12 text-primary-600 drop-shadow-sm" />
-              <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-secondary-600 animate-pulse" />
-            </div>
+            <Logo size="xlarge" linkTo={null} />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Sign in to your account

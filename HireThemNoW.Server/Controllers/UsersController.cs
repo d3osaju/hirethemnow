@@ -56,6 +56,21 @@ public class UsersController : ControllerBase
                 user = await _dataService.CreateUserAsync(user);
             }
 
+            // Convert S3 key to pre-signed URL if picture exists
+            if (!string.IsNullOrEmpty(user.Picture) && !user.Picture.StartsWith("http"))
+            {
+                try
+                {
+                    user.Picture = await _s3Service.GetPreSignedUrlAsync(user.Picture, 10080); // 7 days
+                    _logger.LogInformation("Generated pre-signed URL for user {UserId} profile picture", userId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", userId);
+                    user.Picture = null; // Clear invalid picture reference
+                }
+            }
+
             return Ok(new ApiResponse<User>
             {
                 Success = true,
@@ -274,13 +289,28 @@ public class UsersController : ControllerBase
                 });
             }
 
+            // Convert S3 key to pre-signed URL if picture exists
+            var pictureUrl = user.Picture;
+            if (!string.IsNullOrEmpty(pictureUrl) && !pictureUrl.StartsWith("http"))
+            {
+                try
+                {
+                    pictureUrl = await _s3Service.GetPreSignedUrlAsync(pictureUrl, 10080); // 7 days
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", id);
+                    pictureUrl = null; // Clear invalid picture reference
+                }
+            }
+
             // Return limited information for other users (privacy)
             var publicUser = new User
             {
                 Id = user.Id,
                 Name = user.Name,
                 Role = user.Role,
-                Picture = user.Picture,
+                Picture = pictureUrl,
                 Location = user.Location,
                 Bio = user.Bio,
                 Skills = user.Skills,

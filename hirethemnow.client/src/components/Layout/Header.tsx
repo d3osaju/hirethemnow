@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { config } from '../../config/environment';
-import { User, LogOut, Briefcase, Plus, Sparkles } from 'lucide-react';
+import { User, LogOut, Plus } from 'lucide-react';
+import Logo from '../Logo';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,20 +18,7 @@ const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="relative">
-                <Briefcase className="h-10 w-10 text-gray-700 drop-shadow-sm group-hover:scale-110 transition-transform duration-300" />
-                <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-gray-500 animate-pulse" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-2xl font-bold text-gray-900 drop-shadow-sm">{config.appName}</span>
-                {config.enableDebug && (
-                  <span className="text-xs text-gray-500 capitalize">({config.environment})</span>
-                )}
-              </div>
-            </Link>
-          </div>
+          <Logo size="large" linkTo="/" />
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -53,7 +40,7 @@ const Header: React.FC = () => {
                 )}
                 <div className="flex items-center space-x-3">
                   <Link
-                    to="/profile"
+                    to="/dashboard/profile"
                     className="flex items-center space-x-3 bg-neutral-100 rounded-xl px-4 py-2 border border-neutral-200 hover:bg-neutral-200 transition-all duration-300 cursor-pointer"
                     title="Go to Profile"
                   >

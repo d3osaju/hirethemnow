@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import Navbar from '../Navbar';
+import Logo from '../Logo';
 import {
   Mail,
   User,
@@ -35,12 +36,7 @@ const DashboardLayout: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl">
           <div className="flex items-center justify-between p-4 border-b border-neutral-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">HT</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900">HireThemNow</span>
-            </div>
+            <Logo size="medium" linkTo="/dashboard" />
             <button
               onClick={() => setSidebarOpen(false)}
               className="p-1 text-neutral-400 hover:text-neutral-600"
@@ -72,8 +68,16 @@ const DashboardLayout: React.FC = () => {
           </nav>
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-neutral-200">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-primary-600" />
+              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center overflow-hidden">
+                {user?.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-primary-600" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-jobpilot-navy truncate">{user?.name}</p>
@@ -96,12 +100,7 @@ const DashboardLayout: React.FC = () => {
         <div className="flex flex-col flex-grow bg-white border-r border-neutral-200">
           {/* Logo */}
           <div className="flex items-center px-6 py-6 border-b border-neutral-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold">HT</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900">HireThemNow</span>
-            </div>
+            <Logo size="medium" linkTo="/dashboard" />
           </div>
 
           {/* Navigation */}
@@ -128,8 +127,16 @@ const DashboardLayout: React.FC = () => {
           {/* User section */}
           <div className="px-6 py-6 border-t border-neutral-200">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-primary-600" />
+              <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center overflow-hidden">
+                {user?.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-primary-600" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-jobpilot-navy truncate">{user?.name}</p>
