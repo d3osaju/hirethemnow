@@ -1,0 +1,22 @@
+{
+  "version": "1.0.2",
+  "releaseDate": "2025-10-02",
+  "features": [
+    {
+      "type": "feat",
+      "category": "UI/UX",
+      "description": "Replace alert() calls with react-hot-toast notifications for better user experience"
+    },
+    {
+      "type": "feat",
+      "category": "DevOps",
+      "description": "Add local release-notes.json system for tracking changes and automated release note generation"
+    },
+    {
+      "type": "fix",
+      "category": "Storage",
+      "description": "Fix profile picture display by adding S3 pre-signed URL generation to all auth endpoints (login, register, Google auth, getProfile)"
+    }
+  ],
+  "instructions": "Add new features/fixes to the features array. Use 'feat' for new features and 'fix' for bug fixes. Categories: UI/UX, Storage, API, Database, Security, Performance, Navigation, Branding, DevOps"
+}

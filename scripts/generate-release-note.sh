@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Generate Release Note Script
-# Analyzes git commits and creates a migration to insert release note into database
+# Reads from release-notes.json and creates a migration to insert release note into database
 
 set -e
 
@@ -10,103 +10,68 @@ cd "$(dirname "$0")/.."
 
 echo "📝 Generating Release Note..."
 
-# Get the last release note version (if any)
-LAST_VERSION=$(git tag --sort=-v:refname | head -n 1)
-if [ -z "$LAST_VERSION" ]; then
-    # No tags, check commits since beginning
-    COMMITS_SINCE="--all"
-    NEW_VERSION="1.0.0"
-else
-    COMMITS_SINCE="${LAST_VERSION}..HEAD"
-    # Increment version (simple patch increment)
-    IFS='.' read -ra VERSION_PARTS <<< "${LAST_VERSION#v}"
-    MAJOR="${VERSION_PARTS[0]}"
-    MINOR="${VERSION_PARTS[1]}"
-    PATCH="${VERSION_PARTS[2]}"
-    PATCH=$((PATCH + 1))
-    NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+# Check if release-notes.json exists
+if [ ! -f "release-notes.json" ]; then
+    echo "❌ Error: release-notes.json not found"
+    echo "Please create release-notes.json with your release information"
+    exit 1
 fi
 
-echo "📊 Last version: ${LAST_VERSION:-none}"
-echo "📦 New version: ${NEW_VERSION}"
+# Read version and features from release-notes.json
+NEW_VERSION=$(grep -o '"version": *"[^"]*"' release-notes.json | head -1 | sed 's/.*: *"\(.*\)"/\1/')
+RELEASE_DATE_FROM_FILE=$(grep -o '"releaseDate": *"[^"]*"' release-notes.json | head -1 | sed 's/.*: *"\(.*\)"/\1/')
 
-# Get commits since last version
-COMMITS=$(git log ${COMMITS_SINCE} --oneline --no-merges 2>/dev/null || echo "")
-
-if [ -z "$COMMITS" ]; then
-    echo "✅ No new commits since last release"
-    exit 0
+if [ -z "$NEW_VERSION" ]; then
+    echo "❌ Error: Could not read version from release-notes.json"
+    exit 1
 fi
 
-echo "📋 Commits to analyze:"
-echo "$COMMITS"
-echo ""
+echo "📦 Version from release-notes.json: ${NEW_VERSION}"
 
-# Categorize commits
-declare -a FEATURES=()
-declare -a FIXES=()
-declare -a IMPROVEMENTS=()
-
-while IFS= read -r commit; do
-    # Extract commit message (remove hash)
-    MESSAGE=$(echo "$commit" | sed 's/^[a-f0-9]* //')
-
-    # Categorize based on conventional commits
-    if echo "$MESSAGE" | grep -qi "^feat"; then
-        # Extract feature description
-        FEATURE=$(echo "$MESSAGE" | sed 's/^feat[^:]*: *//' | sed 's/🤖.*//' | tr -d '\n')
-        if [ ! -z "$FEATURE" ]; then
-            FEATURES+=("$FEATURE")
-        fi
-    elif echo "$MESSAGE" | grep -qi "^fix"; then
-        # Extract fix description
-        FIX=$(echo "$MESSAGE" | sed 's/^fix[^:]*: *//' | sed 's/🤖.*//' | tr -d '\n')
-        if [ ! -z "$FIX" ]; then
-            FIXES+=("$FIX")
-        fi
-    elif echo "$MESSAGE" | grep -qi "^refactor\|^perf\|^improve"; then
-        # Extract improvement description
-        IMPROVEMENT=$(echo "$MESSAGE" | sed 's/^[^:]*: *//' | sed 's/🤖.*//' | tr -d '\n')
-        if [ ! -z "$IMPROVEMENT" ]; then
-            IMPROVEMENTS+=("$IMPROVEMENT")
-        fi
-    fi
-done <<< "$COMMITS"
-
-# Build features array for JSON
+# Extract features array from JSON and build features list
 FEATURES_JSON=""
-for feature in "${FEATURES[@]}"; do
-    # Escape quotes and format as JSON string
-    ESCAPED_FEATURE=$(echo "$feature" | sed 's/"/\\"/g' | sed "s/'/\\\\'/g")
-    if [ -z "$FEATURES_JSON" ]; then
-        FEATURES_JSON="\"$ESCAPED_FEATURE\""
-    else
-        FEATURES_JSON="${FEATURES_JSON}, \"$ESCAPED_FEATURE\""
-    fi
-done
+IN_FEATURES=false
 
-for fix in "${FIXES[@]}"; do
-    ESCAPED_FIX=$(echo "Fix: $fix" | sed 's/"/\\"/g' | sed "s/'/\\\\'/g")
-    if [ -z "$FEATURES_JSON" ]; then
-        FEATURES_JSON="\"$ESCAPED_FIX\""
-    else
-        FEATURES_JSON="${FEATURES_JSON}, \"$ESCAPED_FIX\""
+while IFS= read -r line; do
+    # Check if we're entering the features array
+    if echo "$line" | grep -q '"features".*\['; then
+        IN_FEATURES=true
+        continue
     fi
-done
 
-for improvement in "${IMPROVEMENTS[@]}"; do
-    ESCAPED_IMP=$(echo "$improvement" | sed 's/"/\\"/g' | sed "s/'/\\\\'/g")
-    if [ -z "$FEATURES_JSON" ]; then
-        FEATURES_JSON="\"$ESCAPED_IMP\""
-    else
-        FEATURES_JSON="${FEATURES_JSON}, \"$ESCAPED_IMP\""
+    # Check if we're exiting the features array
+    if [ "$IN_FEATURES" = true ] && echo "$line" | grep -q '^\s*\]'; then
+        break
     fi
-done
+
+    # Extract description from feature object
+    if [ "$IN_FEATURES" = true ]; then
+        DESCRIPTION=$(echo "$line" | grep -o '"description": *"[^"]*"' | sed 's/.*: *"\(.*\)"/\1/')
+        if [ ! -z "$DESCRIPTION" ]; then
+            # Escape quotes for JSON
+            ESCAPED_DESC=$(echo "$DESCRIPTION" | sed 's/"/\\"/g' | sed "s/'/\\\\'/g")
+            if [ -z "$FEATURES_JSON" ]; then
+                FEATURES_JSON="\"$ESCAPED_DESC\""
+            else
+                FEATURES_JSON="${FEATURES_JSON}, \"$ESCAPED_DESC\""
+            fi
+        fi
+    fi
+done < release-notes.json
 
 if [ -z "$FEATURES_JSON" ]; then
-    echo "⚠️  No categorized changes found"
+    echo "⚠️  No features found in release-notes.json"
     exit 0
 fi
+
+# Count features
+FEATURE_COUNT=$(echo "$FEATURES_JSON" | grep -o '", "' | wc -l)
+FEATURE_COUNT=$((FEATURE_COUNT + 1))
+
+echo "🎉 Release Note Summary:"
+echo "  Version: ${NEW_VERSION}"
+echo "  Features: ${FEATURE_COUNT}"
+echo ""
 
 # Get today's date
 RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

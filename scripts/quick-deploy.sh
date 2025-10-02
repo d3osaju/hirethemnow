@@ -83,18 +83,25 @@ cd ..
 
 # Generate release notes if in release mode
 if [ "$RELEASE_MODE" == "true" ]; then
-    echo "📝 Generating release notes..."
-    bash scripts/generate-release-note.sh || true
+    # Check if release-notes.json exists
+    if [ ! -f "release-notes.json" ]; then
+        echo "⚠️  Warning: release-notes.json not found"
+        echo "ℹ️  Create release-notes.json with your release information"
+        echo "ℹ️  Skipping release note generation"
+    else
+        echo "📝 Generating release notes from release-notes.json..."
+        bash scripts/generate-release-note.sh || true
 
-    # Check if release note was generated
-    if [ -f ".release-note-env" ]; then
-        source .release-note-env
-        echo "📦 Release version: ${RELEASE_VERSION}"
+        # Check if release note was generated
+        if [ -f ".release-note-env" ]; then
+            source .release-note-env
+            echo "📦 Release version: ${RELEASE_VERSION}"
 
-        # Apply database migration if migration file exists
-        if [ ! -z "$RELEASE_MIGRATION" ] && [ -f "$RELEASE_MIGRATION" ]; then
-            echo "🔄 Release note migration created: ${RELEASE_MIGRATION}"
-            echo "ℹ️  Migration will be committed and deployed"
+            # Apply database migration if migration file exists
+            if [ ! -z "$RELEASE_MIGRATION" ] && [ -f "$RELEASE_MIGRATION" ]; then
+                echo "🔄 Release note migration created: ${RELEASE_MIGRATION}"
+                echo "ℹ️  Migration will be committed and deployed"
+            fi
         fi
     fi
 fi

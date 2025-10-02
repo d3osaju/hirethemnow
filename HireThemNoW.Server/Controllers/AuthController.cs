@@ -18,12 +18,14 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
     private readonly IDataService _dataService;
+    private readonly IS3Service _s3Service;
 
-    public AuthController(IConfiguration configuration, ILogger<AuthController> logger, IDataService dataService)
+    public AuthController(IConfiguration configuration, ILogger<AuthController> logger, IDataService dataService, IS3Service s3Service)
     {
         _configuration = configuration;
         _logger = logger;
         _dataService = dataService;
+        _s3Service = s3Service;
     }
 
     private string GenerateJwtToken(string userId, string email, string name, string role = "candidate")
@@ -82,6 +84,21 @@ public class AuthController : ControllerBase
             // Save user if trial dates were just set
             await _dataService.UpdateUserAsync(user);
 
+            // Convert S3 key to pre-signed URL if picture exists
+            var pictureUrl = user.Picture;
+            if (!string.IsNullOrEmpty(pictureUrl) && !pictureUrl.StartsWith("http"))
+            {
+                try
+                {
+                    pictureUrl = await _s3Service.GetPreSignedUrlAsync(pictureUrl, 10080); // 7 days
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", user.Id);
+                    pictureUrl = null;
+                }
+            }
+
             // Note: In production, you should verify the password hash
             // For now, we'll accept any password for demo purposes
             var token = GenerateJwtToken(user.Id, user.Email, user.Name, user.Role);
@@ -98,7 +115,7 @@ public class AuthController : ControllerBase
                         name = user.Name,
                         email = user.Email,
                         role = user.Role,
-                        picture = user.Picture,
+                        picture = pictureUrl,
                         isCompleted = user.IsCompleted
                     },
                     token = token
@@ -256,6 +273,21 @@ public class AuthController : ControllerBase
                 });
             }
 
+            // Convert S3 key to pre-signed URL if picture exists (for uploaded pictures, not Google pictures)
+            var pictureUrl = user.Picture;
+            if (!string.IsNullOrEmpty(pictureUrl) && !pictureUrl.StartsWith("http"))
+            {
+                try
+                {
+                    pictureUrl = await _s3Service.GetPreSignedUrlAsync(pictureUrl, 10080); // 7 days
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", user.Id);
+                    pictureUrl = user.Picture; // Keep original if S3 conversion fails (might be Google URL)
+                }
+            }
+
             // Generate our own JWT token
             var jwtToken = GenerateJwtToken(user.Id, user.Email, user.Name, user.Role);
 
@@ -273,7 +305,7 @@ public class AuthController : ControllerBase
                         name = user.Name,
                         email = user.Email,
                         role = user.Role,
-                        picture = user.Picture,
+                        picture = pictureUrl,
                         isCompleted = user.IsCompleted
                     },
                     token = jwtToken
@@ -370,6 +402,21 @@ public class AuthController : ControllerBase
                 return NotFound(new { success = false, message = "User not found" });
             }
 
+            // Convert S3 key to pre-signed URL if picture exists
+            var pictureUrl = user.Picture;
+            if (!string.IsNullOrEmpty(pictureUrl) && !pictureUrl.StartsWith("http"))
+            {
+                try
+                {
+                    pictureUrl = await _s3Service.GetPreSignedUrlAsync(pictureUrl, 10080); // 7 days
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", userId);
+                    pictureUrl = null;
+                }
+            }
+
             return Ok(new
             {
                 success = true,
@@ -380,7 +427,7 @@ public class AuthController : ControllerBase
                     name = user.Name,
                     email = user.Email,
                     role = user.Role,
-                    picture = user.Picture,
+                    picture = pictureUrl,
                     phone = user.Phone,
                     location = user.Location,
                     bio = user.Bio,
