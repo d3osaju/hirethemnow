@@ -5,6 +5,7 @@ using System.Text;
 using HireThemNoW.Server.Services;
 using HireThemNoW.Server.Data;
 using Amazon.S3;
+using Amazon.SimpleEmail;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,11 +64,15 @@ else
 {
     // Production AWS configuration
     builder.Services.AddAWSService<IAmazonS3>();
+    builder.Services.AddAWSService<IAmazonSimpleEmailService>();
 }
 builder.Services.AddScoped<IS3Service, S3Service>();
 
 // Add AI Agent Service (optional - only works if AWS Bedrock is configured)
 builder.Services.AddScoped<IBedrockAgentService, BedrockAgentService>();
+
+// Add Email Service
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

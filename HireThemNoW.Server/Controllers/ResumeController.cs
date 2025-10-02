@@ -12,11 +12,15 @@ public class ResumeController : ControllerBase
 {
     private readonly IS3Service _s3Service;
     private readonly IDataService _dataService;
+    private readonly IBedrockAgentService _bedrockService;
+    private readonly IConfiguration _configuration;
 
-    public ResumeController(IS3Service s3Service, IDataService dataService)
+    public ResumeController(IS3Service s3Service, IDataService dataService, IBedrockAgentService bedrockService, IConfiguration configuration)
     {
         _s3Service = s3Service;
         _dataService = dataService;
+        _bedrockService = bedrockService;
+        _configuration = configuration;
     }
 
     [HttpPost("upload")]
@@ -62,10 +66,15 @@ public class ResumeController : ControllerBase
             user.ResumeUrl = s3Key;
             await _dataService.UpdateUserAsync(user);
 
+            // Create pending analysis record for AI processing
+            var resumeBucket = _configuration["AWS:S3:ResumeBucket"] ?? "hirethemnow-ai-agent-resumes";
+            var s3Url = $"s3://{resumeBucket}/{s3Key}";
+            await _bedrockService.CreatePendingAnalysisAsync(userId, s3Url);
+
             return Ok(new {
                 success = true,
-                message = "Resume uploaded successfully",
-                data = new { resumeUrl = s3Key, fileName = resume.FileName }
+                message = "Resume uploaded successfully. AI analysis in progress!",
+                data = new { resumeUrl = s3Key, fileName = resume.FileName, status = "processing" }
             });
         }
         catch (Exception ex)

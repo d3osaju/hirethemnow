@@ -95,6 +95,9 @@ namespace HireThemNoW.Server.Models
         [Column("recommendations")]
         public string? Recommendations { get; set; }  // JSON array
 
+        [Column("status")]
+        public string Status { get; set; } = "pending"; // pending, processing, completed, failed
+
         [Column("processed_at")]
         public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
 

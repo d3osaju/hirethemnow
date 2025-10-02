@@ -290,7 +290,7 @@ Be specific and actionable. Return ONLY valid JSON.`
  * Store resume data in database via .NET API
  */
 async function storeResumeData(data) {
-    const apiUrl = `${process.env.API_BASE_URL}/api/aiagent/store-resume-analysis`;
+    const apiUrl = `${process.env.API_BASE_URL}/api/AIAgent/webhook/resume-analyzed`;
 
     try {
         const response = await axios.post(apiUrl, data, {

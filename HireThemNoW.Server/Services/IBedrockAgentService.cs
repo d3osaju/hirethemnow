@@ -7,11 +7,13 @@ namespace HireThemNoW.Server.Services
         Task<ResumeAnalysisResult> AnalyzeResumeAsync(string userId);
         Task StoreResumeAnalysisAsync(ResumeAnalysisData data);
         Task<ResumeAnalysisResult?> GetLatestAnalysisAsync(string userId);
+        Task CreatePendingAnalysisAsync(string userId, string s3Url);
     }
 
     public class ResumeAnalysisResult
     {
         public string UserId { get; set; } = string.Empty;
+        public string Status { get; set; } = "pending";
         public PersonalInfo? PersonalInfo { get; set; }
         public SkillsData? Skills { get; set; }
         public List<ExperienceData>? Experience { get; set; }

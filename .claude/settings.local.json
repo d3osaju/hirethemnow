@@ -43,7 +43,9 @@
       "Bash(bash:*)",
       "Bash(dotnet build:*)",
       "Bash(npm install:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(aws logs tail:*)",
+      "Bash(aws ecs list-task-definitions:*)"
     ],
     "deny": [],
     "ask": []

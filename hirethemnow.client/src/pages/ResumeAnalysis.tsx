@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import {
   FileText,
-  AlertCircle,
   CheckCircle,
   Target,
   Sparkles,
@@ -32,6 +31,7 @@ interface ImprovementSuggestion {
 
 interface ResumeAnalysis {
   userId: string;
+  status: string;
   atsScore: ATSScore;
   strengths: string[];
   weaknesses: string[];
@@ -113,21 +113,89 @@ const ResumeAnalysis: React.FC = () => {
     );
   }
 
+  // Show processing state
+  if (analysis && analysis.status === 'processing') {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="relative">
+              <div className="bg-blue-50 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <Sparkles className="w-12 h-12 text-blue-600" />
+              </div>
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2">
+                <div className="animate-spin rounded-full h-28 w-28 border-t-2 border-b-2 border-blue-600"></div>
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Analyzing Your Resume...</h2>
+            <p className="text-gray-600 mb-2 text-lg">
+              Our AI is working its magic! 🪄
+            </p>
+            <p className="text-sm text-gray-500 mb-6 max-w-2xl mx-auto">
+              We're analyzing your resume with Amazon Bedrock Nova Pro to provide comprehensive ATS scoring,
+              identify strengths, suggest improvements, and analyze keywords.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-6 mb-6 max-w-xl mx-auto">
+              <div className="flex items-start space-x-3 text-left">
+                <div className="flex-shrink-0 mt-1">
+                  <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    You'll receive an email when analysis is complete!
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Analysis typically takes 30-60 seconds. Feel free to navigate away - we'll notify you at {user?.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={fetchAnalysis}
+              className="inline-flex items-center justify-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              Check Status
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error || !analysis) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">No Resume Analysis Found</h2>
-            <p className="text-gray-600 mb-6">{error || 'Upload your resume to get started with AI-powered ATS analysis.'}</p>
-            <button
-              onClick={() => window.location.href = '/profile'}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Upload className="w-5 h-5 mr-2" />
-              Upload Resume
-            </button>
+            <div className="bg-blue-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="w-10 h-10 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Resume Analysis Ready!</h2>
+            <p className="text-gray-600 mb-2">
+              Get AI-powered insights to optimize your resume for ATS systems
+            </p>
+            <p className="text-sm text-gray-500 mb-8 max-w-2xl mx-auto">
+              {error || 'To activate your resume analysis, please upload your resume. Our AI will analyze it and provide comprehensive scoring, strengths, improvements, and keyword recommendations.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => window.location.href = '/dashboard/profile'}
+                className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Upload className="w-5 h-5 mr-2" />
+                Go to Profile & Upload Resume
+              </button>
+              <button
+                onClick={fetchAnalysis}
+                className="inline-flex items-center justify-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                Check Again
+              </button>
+            </div>
           </div>
         </div>
       </div>

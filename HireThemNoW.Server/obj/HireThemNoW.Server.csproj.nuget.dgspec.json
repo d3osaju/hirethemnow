@@ -58,6 +58,10 @@
               "target": "Package",
               "version": "[4.0.7.4, )"
             },
+            "AWSSDK.SimpleEmail": {
+              "target": "Package",
+              "version": "[4.0.0.9, )"
+            },
             "Amazon.Lambda.AspNetCoreServer.Hosting": {
               "target": "Package",
               "version": "[1.9.0, )"

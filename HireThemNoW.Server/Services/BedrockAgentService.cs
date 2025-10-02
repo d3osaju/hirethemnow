@@ -46,6 +46,27 @@ namespace HireThemNoW.Server.Services
             return analysis != null ? MapToResult(analysis) : null;
         }
 
+        public async Task CreatePendingAnalysisAsync(string userId, string s3Url)
+        {
+            _logger.LogInformation("Creating pending analysis record for user {UserId}", userId);
+
+            var analysis = new ResumeAnalysis
+            {
+                UserId = userId,
+                S3Url = s3Url,
+                ResumeUrl = s3Url,
+                Status = "processing",
+                ProcessedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.ResumeAnalyses.Add(analysis);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Created pending analysis for user {UserId}", userId);
+        }
+
         public async Task StoreResumeAnalysisAsync(ResumeAnalysisData data)
         {
             _logger.LogInformation("Storing ATS analysis for user {UserId}", data.UserId);
@@ -87,6 +108,7 @@ namespace HireThemNoW.Server.Services
                     ReadabilityIssues = JsonSerializer.Serialize(data.Readability?.Issues ?? new List<string>()),
 
                     Recommendations = JsonSerializer.Serialize(data.Recommendations ?? new List<string>()),
+                    Status = "completed",
                     ProcessedAt = string.IsNullOrEmpty(data.ProcessedAt) ? DateTime.UtcNow : DateTime.Parse(data.ProcessedAt),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -109,6 +131,7 @@ namespace HireThemNoW.Server.Services
             return new ResumeAnalysisResult
             {
                 UserId = analysis.UserId,
+                Status = analysis.Status,
                 Skills = new SkillsData
                 {
                     Technical = DeserializeList(analysis.TechnicalSkills),

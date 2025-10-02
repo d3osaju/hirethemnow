@@ -163,3 +163,4 @@ F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\HireThemNoW.Serve
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\HireThemNoW.Server.pdb
 F:\DevProjects\HireThemNow\HireThemNoW.Server\obj\Debug\net8.0\HireThemNoW.Server.genruntimeconfig.cache
 F:\DevProjects\HireThemNow\HireThemNoW.Server\obj\Debug\net8.0\ref\HireThemNoW.Server.dll
+F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Debug\net8.0\AWSSDK.SimpleEmail.dll

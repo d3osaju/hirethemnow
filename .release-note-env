@@ -1,2 +1,2 @@
-export RELEASE_VERSION=1.1.1
-export RELEASE_MIGRATION=HireThemNoW.Server/Migrations/20251002171521_AddReleaseNote_1_1_1.cs
+export RELEASE_VERSION=1.1.2
+export RELEASE_MIGRATION=HireThemNoW.Server/Migrations/20251002182634_AddReleaseNote_1_1_2.cs

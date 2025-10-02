@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "0K4xb/Rm9Cw=",
+  "dgSpecHash": "PQQVfC1/eqc=",
   "success": true,
   "projectFilePath": "F:\\DevProjects\\HireThemNow\\HireThemNoW.Server\\HireThemNoW.Server.csproj",
   "expectedPackageFiles": [
@@ -15,6 +15,7 @@
     "C:\\Users\\deosa\\.nuget\\packages\\awssdk.core\\4.0.0.29\\awssdk.core.4.0.0.29.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\awssdk.extensions.netcore.setup\\4.0.3.1\\awssdk.extensions.netcore.setup.4.0.3.1.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\awssdk.s3\\4.0.7.4\\awssdk.s3.4.0.7.4.nupkg.sha512",
+    "C:\\Users\\deosa\\.nuget\\packages\\awssdk.simpleemail\\4.0.0.9\\awssdk.simpleemail.4.0.0.9.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\google.apis\\1.68.0\\google.apis.1.68.0.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\google.apis.auth\\1.68.0\\google.apis.auth.1.68.0.nupkg.sha512",
     "C:\\Users\\deosa\\.nuget\\packages\\google.apis.core\\1.68.0\\google.apis.core.1.68.0.nupkg.sha512",

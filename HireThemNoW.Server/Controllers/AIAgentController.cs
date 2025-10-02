@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using HireThemNoW.Server.Services;
 using HireThemNoW.Server.Models;
+using HireThemNoW.Server.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace HireThemNoW.Server.Controllers
 {
@@ -9,13 +11,19 @@ namespace HireThemNoW.Server.Controllers
     public class AIAgentController : ControllerBase
     {
         private readonly IBedrockAgentService _bedrockService;
+        private readonly IEmailService _emailService;
+        private readonly ApplicationDbContext _context;
         private readonly ILogger<AIAgentController> _logger;
 
         public AIAgentController(
             IBedrockAgentService bedrockService,
+            IEmailService emailService,
+            ApplicationDbContext context,
             ILogger<AIAgentController> logger)
         {
             _bedrockService = bedrockService;
+            _emailService = emailService;
+            _context = context;
             _logger = logger;
         }
 
@@ -69,6 +77,27 @@ namespace HireThemNoW.Server.Controllers
                 _logger.LogInformation("Received resume analysis webhook for user {UserId}", data.UserId);
 
                 await _bedrockService.StoreResumeAnalysisAsync(data);
+
+                // Send email notification to user
+                try
+                {
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == data.UserId);
+                    if (user != null && !string.IsNullOrEmpty(user.Email))
+                    {
+                        var atsScore = data.AtsScore?.Overall ?? 0;
+                        await _emailService.SendResumeAnalysisCompleteEmailAsync(
+                            user.Email,
+                            user.Name ?? "there",
+                            atsScore
+                        );
+                        _logger.LogInformation("Sent analysis complete email to {Email}", user.Email);
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send email notification but analysis was stored");
+                    // Don't fail the request if email fails
+                }
 
                 return Ok(new ApiResponse<object>
                 {
