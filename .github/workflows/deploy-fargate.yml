@@ -95,6 +95,53 @@ jobs:
           --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
           --output text 2>/dev/null || echo "localhost:5432")
 
+        # Get VPC configuration from main stack
+        VPC_ID=$(aws cloudformation describe-stacks \
+          --stack-name hirethemnow-fargate-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" \
+          --output text 2>/dev/null || echo "")
+
+        SUBNET_IDS=$(aws cloudformation describe-stacks \
+          --stack-name hirethemnow-fargate-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetIds'].OutputValue" \
+          --output text 2>/dev/null || echo "")
+
+        RDS_SG_ID=$(aws cloudformation describe-stacks \
+          --stack-name hirethemnow-fargate-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecurityGroup'].OutputValue" \
+          --output text 2>/dev/null || echo "")
+
+        # If VPC info not in outputs, get from RDS directly
+        if [ -z "$VPC_ID" ] || [ -z "$SUBNET_IDS" ] || [ -z "$RDS_SG_ID" ]; then
+          echo "⚠️ VPC info not in stack outputs, fetching from RDS..."
+
+          VPC_ID=$(aws rds describe-db-instances \
+            --db-instance-identifier hirethemnow-fargate-prod-postgres \
+            --region ${{ env.AWS_REGION }} \
+            --query "DBInstances[0].DBSubnetGroup.VpcId" \
+            --output text 2>/dev/null || echo "vpc-08ab0cef55d004211")
+
+          SUBNET_IDS=$(aws rds describe-db-instances \
+            --db-instance-identifier hirethemnow-fargate-prod-postgres \
+            --region ${{ env.AWS_REGION }} \
+            --query "DBInstances[0].DBSubnetGroup.Subnets[*].SubnetIdentifier" \
+            --output text 2>/dev/null | tr '\t' ',' || echo "subnet-0563fa7bae3d5fa2c,subnet-0d212a3b5e91a41ea")
+
+          RDS_SG_ID=$(aws rds describe-db-instances \
+            --db-instance-identifier hirethemnow-fargate-prod-postgres \
+            --region ${{ env.AWS_REGION }} \
+            --query "DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId" \
+            --output text 2>/dev/null || echo "sg-0c2721db36b221307")
+        fi
+
+        echo "📋 VPC Configuration:"
+        echo "  VPC ID: ${VPC_ID}"
+        echo "  Subnets: ${SUBNET_IDS}"
+        echo "  RDS SG: ${RDS_SG_ID}"
+
         aws cloudformation deploy \
           --template-file aws-infrastructure/cloudformation-template.yaml \
           --stack-name ${{ env.AI_STACK_NAME }} \
@@ -103,6 +150,9 @@ jobs:
             DatabaseHost="${DB_ENDPOINT}" \
             DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
             ApiBaseUrl="https://api.hirethemnow.xyz" \
+            VpcId="${VPC_ID}" \
+            SubnetIds="${SUBNET_IDS}" \
+            RdsSecurityGroupId="${RDS_SG_ID}" \
           --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
           --no-fail-on-empty-changeset
 
