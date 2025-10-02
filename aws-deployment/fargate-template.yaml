@@ -468,11 +468,15 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                   - s3:GetObjectVersion
-                Resource: !Sub '${ResumesBucket.Arn}/*'
+                Resource:
+                  - !Sub '${ResumesBucket.Arn}/*'
+                  - 'arn:aws:s3:::hirethemnow-ai-agent-resumes/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !GetAtt ResumesBucket.Arn
+                Resource:
+                  - !GetAtt ResumesBucket.Arn
+                  - 'arn:aws:s3:::hirethemnow-ai-agent-resumes'
 
   # CloudWatch Log Group
   CloudWatchLogGroup:

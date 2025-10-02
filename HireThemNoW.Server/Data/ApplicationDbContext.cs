@@ -86,6 +86,17 @@ public class ApplicationDbContext : DbContext
                     c => c.ToList()));
         });
 
+        // ResumeAnalysis configuration
+        modelBuilder.Entity<ResumeAnalysis>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Seed data
         modelBuilder.Entity<Industry>().HasData(
             new Industry { Id = 1, Name = "Technology" },

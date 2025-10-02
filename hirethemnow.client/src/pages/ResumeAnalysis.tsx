@@ -70,11 +70,15 @@ const ResumeAnalysis: React.FC = () => {
 
       if (data.success && data.data) {
         setAnalysis(data.data);
+      } else if (response.status === 404) {
+        // User hasn't uploaded a resume yet - this is not an error
+        setError(null);
+        setAnalysis(null);
       } else {
-        setError('No resume analysis found. Please upload your resume first.');
+        setError('Failed to load resume analysis. Please try again.');
       }
     } catch (err) {
-      setError('Failed to load resume analysis');
+      setError('Failed to load resume analysis. Please try again.');
       console.error('Error fetching analysis:', err);
     } finally {
       setLoading(false);
@@ -165,7 +169,34 @@ const ResumeAnalysis: React.FC = () => {
     );
   }
 
-  if (error || !analysis) {
+  // Show error state only if there's an actual error (not just missing analysis)
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <div className="bg-red-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Unable to Load Analysis</h2>
+            <p className="text-gray-600 mb-8">
+              {error}
+            </p>
+            <button
+              onClick={fetchAnalysis}
+              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <FileText className="w-5 h-5 mr-2" />
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show welcome state if no analysis exists (user hasn't uploaded resume)
+  if (!analysis) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
@@ -173,12 +204,12 @@ const ResumeAnalysis: React.FC = () => {
             <div className="bg-blue-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
               <Sparkles className="w-10 h-10 text-blue-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Resume Analysis Ready!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">AI Resume Analysis</h2>
             <p className="text-gray-600 mb-2">
               Get AI-powered insights to optimize your resume for ATS systems
             </p>
             <p className="text-sm text-gray-500 mb-8 max-w-2xl mx-auto">
-              {error || 'To activate your resume analysis, please upload your resume. Our AI will analyze it and provide comprehensive scoring, strengths, improvements, and keyword recommendations.'}
+              Upload your resume to get started. Our AI will analyze it and provide comprehensive scoring, strengths, improvements, and keyword recommendations powered by Amazon Bedrock Nova Pro.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
