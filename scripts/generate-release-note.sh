@@ -118,15 +118,93 @@ echo "  Fixes: ${#FIXES[@]}"
 echo "  Improvements: ${#IMPROVEMENTS[@]}"
 echo ""
 
-# Create C# migration file
-TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+# Create temporary SQL file for the migration content
+SQL_CONTENT="INSERT INTO \"ReleaseNotes\" (\"Version\", \"ReleaseDate\", \"Features\", \"IsPublished\", \"CreatedAt\")
+VALUES (
+    '${NEW_VERSION}',
+    '${RELEASE_DATE}'::timestamp with time zone,
+    '[${FEATURES_JSON}]'::jsonb,
+    true,
+    '${RELEASE_DATE}'::timestamp with time zone
+);"
+
+# Save SQL for reference
 MIGRATION_NAME="AddReleaseNote_${NEW_VERSION//./_}"
-MIGRATION_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_${MIGRATION_NAME}.cs"
+echo "$SQL_CONTENT" > "/tmp/release_note_${NEW_VERSION}.sql"
 
-# Escape single quotes for C# string
-ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed "s/'/\\\\\\\'/g")
+# Create EF migration using dotnet ef
+echo "🔧 Creating Entity Framework migration..."
+cd HireThemNoW.Server
 
-cat > "$MIGRATION_FILE" << 'MIGRATION_EOF'
+# Set required environment variable for EF tools
+export JWT_SECRET="temp-secret-for-migration"
+
+# Create the migration
+MIGRATION_OUTPUT=$(dotnet ef migrations add "${MIGRATION_NAME}" 2>&1)
+
+if [ $? -eq 0 ]; then
+    # Find the created migration file
+    MIGRATION_FILE=$(find Migrations -name "*${MIGRATION_NAME}.cs" -type f | head -1)
+
+    if [ ! -z "$MIGRATION_FILE" ]; then
+        # Convert single quotes to double quotes for PostgreSQL JSONB
+        ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed 's/"/\"\"/g')
+
+        # Update the Up method with our SQL
+        sed -i "/protected override void Up/,/protected override void Down/c\\
+        protected override void Up(MigrationBuilder migrationBuilder)\\
+        {\\
+            migrationBuilder.Sql(@\"\\
+                INSERT INTO \\\"ReleaseNotes\\\" (\\\"Version\\\", \\\"ReleaseDate\\\", \\\"Features\\\", \\\"IsPublished\\\", \\\"CreatedAt\\\")\\
+                VALUES (\\
+                    '${NEW_VERSION}',\\
+                    '${RELEASE_DATE}'::timestamp with time zone,\\
+                    '[${ESCAPED_FEATURES_JSON}]'::jsonb,\\
+                    true,\\
+                    '${RELEASE_DATE}'::timestamp with time zone\\
+                );\\
+            \");\\
+        }\\
+\\
+        /// <inheritdoc />\\
+        protected override void Down" "$MIGRATION_FILE"
+
+        # Update the Down method with rollback SQL
+        sed -i "/protected override void Down/,/}/c\\
+        protected override void Down(MigrationBuilder migrationBuilder)\\
+        {\\
+            migrationBuilder.Sql(@\"\\
+                DELETE FROM \\\"ReleaseNotes\\\" WHERE \\\"Version\\\" = '${NEW_VERSION}';\\
+            \");\\
+        }\\
+    }\\
+}" "$MIGRATION_FILE"
+
+        echo "✅ EF Migration created: HireThemNoW.Server/${MIGRATION_FILE}"
+        cd ..
+
+        # Export for use in quick-deploy.sh
+        echo "export RELEASE_VERSION=${NEW_VERSION}" > .release-note-env
+        echo "export RELEASE_MIGRATION=HireThemNoW.Server/${MIGRATION_FILE}" >> .release-note-env
+
+        echo "📄 Release note migration saved"
+        echo ""
+        echo "ℹ️  Migration will be automatically applied during deployment"
+    else
+        echo "⚠️  Migration created but file not found"
+        cd ..
+    fi
+else
+    echo "⚠️  Failed to create EF migration: ${MIGRATION_OUTPUT}"
+    echo "Creating manual migration file instead..."
+    cd ..
+
+    # Fallback: create manual migration
+    TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+    MIGRATION_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_${MIGRATION_NAME}.cs"
+    ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed 's/"/\"\"/g')
+
+    cat > "$MIGRATION_FILE" << MIGRATION_EOF
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -134,19 +212,19 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HireThemNoW.Server.Migrations
 {
     /// <inheritdoc />
-    public partial class MIGRATION_CLASS_NAME : Migration
+    public partial class ${MIGRATION_NAME} : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-                INSERT INTO ""ReleaseNotes"" (""Version"", ""ReleaseDate"", ""Features"", ""IsPublished"", ""CreatedAt"")
+                INSERT INTO \"ReleaseNotes\" (\"Version\", \"ReleaseDate\", \"Features\", \"IsPublished\", \"CreatedAt\")
                 VALUES (
-                    'VERSION_PLACEHOLDER',
-                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone,
-                    '[FEATURES_PLACEHOLDER]'::jsonb,
+                    '${NEW_VERSION}',
+                    '${RELEASE_DATE}'::timestamp with time zone,
+                    '[${ESCAPED_FEATURES_JSON}]'::jsonb,
                     true,
-                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone
+                    '${RELEASE_DATE}'::timestamp with time zone
                 );
             ");
         }
@@ -155,25 +233,18 @@ namespace HireThemNoW.Server.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
-                DELETE FROM ""ReleaseNotes"" WHERE ""Version"" = 'VERSION_PLACEHOLDER';
+                DELETE FROM \"ReleaseNotes\" WHERE \"Version\" = '${NEW_VERSION}';
             ");
         }
     }
 }
 MIGRATION_EOF
 
-# Replace placeholders
-sed -i "s/MIGRATION_CLASS_NAME/${MIGRATION_NAME}/g" "$MIGRATION_FILE"
-sed -i "s/VERSION_PLACEHOLDER/${NEW_VERSION}/g" "$MIGRATION_FILE"
-sed -i "s/RELEASE_DATE_PLACEHOLDER/${RELEASE_DATE}/g" "$MIGRATION_FILE"
-sed -i "s/FEATURES_PLACEHOLDER/${ESCAPED_FEATURES_JSON}/g" "$MIGRATION_FILE"
+    echo "✅ Manual migration created: ${MIGRATION_FILE}"
 
-echo "✅ C# Migration created: ${MIGRATION_FILE}"
+    # Export for use in quick-deploy.sh
+    echo "export RELEASE_VERSION=${NEW_VERSION}" > .release-note-env
+    echo "export RELEASE_MIGRATION=${MIGRATION_FILE}" >> .release-note-env
 
-# Export for use in quick-deploy.sh
-echo "export RELEASE_VERSION=${NEW_VERSION}" > .release-note-env
-echo "export RELEASE_MIGRATION=${MIGRATION_FILE}" >> .release-note-env
-
-echo "📄 Release note migration saved"
-echo ""
-echo "ℹ️  Migration will be automatically applied during deployment"
+    echo "📄 Release note migration saved"
+fi
