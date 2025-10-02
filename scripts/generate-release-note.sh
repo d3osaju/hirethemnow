@@ -118,31 +118,62 @@ echo "  Fixes: ${#FIXES[@]}"
 echo "  Improvements: ${#IMPROVEMENTS[@]}"
 echo ""
 
-# Create migration file
+# Create C# migration file
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-MIGRATION_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_AddReleaseNote_${NEW_VERSION//./_}.sql"
+MIGRATION_NAME="AddReleaseNote_${NEW_VERSION//./_}"
+MIGRATION_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_${MIGRATION_NAME}.cs"
 
-cat > "$MIGRATION_FILE" << EOF
--- Migration: Add Release Note v${NEW_VERSION}
--- Generated: ${RELEASE_DATE}
+# Escape single quotes for C# string
+ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed "s/'/\\\\\\\'/g")
 
-INSERT INTO ReleaseNotes (Version, ReleaseDate, Features, IsPublished, CreatedAt)
-VALUES (
-    '${NEW_VERSION}',
-    '${RELEASE_DATE}',
-    '[${FEATURES_JSON}]',
-    1,
-    '${RELEASE_DATE}'
-);
-EOF
+cat > "$MIGRATION_FILE" << 'MIGRATION_EOF'
+using Microsoft.EntityFrameworkCore.Migrations;
 
-echo "✅ Migration created: ${MIGRATION_FILE}"
+#nullable disable
+
+namespace HireThemNoW.Server.Migrations
+{
+    /// <inheritdoc />
+    public partial class MIGRATION_CLASS_NAME : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql(@"
+                INSERT INTO ""ReleaseNotes"" (""Version"", ""ReleaseDate"", ""Features"", ""IsPublished"", ""CreatedAt"")
+                VALUES (
+                    'VERSION_PLACEHOLDER',
+                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone,
+                    '[FEATURES_PLACEHOLDER]'::jsonb,
+                    true,
+                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone
+                );
+            ");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql(@"
+                DELETE FROM ""ReleaseNotes"" WHERE ""Version"" = 'VERSION_PLACEHOLDER';
+            ");
+        }
+    }
+}
+MIGRATION_EOF
+
+# Replace placeholders
+sed -i "s/MIGRATION_CLASS_NAME/${MIGRATION_NAME}/g" "$MIGRATION_FILE"
+sed -i "s/VERSION_PLACEHOLDER/${NEW_VERSION}/g" "$MIGRATION_FILE"
+sed -i "s/RELEASE_DATE_PLACEHOLDER/${RELEASE_DATE}/g" "$MIGRATION_FILE"
+sed -i "s/FEATURES_PLACEHOLDER/${ESCAPED_FEATURES_JSON}/g" "$MIGRATION_FILE"
+
+echo "✅ C# Migration created: ${MIGRATION_FILE}"
 
 # Export for use in quick-deploy.sh
 echo "export RELEASE_VERSION=${NEW_VERSION}" > .release-note-env
 echo "export RELEASE_MIGRATION=${MIGRATION_FILE}" >> .release-note-env
 
-echo "📄 Release note content saved"
+echo "📄 Release note migration saved"
 echo ""
-echo "To apply this migration, run:"
-echo "  cd HireThemNoW.Server && dotnet ef migrations add AddReleaseNote_${NEW_VERSION//./_}"
+echo "ℹ️  Migration will be automatically applied during deployment"
