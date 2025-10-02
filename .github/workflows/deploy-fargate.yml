@@ -73,7 +73,7 @@ jobs:
             DatabaseHost="${DB_ENDPOINT}" \
             DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
             ApiBaseUrl="https://api.hirethemnow.xyz" \
-          --capabilities CAPABILITY_IAM \
+          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
           --no-fail-on-empty-changeset
 
         echo "✅ AI Agent CloudFormation stack deployed"
