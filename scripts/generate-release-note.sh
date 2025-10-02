@@ -119,68 +119,83 @@ echo "  Improvements: ${#IMPROVEMENTS[@]}"
 echo ""
 
 # Create temporary SQL file for the migration content
-SQL_CONTENT="INSERT INTO \"ReleaseNotes\" (\"Version\", \"ReleaseDate\", \"Features\", \"IsPublished\", \"CreatedAt\")
-VALUES (
-    '${NEW_VERSION}',
-    '${RELEASE_DATE}'::timestamp with time zone,
-    '[${FEATURES_JSON}]'::jsonb,
-    true,
-    '${RELEASE_DATE}'::timestamp with time zone
-);"
-
-# Save SQL for reference
 MIGRATION_NAME="AddReleaseNote_${NEW_VERSION//./_}"
-echo "$SQL_CONTENT" > "/tmp/release_note_${NEW_VERSION}.sql"
 
 # Create EF migration using dotnet ef
 echo "🔧 Creating Entity Framework migration..."
 cd HireThemNoW.Server
 
-# Set required environment variable for EF tools
-export JWT_SECRET="temp-secret-for-migration"
+# Set required environment variables for EF tools
+export JWT_SECRET="temp-secret-for-ef-migration-generation"
+export DATABASE_PASSWORD="temp-password-for-ef-migration-generation"
+export ASPNETCORE_ENVIRONMENT="Development"
 
-# Create the migration
+# Create the migration (this creates both .cs and .Designer.cs files)
+echo "📝 Running: dotnet ef migrations add ${MIGRATION_NAME}"
 MIGRATION_OUTPUT=$(dotnet ef migrations add "${MIGRATION_NAME}" 2>&1)
+MIGRATION_EXIT_CODE=$?
 
-if [ $? -eq 0 ]; then
-    # Find the created migration file
-    MIGRATION_FILE=$(find Migrations -name "*${MIGRATION_NAME}.cs" -type f | head -1)
+if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
+    echo "✅ EF migration files created successfully"
 
-    if [ ! -z "$MIGRATION_FILE" ]; then
+    # Find the created migration files (.cs and .Designer.cs)
+    MIGRATION_FILE=$(find Migrations -name "*${MIGRATION_NAME}.cs" -not -name "*.Designer.cs" -type f | head -1)
+    DESIGNER_FILE=$(find Migrations -name "*${MIGRATION_NAME}.Designer.cs" -type f | head -1)
+
+    if [ ! -z "$MIGRATION_FILE" ] && [ ! -z "$DESIGNER_FILE" ]; then
+        echo "📄 Found migration files:"
+        echo "   - ${MIGRATION_FILE}"
+        echo "   - ${DESIGNER_FILE}"
+
         # Convert single quotes to double quotes for PostgreSQL JSONB
         ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed 's/"/\"\"/g')
 
-        # Update the Up method with our SQL
-        sed -i "/protected override void Up/,/protected override void Down/c\\
-        protected override void Up(MigrationBuilder migrationBuilder)\\
-        {\\
-            migrationBuilder.Sql(@\"\\
-                INSERT INTO \\\"ReleaseNotes\\\" (\\\"Version\\\", \\\"ReleaseDate\\\", \\\"Features\\\", \\\"IsPublished\\\", \\\"CreatedAt\\\")\\
-                VALUES (\\
-                    '${NEW_VERSION}',\\
-                    '${RELEASE_DATE}'::timestamp with time zone,\\
-                    '[${ESCAPED_FEATURES_JSON}]'::jsonb,\\
-                    true,\\
-                    '${RELEASE_DATE}'::timestamp with time zone\\
-                );\\
-            \");\\
-        }\\
-\\
-        /// <inheritdoc />\\
-        protected override void Down" "$MIGRATION_FILE"
+        # Replace the entire content of the migration file with our SQL version
+        cat > "$MIGRATION_FILE" << 'MIGRATION_CONTENT_EOF'
+using Microsoft.EntityFrameworkCore.Migrations;
 
-        # Update the Down method with rollback SQL
-        sed -i "/protected override void Down/,/}/c\\
-        protected override void Down(MigrationBuilder migrationBuilder)\\
-        {\\
-            migrationBuilder.Sql(@\"\\
-                DELETE FROM \\\"ReleaseNotes\\\" WHERE \\\"Version\\\" = '${NEW_VERSION}';\\
-            \");\\
-        }\\
-    }\\
-}" "$MIGRATION_FILE"
+#nullable disable
 
-        echo "✅ EF Migration created: HireThemNoW.Server/${MIGRATION_FILE}"
+namespace HireThemNoW.Server.Migrations
+{
+    /// <inheritdoc />
+    public partial class MIGRATION_CLASS_NAME : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql(@"
+                INSERT INTO ""ReleaseNotes"" (""Version"", ""ReleaseDate"", ""Features"", ""IsPublished"", ""CreatedAt"")
+                VALUES (
+                    'VERSION_PLACEHOLDER',
+                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone,
+                    '[FEATURES_PLACEHOLDER]'::jsonb,
+                    true,
+                    'RELEASE_DATE_PLACEHOLDER'::timestamp with time zone
+                );
+            ");
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.Sql(@"
+                DELETE FROM ""ReleaseNotes"" WHERE ""Version"" = 'VERSION_PLACEHOLDER';
+            ");
+        }
+    }
+}
+MIGRATION_CONTENT_EOF
+
+        # Replace placeholders
+        sed -i "s/MIGRATION_CLASS_NAME/${MIGRATION_NAME}/g" "$MIGRATION_FILE"
+        sed -i "s/VERSION_PLACEHOLDER/${NEW_VERSION}/g" "$MIGRATION_FILE"
+        sed -i "s/RELEASE_DATE_PLACEHOLDER/${RELEASE_DATE}/g" "$MIGRATION_FILE"
+        sed -i "s/FEATURES_PLACEHOLDER/${ESCAPED_FEATURES_JSON}/g" "$MIGRATION_FILE"
+
+        echo "✅ Updated migration with release note SQL"
+        echo "✅ Designer file preserved: ${DESIGNER_FILE}"
+
         cd ..
 
         # Export for use in quick-deploy.sh
@@ -191,19 +206,27 @@ if [ $? -eq 0 ]; then
         echo ""
         echo "ℹ️  Migration will be automatically applied during deployment"
     else
-        echo "⚠️  Migration created but file not found"
+        echo "⚠️  Migration files not found after creation"
+        echo "   Looking for: *${MIGRATION_NAME}.cs"
         cd ..
     fi
 else
-    echo "⚠️  Failed to create EF migration: ${MIGRATION_OUTPUT}"
-    echo "Creating manual migration file instead..."
+    echo "⚠️  Failed to create EF migration"
+    echo "   Error output:"
+    echo "$MIGRATION_OUTPUT" | head -20
+    echo ""
+    echo "Creating manual migration files instead..."
     cd ..
 
-    # Fallback: create manual migration
+    # Fallback: create manual migration files
+    echo "⚠️  Using manual migration file creation (EF tools unavailable)"
+
     TIMESTAMP=$(date +"%Y%m%d%H%M%S")
     MIGRATION_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_${MIGRATION_NAME}.cs"
+    DESIGNER_FILE="HireThemNoW.Server/Migrations/${TIMESTAMP}_${MIGRATION_NAME}.Designer.cs"
     ESCAPED_FEATURES_JSON=$(echo "${FEATURES_JSON}" | sed 's/"/\"\"/g')
 
+    # Create migration .cs file
     cat > "$MIGRATION_FILE" << MIGRATION_EOF
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -240,7 +263,24 @@ namespace HireThemNoW.Server.Migrations
 }
 MIGRATION_EOF
 
-    echo "✅ Manual migration created: ${MIGRATION_FILE}"
+    # Create Designer.cs file by copying from the latest existing one
+    LATEST_DESIGNER=$(find HireThemNoW.Server/Migrations -name "*.Designer.cs" -type f | sort -r | head -1)
+
+    if [ ! -z "$LATEST_DESIGNER" ]; then
+        echo "📋 Copying Designer template from: $(basename $LATEST_DESIGNER)"
+        cp "$LATEST_DESIGNER" "$DESIGNER_FILE"
+
+        # Update migration name and timestamp in Designer file
+        LATEST_MIGRATION_NAME=$(basename "$LATEST_DESIGNER" .Designer.cs | sed 's/^[0-9]*_//')
+        sed -i "s/${LATEST_MIGRATION_NAME}/${MIGRATION_NAME}/g" "$DESIGNER_FILE"
+        sed -i "s/Migration(\"[0-9]*_${LATEST_MIGRATION_NAME}\")/Migration(\"${TIMESTAMP}_${MIGRATION_NAME}\")/g" "$DESIGNER_FILE"
+
+        echo "✅ Manual migration created: ${MIGRATION_FILE}"
+        echo "✅ Designer file created: ${DESIGNER_FILE}"
+    else
+        echo "⚠️  Could not find Designer template, creating migration without Designer file"
+        echo "✅ Manual migration created: ${MIGRATION_FILE}"
+    fi
 
     # Export for use in quick-deploy.sh
     echo "export RELEASE_VERSION=${NEW_VERSION}" > .release-note-env

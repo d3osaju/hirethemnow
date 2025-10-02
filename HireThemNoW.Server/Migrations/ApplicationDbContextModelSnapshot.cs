@@ -48,7 +48,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("EmailPreferences");
+                    b.ToTable("EmailPreferences", (string)null);
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.Industry", b =>
@@ -69,7 +69,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Industries");
+                    b.ToTable("Industries", (string)null);
 
                     b.HasData(
                         new
@@ -152,7 +152,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReleaseNotes");
+                    b.ToTable("ReleaseNotes", (string)null);
 
                     b.HasData(
                         new
@@ -195,7 +195,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("IndustryId");
 
-                    b.ToTable("SkillExpertises");
+                    b.ToTable("SkillExpertises", (string)null);
 
                     b.HasData(
                         new
@@ -911,7 +911,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.EmailPreference", b =>
