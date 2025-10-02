@@ -52,7 +52,9 @@
       "Bash(aws lambda invoke:*)",
       "Bash(cat:*)",
       "Bash(aws cloudwatch get-metric-statistics:*)",
-      "Bash(aws lambda get-function-configuration:*)"
+      "Bash(aws lambda get-function-configuration:*)",
+      "Bash(rm:*)",
+      "Bash(zip:*)"
     ],
     "deny": [],
     "ask": []
