@@ -42,7 +42,8 @@
       "Bash(npm run type-check:*)",
       "Bash(bash:*)",
       "Bash(dotnet build:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []
