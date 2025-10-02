@@ -15,7 +15,45 @@ Parameters:
     Type: String
     Description: 'Base URL for your .NET API (e.g., https://api.hirethemnow.xyz)'
 
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'VPC ID where Lambda and RDS are deployed'
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: 'Subnet IDs for Lambda (at least 2 in different AZs)'
+
+  RdsSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: 'Security Group ID of the RDS database to allow Lambda access'
+
 Resources:
+  # Security Group for Lambda Function
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${AWS::StackName}-lambda-sg'
+      GroupDescription: 'Security group for Lambda Resume Processor function'
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'Allow all outbound traffic'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-lambda-sg'
+
+  # Allow Lambda to access RDS
+  RdsIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RdsSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: 'Allow Lambda Resume Processor to access RDS'
+
   # IAM Role for Lambda Function
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -30,6 +68,7 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole'
       Policies:
         - PolicyName: LambdaS3BedrockPolicy
           PolicyDocument:
@@ -61,6 +100,10 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 300
       MemorySize: 1024
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
       Environment:
         Variables:
           DATABASE_HOST: !Ref DatabaseHost

@@ -116,6 +116,8 @@ zip -r job-matcher.zip index.js node_modules package.json
 
 #### Step 2: Deploy CloudFormation Stack
 
+**IMPORTANT: The Lambda function requires VPC configuration to access your RDS database.**
+
 ```bash
 aws cloudformation deploy \
   --template-file cloudformation-template.yaml \
@@ -124,8 +126,35 @@ aws cloudformation deploy \
       DatabaseHost=your-db-host \
       DatabasePassword=your-db-password \
       ApiBaseUrl=https://your-api.com \
+      VpcId=vpc-xxxxxxxx \
+      SubnetIds=subnet-xxxxxx,subnet-yyyyyy \
+      RdsSecurityGroupId=sg-xxxxxxxx \
   --capabilities CAPABILITY_NAMED_IAM \
   --region us-east-1
+```
+
+**Required Parameters:**
+- `DatabaseHost`: Your RDS endpoint (e.g., `my-db.xxxx.us-east-1.rds.amazonaws.com`)
+- `DatabasePassword`: Your database password
+- `ApiBaseUrl`: Your API URL (e.g., `https://api.hirethemnow.xyz`)
+- `VpcId`: VPC ID where your RDS and Fargate are deployed (e.g., `vpc-08ab0cef55d004211`)
+- `SubnetIds`: Comma-separated list of at least 2 subnets in different AZs (e.g., `subnet-abc123,subnet-def456`)
+- `RdsSecurityGroupId`: Security group ID of your RDS instance (e.g., `sg-0c2721db36b221307`)
+
+**Finding Your VPC Configuration:**
+
+```bash
+# Find your VPC ID
+aws rds describe-db-instances --db-instance-identifier your-db-name \
+  --query "DBInstances[0].DBSubnetGroup.VpcId" --output text
+
+# Find your RDS Security Group
+aws rds describe-db-instances --db-instance-identifier your-db-name \
+  --query "DBInstances[0].VpcSecurityGroups[0].VpcSecurityGroupId" --output text
+
+# Find your Subnets
+aws rds describe-db-instances --db-instance-identifier your-db-name \
+  --query "DBInstances[0].DBSubnetGroup.Subnets[*].SubnetIdentifier" --output text
 ```
 
 #### Step 3: Upload Lambda Code
@@ -348,9 +377,47 @@ aws logs tail /aws/lambda/hirethemnow-ai-agent-ResumeProcessor --follow
 ```
 
 Common issues:
-- PDF parsing failure → Check file format
-- Bedrock timeout → Reduce resume size
-- Database connection → Check VPC/security groups
+- **PDF parsing failure** → Check file format
+- **Bedrock timeout** → Reduce resume size
+- **Database connection timeout** → Check VPC/security groups (see below)
+
+### Database Connection Errors
+
+If you see `ETIMEDOUT` or connection errors:
+
+**Problem**: Lambda can't connect to RDS database
+
+**Solution**: Ensure Lambda is in the same VPC as your RDS:
+
+1. Check Lambda VPC configuration:
+```bash
+aws lambda get-function-configuration \
+  --function-name hirethemnow-ai-agent-ResumeProcessor \
+  --query "VpcConfig"
+```
+
+2. If `VpcConfig` is null or empty, update the Lambda:
+```bash
+aws lambda update-function-configuration \
+  --function-name hirethemnow-ai-agent-ResumeProcessor \
+  --vpc-config SubnetIds=subnet-xxx,subnet-yyy,SecurityGroupIds=sg-xxx
+```
+
+3. Add VPC execution permissions to Lambda role:
+```bash
+aws iam attach-role-policy \
+  --role-name hirethemnow-ai-agent-LambdaExecutionRole \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+```
+
+4. Update RDS security group to allow Lambda access:
+```bash
+aws ec2 authorize-security-group-ingress \
+  --group-id <RDS-SECURITY-GROUP-ID> \
+  --protocol tcp \
+  --port 5432 \
+  --source-group <LAMBDA-SECURITY-GROUP-ID>
+```
 
 ### Bedrock Agent Not Responding
 
