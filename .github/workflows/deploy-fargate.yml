@@ -8,19 +8,137 @@ on:
       force_deploy:
         description: 'Force deployment even if no changes'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 env:
   AWS_REGION: us-east-1
   STACK_NAME: hirethemnow-fargate-prod
+  AI_STACK_NAME: hirethemnow-ai-agent
   NODE_VERSION: '20'
   DOTNET_VERSION: '8.0.x'
 
 jobs:
+  # New job: Deploy AI Agent Lambda Functions
+  deploy-ai-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Check if AI Agent stack exists
+      id: check-stack
+      continue-on-error: true
+      run: |
+        if aws cloudformation describe-stacks \
+          --stack-name ${{ env.AI_STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} &>/dev/null; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ AI Agent stack exists - will update"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "📦 AI Agent stack does not exist - will create it"
+        fi
+
+    - name: Deploy AI Agent CloudFormation Stack
+      run: |
+        echo "🏗️ Deploying AI Agent infrastructure..."
+
+        # Get database endpoint from main stack
+        DB_ENDPOINT=$(aws cloudformation describe-stacks \
+          --stack-name hirethemnow-fargate-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
+          --output text 2>/dev/null || echo "localhost:5432")
+
+        aws cloudformation deploy \
+          --template-file aws-infrastructure/cloudformation-template.yaml \
+          --stack-name ${{ env.AI_STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            DatabaseHost="${DB_ENDPOINT}" \
+            DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
+            ApiBaseUrl="https://api.hirethemnow.xyz" \
+          --capabilities CAPABILITY_IAM \
+          --no-fail-on-empty-changeset
+
+        echo "✅ AI Agent CloudFormation stack deployed"
+
+    - name: Package Lambda functions
+      run: |
+        echo "📦 Packaging Lambda function..."
+
+        cd aws-infrastructure/lambda-functions/resume-processor
+        npm ci --production
+        zip -rq resume-processor.zip index.js node_modules package.json package-lock.json
+
+        echo "✅ Lambda function packaged"
+
+    - name: Upload Lambda to S3
+      run: |
+        echo "📤 Uploading Lambda function to S3..."
+
+        # Create or use existing S3 bucket for Lambda code
+        LAMBDA_BUCKET="${{ env.AI_STACK_NAME }}-lambda-code"
+
+        if ! aws s3 ls "s3://${LAMBDA_BUCKET}" 2>&1 | grep -q 'NoSuchBucket'; then
+          echo "✅ S3 bucket exists: ${LAMBDA_BUCKET}"
+        else
+          echo "📦 Creating S3 bucket: ${LAMBDA_BUCKET}"
+          aws s3 mb "s3://${LAMBDA_BUCKET}" --region ${{ env.AWS_REGION }}
+        fi
+
+        # Upload Lambda package
+        aws s3 cp aws-infrastructure/lambda-functions/resume-processor/resume-processor.zip \
+          "s3://${LAMBDA_BUCKET}/resume-processor.zip"
+
+        echo "✅ Lambda code uploaded to S3"
+
+    - name: Update Lambda function
+      run: |
+        echo "🔄 Updating Lambda function code..."
+
+        LAMBDA_BUCKET="${{ env.AI_STACK_NAME }}-lambda-code"
+
+        # Update the Lambda function (created by CloudFormation)
+        aws lambda update-function-code \
+          --function-name "${{ env.AI_STACK_NAME }}-ResumeProcessor" \
+          --s3-bucket "${LAMBDA_BUCKET}" \
+          --s3-key "resume-processor.zip" \
+          --region ${{ env.AWS_REGION }}
+
+        echo "✅ Lambda function updated"
+
+    - name: AI Agent deployment summary
+      run: |
+        echo ""
+        echo "🤖 AI Agent Lambda Deployment Complete!"
+        echo "========================================"
+        echo ""
+        echo "✅ Lambda function updated: ${{ env.AI_STACK_NAME }}-ResumeProcessor"
+        echo "🎯 Function: Resume ATS Scoring"
+        echo "💰 Cost: ~$0.20 per resume analyzed"
+        echo ""
+
+  # Existing deployment job
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: deploy-ai-agent  # Wait for AI agent deployment first
 
     steps:
     - name: Checkout code
@@ -302,6 +420,7 @@ jobs:
         echo "   • Application Load Balancer"
         echo "   • CloudFront + S3 for frontend"
         echo "   • ECR repository for Docker images"
+        echo "   • AI Agent Lambda (if configured)"
         echo "   • No expensive RDS or NAT Gateway!"
 
     - name: Comment on PR (if applicable)
@@ -324,6 +443,7 @@ jobs:
             • No cold starts, better performance
             • Massive cost reduction vs Lambda/RDS
             • Identical local/production environment
+            • AI-powered resume analysis (if configured)
 
             The application has been successfully deployed to production.`
           })

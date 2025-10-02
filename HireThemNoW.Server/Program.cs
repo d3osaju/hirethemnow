@@ -65,6 +65,10 @@ else
     builder.Services.AddAWSService<IAmazonS3>();
 }
 builder.Services.AddScoped<IS3Service, S3Service>();
+
+// Add AI Agent Service (optional - only works if AWS Bedrock is configured)
+builder.Services.AddScoped<IBedrockAgentService, BedrockAgentService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

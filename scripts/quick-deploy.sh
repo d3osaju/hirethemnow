@@ -89,13 +89,28 @@ if [ "$RELEASE_MODE" == "true" ]; then
         echo "ℹ️  Create release-notes.json with your release information"
         echo "ℹ️  Skipping release note generation"
     else
-        echo "📝 Generating release notes from release-notes.json..."
+        echo "📝 Reading version from release-notes.json..."
+
+        # Extract version using grep and sed (works on both Linux and Git Bash)
+        RELEASE_VERSION=$(grep -o '"version": "[^"]*"' release-notes.json | head -1 | sed 's/"version": "\(.*\)"/\1/')
+
+        if [ -z "$RELEASE_VERSION" ]; then
+            echo "⚠️  Warning: Could not read version from release-notes.json"
+        else
+            echo "📦 Release version: ${RELEASE_VERSION}"
+        fi
+
+        echo "📝 Generating release notes..."
         bash scripts/generate-release-note.sh || true
 
         # Check if release note was generated
         if [ -f ".release-note-env" ]; then
             source .release-note-env
-            echo "📦 Release version: ${RELEASE_VERSION}"
+
+            # Override with version from JSON if not set
+            if [ -z "$RELEASE_VERSION" ] && [ ! -z "$RELEASE_VERSION" ]; then
+                RELEASE_VERSION="${RELEASE_VERSION}"
+            fi
 
             # Apply database migration if migration file exists
             if [ ! -z "$RELEASE_MIGRATION" ] && [ -f "$RELEASE_MIGRATION" ]; then

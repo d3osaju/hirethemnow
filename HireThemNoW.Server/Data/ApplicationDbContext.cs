@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Industry> Industries { get; set; }
     public DbSet<SkillExpertise> SkillExpertises { get; set; }
     public DbSet<ReleaseNote> ReleaseNotes { get; set; }
+    public DbSet<ResumeAnalysis> ResumeAnalyses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

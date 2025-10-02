@@ -21,6 +21,7 @@
     <PackageJsonDependenciesLucideReact Condition="$(PackageJsonDependenciesLucideReact) == ''">^0.544.0</PackageJsonDependenciesLucideReact>
     <PackageJsonDependenciesReact Condition="$(PackageJsonDependenciesReact) == ''">^19.1.1</PackageJsonDependenciesReact>
     <PackageJsonDependenciesReactDom Condition="$(PackageJsonDependenciesReactDom) == ''">^19.1.1</PackageJsonDependenciesReactDom>
+    <PackageJsonDependenciesReactHotToast Condition="$(PackageJsonDependenciesReactHotToast) == ''">^2.6.0</PackageJsonDependenciesReactHotToast>
     <PackageJsonDependenciesReactRouterDom Condition="$(PackageJsonDependenciesReactRouterDom) == ''">^7.9.2</PackageJsonDependenciesReactRouterDom>
     <PackageJsonDevdependenciesEslintJs Condition="$(PackageJsonDevdependenciesEslintJs) == ''">^9.36.0</PackageJsonDevdependenciesEslintJs>
     <PackageJsonDevdependenciesTailwindcssForms Condition="$(PackageJsonDevdependenciesTailwindcssForms) == ''">^0.5.10</PackageJsonDevdependenciesTailwindcssForms>

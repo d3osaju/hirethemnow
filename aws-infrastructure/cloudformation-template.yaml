@@ -1,0 +1,515 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'HireThemNow AI Resume Analysis Agent Infrastructure'
+
+Parameters:
+  BedrockAgentName:
+    Type: String
+    Default: 'ResumeAnalysisAgent'
+    Description: 'Name of the Bedrock Agent'
+
+  DatabaseHost:
+    Type: String
+    Description: 'PostgreSQL Database Host'
+
+  DatabasePassword:
+    Type: String
+    NoEcho: true
+    Description: 'Database Password'
+
+  ApiBaseUrl:
+    Type: String
+    Description: 'Base URL for your .NET API'
+
+Resources:
+  # S3 Bucket for Resume Storage
+  ResumeStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-resumes'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt ResumeProcessorFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt ResumeProcessorFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .docx
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
+
+  # IAM Role for Bedrock Agent
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-BedrockAgentRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonBedrockFullAccess'
+      Policies:
+        - PolicyName: BedrockAgentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:InvokeModel'
+                  - 'bedrock:InvokeModelWithResponseStream'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                Resource: !Sub '${ResumeStorageBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource: '*'
+
+  # IAM Role for Lambda Functions
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-LambdaExecutionRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: LambdaBedrockPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:InvokeAgent'
+                  - 'bedrock:InvokeModel'
+                  - 'bedrock-agent-runtime:InvokeAgent'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                Resource: !Sub '${ResumeStorageBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+
+  # Lambda Layer for Dependencies
+  PdfParsingLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: pdf-parsing-dependencies
+      Description: 'PDF parsing libraries for resume extraction'
+      Content:
+        S3Bucket: !Sub '${AWS::StackName}-lambda-layers'
+        S3Key: 'pdf-parsing-layer.zip'
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  # Lambda Function: Resume Processor
+  ResumeProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-ResumeProcessor'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 300
+      MemorySize: 1024
+      Layers:
+        - !Ref PdfParsingLayer
+      Environment:
+        Variables:
+          AGENT_ID: !GetAtt BedrockAgent.AgentId
+          AGENT_ALIAS_ID: !GetAtt BedrockAgentAlias.AgentAliasId
+          S3_BUCKET: !Ref ResumeStorageBucket
+          API_BASE_URL: !Ref ApiBaseUrl
+          DATABASE_HOST: !Ref DatabaseHost
+      Code:
+        ZipFile: |
+          // Placeholder - will be replaced with actual code
+          exports.handler = async (event) => {
+            console.log('Resume processor triggered');
+            return { statusCode: 200 };
+          };
+
+  # Lambda Permission for S3
+  ResumeProcessorS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ResumeProcessorFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt ResumeStorageBucket.Arn
+
+  # Lambda Function: Skill Matcher
+  SkillMatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-SkillMatcher'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          BEDROCK_REGION: !Ref AWS::Region
+      Code:
+        ZipFile: |
+          // Placeholder - will be replaced with actual code
+          exports.handler = async (event) => {
+            console.log('Skill matcher triggered');
+            return { statusCode: 200 };
+          };
+
+  # Lambda Function: Job Matcher
+  JobMatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-JobMatcher'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          API_BASE_URL: !Ref ApiBaseUrl
+          DATABASE_HOST: !Ref DatabaseHost
+      Code:
+        ZipFile: |
+          // Placeholder - will be replaced with actual code
+          exports.handler = async (event) => {
+            console.log('Job matcher triggered');
+            return { statusCode: 200 };
+          };
+
+  # API Gateway
+  AgentActionsApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${AWS::StackName}-AgentActions'
+      Description: 'API for Bedrock Agent Action Groups'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Gateway Resources
+  ResumeParserResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      ParentId: !GetAtt AgentActionsApi.RootResourceId
+      PathPart: 'resume-parser'
+
+  SkillMatcherResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      ParentId: !GetAtt AgentActionsApi.RootResourceId
+      PathPart: 'skill-matcher'
+
+  JobMatcherResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      ParentId: !GetAtt AgentActionsApi.RootResourceId
+      PathPart: 'job-matcher'
+
+  # API Gateway Methods
+  SkillMatcherMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      ResourceId: !Ref SkillMatcherResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SkillMatcherFunction.Arn}/invocations'
+
+  JobMatcherMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      ResourceId: !Ref JobMatcherResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JobMatcherFunction.Arn}/invocations'
+
+  # Lambda Permissions for API Gateway
+  SkillMatcherApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SkillMatcherFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AgentActionsApi}/*/*'
+
+  JobMatcherApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref JobMatcherFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AgentActionsApi}/*/*'
+
+  # API Gateway Deployment
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - SkillMatcherMethod
+      - JobMatcherMethod
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+
+  ApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref AgentActionsApi
+      DeploymentId: !Ref ApiDeployment
+      StageName: 'prod'
+
+  # Bedrock Agent
+  BedrockAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: !Ref BedrockAgentName
+      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
+      FoundationModel: 'amazon.nova-pro-v1:0'
+      Instruction: |
+        You are an expert AI resume analyst for HireThemNow. Your role is to:
+        1. Parse and extract structured data from resumes including skills, experience, education, and certifications
+        2. Match candidate skills and experience with job requirements
+        3. Calculate compatibility scores between candidates and job postings
+        4. Identify skill gaps and provide recommendations
+        5. Generate insights for hiring decisions
+
+        You have access to:
+        - Resume parsing capabilities
+        - Skill matching algorithms
+        - Job matching and ranking
+        - Database of job postings and candidate profiles
+
+        Always provide detailed, actionable insights in a structured JSON format.
+        Be objective and fair in your assessments.
+      Description: 'AI agent for analyzing resumes and matching candidates to jobs'
+      IdleSessionTTLInSeconds: 1800
+
+  # Action Group: Skill Matcher
+  SkillMatcherActionGroup:
+    Type: AWS::Bedrock::AgentActionGroup
+    Properties:
+      ActionGroupName: 'SkillMatcher'
+      AgentId: !GetAtt BedrockAgent.AgentId
+      AgentVersion: 'DRAFT'
+      Description: 'Match candidate skills with job requirements using semantic analysis'
+      ActionGroupExecutor:
+        Lambda: !GetAtt SkillMatcherFunction.Arn
+      ApiSchema:
+        Payload: |
+          {
+            "openapi": "3.0.0",
+            "info": {
+              "title": "Skill Matcher API",
+              "version": "1.0.0"
+            },
+            "paths": {
+              "/skill-matcher": {
+                "post": {
+                  "summary": "Match skills",
+                  "operationId": "matchSkills",
+                  "requestBody": {
+                    "required": true,
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "candidateSkills": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
+                            "requiredSkills": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
+                            "experienceLevel": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "responses": {
+                    "200": {
+                      "description": "Skill match result",
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "matchScore": { "type": "number" },
+                              "matchedSkills": { "type": "array" },
+                              "missingSkills": { "type": "array" },
+                              "recommendations": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+  # Action Group: Job Matcher
+  JobMatcherActionGroup:
+    Type: AWS::Bedrock::AgentActionGroup
+    Properties:
+      ActionGroupName: 'JobMatcher'
+      AgentId: !GetAtt BedrockAgent.AgentId
+      AgentVersion: 'DRAFT'
+      Description: 'Match candidates to job postings and rank them'
+      ActionGroupExecutor:
+        Lambda: !GetAtt JobMatcherFunction.Arn
+      ApiSchema:
+        Payload: |
+          {
+            "openapi": "3.0.0",
+            "info": {
+              "title": "Job Matcher API",
+              "version": "1.0.0"
+            },
+            "paths": {
+              "/job-matcher": {
+                "post": {
+                  "summary": "Match jobs",
+                  "operationId": "matchJobs",
+                  "requestBody": {
+                    "required": true,
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "candidateId": { "type": "integer" },
+                            "jobIds": {
+                              "type": "array",
+                              "items": { "type": "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "responses": {
+                    "200": {
+                      "description": "Job match results",
+                      "content": {
+                        "application/json": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "matches": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "jobId": { "type": "integer" },
+                                    "score": { "type": "number" },
+                                    "reasoning": { "type": "string" }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+  # Bedrock Agent Alias
+  BedrockAgentAlias:
+    Type: AWS::Bedrock::AgentAlias
+    Properties:
+      AgentId: !GetAtt BedrockAgent.AgentId
+      AgentAliasName: 'prod'
+      Description: 'Production alias for Resume Analysis Agent'
+
+Outputs:
+  S3BucketName:
+    Description: 'S3 Bucket for Resume Storage'
+    Value: !Ref ResumeStorageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ResumesBucket'
+
+  AgentId:
+    Description: 'Bedrock Agent ID'
+    Value: !GetAtt BedrockAgent.AgentId
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentId'
+
+  AgentAliasId:
+    Description: 'Bedrock Agent Alias ID'
+    Value: !GetAtt BedrockAgentAlias.AgentAliasId
+    Export:
+      Name: !Sub '${AWS::StackName}-AgentAliasId'
+
+  ApiEndpoint:
+    Description: 'API Gateway Endpoint'
+    Value: !Sub 'https://${AgentActionsApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiEndpoint'
+
+  ResumeProcessorFunctionArn:
+    Description: 'Resume Processor Lambda Function ARN'
+    Value: !GetAtt ResumeProcessorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ResumeProcessorArn'

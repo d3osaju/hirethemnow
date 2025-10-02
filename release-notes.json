@@ -1,22 +1,104 @@
 {
-  "version": "1.0.2",
+  "version": "1.1.0",
   "releaseDate": "2025-10-02",
   "features": [
     {
       "type": "feat",
+      "category": "AI",
+      "description": "Add AI-powered resume analysis with Amazon Bedrock Nova Pro for comprehensive ATS scoring"
+    },
+    {
+      "type": "feat",
+      "category": "AI",
+      "description": "Implement 6-dimensional ATS scoring (Formatting, Keywords, Experience, Education, Skills, Achievements)"
+    },
+    {
+      "type": "feat",
+      "category": "AI",
+      "description": "Add automated resume analysis via Lambda function triggered by S3 uploads"
+    },
+    {
+      "type": "feat",
+      "category": "API",
+      "description": "Create resume analysis API endpoints (get analysis + webhook for Lambda)"
+    },
+    {
+      "type": "feat",
+      "category": "Database",
+      "description": "Add resume_analyses table with comprehensive ATS scoring fields (25 columns)"
+    },
+    {
+      "type": "feat",
       "category": "UI/UX",
-      "description": "Replace alert() calls with react-hot-toast notifications for better user experience"
+      "description": "Add ATSScoreDisplay component for visualizing resume analysis results"
     },
     {
       "type": "feat",
       "category": "DevOps",
-      "description": "Add local release-notes.json system for tracking changes and automated release note generation"
+      "description": "Auto-deploy AI infrastructure (Lambda + Bedrock) via GitHub Actions workflow"
+    },
+    {
+      "type": "refactor",
+      "category": "Backend",
+      "description": "Simplify backend architecture - remove job matching complexity, focus on ATS-only scoring"
+    },
+    {
+      "type": "refactor",
+      "category": "Database",
+      "description": "Remove Application and JobPosting models - link ResumeAnalysis directly to User"
     },
     {
       "type": "fix",
-      "category": "Storage",
-      "description": "Fix profile picture display by adding S3 pre-signed URL generation to all auth endpoints (login, register, Google auth, getProfile)"
+      "category": "DevOps",
+      "description": "Fix GitHub workflow syntax error (boolean default value)"
+    },
+    {
+      "type": "fix",
+      "category": "Backend",
+      "description": "Use stable AWS SDK packages (v4.x) - remove version conflicts"
+    },
+    {
+      "type": "feat",
+      "category": "Branding",
+      "description": "Update logo to SVG format without background"
     }
   ],
-  "instructions": "Add new features/fixes to the features array. Use 'feat' for new features and 'fix' for bug fixes. Categories: UI/UX, Storage, API, Database, Security, Performance, Navigation, Branding, DevOps"
+  "breakingChanges": [
+    "Removed Application and JobPosting models - database migration required",
+    "Simplified API - removed job matching endpoints"
+  ],
+  "migration": {
+    "required": true,
+    "name": "20251002132407_AddResumeAnalysisTable",
+    "description": "Creates resume_analyses table with comprehensive ATS scoring fields"
+  },
+  "cost": {
+    "backend": "$16-22/month (Fargate + S3 + CloudFront)",
+    "ai": "$0.35-0.40 per resume analyzed",
+    "monthly_100_resumes": "$56-62/month"
+  },
+  "previousVersions": [
+    {
+      "version": "1.0.2",
+      "releaseDate": "2025-10-02",
+      "features": [
+        {
+          "type": "feat",
+          "category": "UI/UX",
+          "description": "Replace alert() calls with react-hot-toast notifications for better user experience"
+        },
+        {
+          "type": "feat",
+          "category": "DevOps",
+          "description": "Add local release-notes.json system for tracking changes and automated release note generation"
+        },
+        {
+          "type": "fix",
+          "category": "Storage",
+          "description": "Fix profile picture display by adding S3 pre-signed URL generation to all auth endpoints (login, register, Google auth, getProfile)"
+        }
+      ]
+    }
+  ],
+  "instructions": "Add new features/fixes to the features array. Use 'feat' for new features, 'fix' for bug fixes, and 'refactor' for code improvements. Categories: AI, UI/UX, Storage, API, Database, Security, Performance, Navigation, Branding, DevOps, Backend"
 }
