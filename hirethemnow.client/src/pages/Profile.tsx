@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { resumeAPI, authAPI, emailPreferencesAPI, industriesAPI } from '../services/api';
 import { User, Mail, Code, Camera, Save, FileText, Upload, Download, RefreshCw, CheckCircle, AlertCircle, Bell, X } from 'lucide-react';
@@ -138,7 +139,7 @@ const Profile: React.FC = () => {
       console.error('Failed to update preference:', error);
       // Revert on error
       setEmailPreferences(prev => ({ ...prev, [preference]: !newValue }));
-      alert('Failed to update preference. Please try again.');
+      toast.error('Failed to update preference. Please try again.');
     }
   };
 
@@ -148,13 +149,13 @@ const Profile: React.FC = () => {
       const response = await resumeAPI.uploadResume(file);
       if (response.success) {
         await loadResumeData(); // Reload resume data
-        alert('Resume uploaded successfully!');
+        toast.success('Resume uploaded successfully!');
       } else {
-        alert('Upload failed: ' + response.message);
+        toast.error('Upload failed: ' + response.message);
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      toast.error('Upload failed. Please try again.');
     } finally {
       setUploadLoading(false);
     }
@@ -165,14 +166,14 @@ const Profile: React.FC = () => {
       const result = await resumeAPI.downloadResume();
       if (!result.success) {
         if (result.needsUpload) {
-          alert('No resume found. Please upload a resume first.');
+          toast.error('No resume found. Please upload a resume first.');
         } else {
-          alert('Failed to download resume: ' + result.message);
+          toast.error('Failed to download resume: ' + result.message);
         }
       }
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download resume. Please try again.');
+      toast.error('Failed to download resume. Please try again.');
     }
   };
 
@@ -185,13 +186,13 @@ const Profile: React.FC = () => {
         if (user && response.data) {
           updateUser({ ...user, picture: response.data });
         }
-        alert('Profile picture updated successfully!');
+        toast.success('Profile picture updated successfully!');
       } else {
-        alert('Upload failed: ' + response.message);
+        toast.error('Upload failed: ' + response.message);
       }
     } catch (error) {
       console.error('Profile picture upload error:', error);
-      alert('Failed to upload profile picture. Please try again.');
+      toast.error('Failed to upload profile picture. Please try again.');
     } finally {
       setPictureUploadLoading(false);
     }
@@ -245,13 +246,13 @@ const Profile: React.FC = () => {
         // Update the user context with new data
         updateUser(response.data);
         setEditing(false);
-        alert('Profile updated successfully!');
+        toast.success('Profile updated successfully!');
       } else {
-        alert('Failed to update profile: ' + response.message);
+        toast.error('Failed to update profile: ' + response.message);
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      toast.error('Failed to update profile. Please try again.');
     }
   };
 

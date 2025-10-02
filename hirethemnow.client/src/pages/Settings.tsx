@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { privacyAPI, dataAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -63,7 +64,7 @@ const Settings: React.FC = () => {
       console.error('Failed to update privacy setting:', error);
       // Revert on error
       setPrivacySettings(privacySettings);
-      alert('Failed to update setting. Please try again.');
+      toast.error('Failed to update setting. Please try again.');
     }
   };
 
@@ -88,10 +89,10 @@ const Settings: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert('Your data has been exported successfully!');
+      toast.success('Your data has been exported successfully!');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export data. Please try again.');
+      toast.error('Failed to export data. Please try again.');
     } finally {
       setExportLoading(false);
     }
@@ -109,18 +110,18 @@ const Settings: React.FC = () => {
       const response = await dataAPI.deleteAccount(confirmation);
 
       if (response.success) {
-        alert('Your account has been deleted successfully. You will now be logged out.');
+        toast.success('Your account has been deleted successfully. You will now be logged out.');
         logout();
         navigate('/');
       } else {
-        alert(response.message || 'Failed to delete account');
+        toast.error(response.message || 'Failed to delete account');
       }
     } catch (error) {
       console.error('Delete failed:', error);
       const errorMessage = error instanceof Error && 'response' in error
         ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
         : undefined;
-      alert(errorMessage || 'Failed to delete account. Please try again.');
+      toast.error(errorMessage || 'Failed to delete account. Please try again.');
     } finally {
       setDeleteLoading(false);
     }

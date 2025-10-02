@@ -141,6 +141,20 @@ public class UsersController : ControllerBase
 
             var updatedUser = await _dataService.UpdateUserAsync(user);
 
+            // Convert S3 key to pre-signed URL if picture exists
+            if (!string.IsNullOrEmpty(updatedUser.Picture) && !updatedUser.Picture.StartsWith("http"))
+            {
+                try
+                {
+                    updatedUser.Picture = await _s3Service.GetPreSignedUrlAsync(updatedUser.Picture, 10080); // 7 days
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate pre-signed URL for profile picture of user {UserId}", userId);
+                    updatedUser.Picture = null;
+                }
+            }
+
             return Ok(new ApiResponse<User>
             {
                 Success = true,

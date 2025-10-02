@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { Eye, EyeOff } from 'lucide-react';
 import Logo from '../../components/Logo';
@@ -227,7 +228,7 @@ const Register: React.FC = () => {
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-white hover:bg-gray-50"
                 onClick={() => {
                   // TODO: Implement Google OAuth
-                  alert('Google OAuth will be implemented');
+                  toast('Google OAuth will be implemented', { icon: 'ℹ️' });
                 }}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
