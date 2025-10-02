@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import ResumeAnalysis from './pages/ResumeAnalysis';
 import SubscriptionExpired from './pages/SubscriptionExpired';
 import NotFound from './pages/NotFound';
 import ServerError from './pages/ServerError';
@@ -126,6 +127,7 @@ function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="resume-analysis" element={<ResumeAnalysis />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
           </Route>
