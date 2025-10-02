@@ -54,30 +54,6 @@ jobs:
           echo "📦 AI Agent stack does not exist - will create it"
         fi
 
-    - name: Deploy AI Agent CloudFormation Stack
-      run: |
-        echo "🏗️ Deploying AI Agent infrastructure..."
-
-        # Get database endpoint from main stack
-        DB_ENDPOINT=$(aws cloudformation describe-stacks \
-          --stack-name hirethemnow-fargate-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
-          --output text 2>/dev/null || echo "localhost:5432")
-
-        aws cloudformation deploy \
-          --template-file aws-infrastructure/cloudformation-template.yaml \
-          --stack-name ${{ env.AI_STACK_NAME }} \
-          --region ${{ env.AWS_REGION }} \
-          --parameter-overrides \
-            DatabaseHost="${DB_ENDPOINT}" \
-            DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
-            ApiBaseUrl="https://api.hirethemnow.xyz" \
-          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-          --no-fail-on-empty-changeset
-
-        echo "✅ AI Agent CloudFormation stack deployed"
-
     - name: Package Lambda functions
       run: |
         echo "📦 Packaging Lambda function..."
@@ -107,6 +83,30 @@ jobs:
           "s3://${LAMBDA_BUCKET}/resume-processor.zip"
 
         echo "✅ Lambda code uploaded to S3"
+
+    - name: Deploy AI Agent CloudFormation Stack
+      run: |
+        echo "🏗️ Deploying AI Agent infrastructure..."
+
+        # Get database endpoint from main stack
+        DB_ENDPOINT=$(aws cloudformation describe-stacks \
+          --stack-name hirethemnow-fargate-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
+          --output text 2>/dev/null || echo "localhost:5432")
+
+        aws cloudformation deploy \
+          --template-file aws-infrastructure/cloudformation-template.yaml \
+          --stack-name ${{ env.AI_STACK_NAME }} \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            DatabaseHost="${DB_ENDPOINT}" \
+            DatabasePassword="${{ secrets.DATABASE_PASSWORD }}" \
+            ApiBaseUrl="https://api.hirethemnow.xyz" \
+          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+          --no-fail-on-empty-changeset
+
+        echo "✅ AI Agent CloudFormation stack deployed"
 
     - name: Update Lambda function
       run: |
