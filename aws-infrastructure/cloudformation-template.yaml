@@ -16,44 +16,6 @@ Parameters:
     Description: 'Base URL for your .NET API (e.g., https://api.hirethemnow.xyz)'
 
 Resources:
-  # S3 Bucket for Resume Storage
-  ResumeStorageBucket:
-    Type: AWS::S3::Bucket
-    DependsOn: ResumeProcessorS3Permission
-    Properties:
-      BucketName: !Sub '${AWS::StackName}-resumes'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: 's3:ObjectCreated:*'
-            Function: !GetAtt ResumeProcessorFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .pdf
-          - Event: 's3:ObjectCreated:*'
-            Function: !GetAtt ResumeProcessorFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .docx
-      CorsConfiguration:
-        CorsRules:
-          - AllowedOrigins:
-              - '*'
-            AllowedMethods:
-              - GET
-              - PUT
-              - POST
-            AllowedHeaders:
-              - '*'
-
   # IAM Role for Lambda Function
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -104,7 +66,7 @@ Resources:
           DATABASE_HOST: !Ref DatabaseHost
           DATABASE_PASSWORD: !Ref DatabasePassword
           API_BASE_URL: !Ref ApiBaseUrl
-          RESUME_BUCKET: !Ref ResumeStorageBucket
+          RESUME_BUCKET: !Sub '${AWS::StackName}-resumes'
       Code:
         S3Bucket: !Sub '${AWS::StackName}-lambda-code'
         S3Key: 'resume-processor.zip'
@@ -113,10 +75,50 @@ Resources:
   ResumeProcessorS3Permission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !GetAtt ResumeProcessorFunction.Arn
+      FunctionName: !Ref ResumeProcessorFunction
       Action: 'lambda:InvokeFunction'
       Principal: s3.amazonaws.com
       SourceArn: !Sub 'arn:aws:s3:::${AWS::StackName}-resumes'
+
+  # S3 Bucket for Resume Storage
+  ResumeStorageBucket:
+    Type: AWS::S3::Bucket
+    DependsOn:
+      - ResumeProcessorFunction
+      - ResumeProcessorS3Permission
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-resumes'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt ResumeProcessorFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt ResumeProcessorFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .docx
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedHeaders:
+              - '*'
 
 Outputs:
   ResumeBucketName:
