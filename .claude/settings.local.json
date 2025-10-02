@@ -45,7 +45,14 @@
       "Bash(npm install:*)",
       "Bash(npm run lint)",
       "Bash(aws logs tail:*)",
-      "Bash(aws ecs list-task-definitions:*)"
+      "Bash(aws ecs list-task-definitions:*)",
+      "Bash(aws logs describe-log-groups:*)",
+      "Bash(aws lambda list-functions:*)",
+      "Bash(aws lambda get-function:*)",
+      "Bash(aws lambda invoke:*)",
+      "Bash(cat:*)",
+      "Bash(aws cloudwatch get-metric-statistics:*)",
+      "Bash(aws lambda get-function-configuration:*)"
     ],
     "deny": [],
     "ask": []

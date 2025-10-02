@@ -31,6 +31,11 @@ exports.handler = async (event) => {
         const resumeText = await extractTextFromResume(objectKey, fileBuffer);
         console.log('Resume text extracted, length:', resumeText.length);
 
+        // Get userId from database by looking up the resume URL
+        const s3Url = `s3://${bucketName}/${objectKey}`;
+        const userId = await getUserIdByResumeUrl(objectKey);
+        console.log('Found userId for resume:', userId);
+
         // Parse resume using Bedrock Agent
         const parsedData = await parseResumeWithAgent(resumeText, objectKey);
 
@@ -41,7 +46,8 @@ exports.handler = async (event) => {
         const finalData = {
             ...parsedData,
             ...structuredData,
-            s3Url: `s3://${bucketName}/${objectKey}`,
+            userId: userId,
+            s3Url: s3Url,
             processedAt: new Date().toISOString()
         };
 
@@ -289,6 +295,43 @@ Be specific and actionable. Return ONLY valid JSON.`
 /**
  * Store resume data in database via .NET API
  */
+/**
+ * Get userId by looking up the resume URL in the Users table
+ */
+async function getUserIdByResumeUrl(resumeKey) {
+    const { Client } = require('pg');
+
+    const client = new Client({
+        host: process.env.DATABASE_HOST,
+        port: 5432,
+        database: 'hirethemnow',
+        user: 'postgres',
+        password: process.env.DATABASE_PASSWORD,
+        ssl: {
+            rejectUnauthorized: false
+        }
+    });
+
+    try {
+        await client.connect();
+        console.log('Connected to database to lookup userId');
+
+        const query = 'SELECT "Id" FROM "Users" WHERE "ResumeUrl" = $1 LIMIT 1';
+        const result = await client.query(query, [resumeKey]);
+
+        if (result.rows.length === 0) {
+            throw new Error(`No user found with resume URL: ${resumeKey}`);
+        }
+
+        return result.rows[0].Id;
+    } catch (error) {
+        console.error('Error querying database:', error.message);
+        throw error;
+    } finally {
+        await client.end();
+    }
+}
+
 async function storeResumeData(data) {
     const apiUrl = `${process.env.API_BASE_URL}/api/AIAgent/webhook/resume-analyzed`;
 
@@ -303,6 +346,9 @@ async function storeResumeData(data) {
         return response.data;
     } catch (error) {
         console.error('Error storing resume data:', error.message);
+        if (error.response) {
+            console.error('Response data:', error.response.data);
+        }
         throw error;
     }
 }
