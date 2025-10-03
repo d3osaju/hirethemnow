@@ -263,9 +263,6 @@ Resources:
       Role: !GetAtt ATSAnalyzerActionRole.Arn
       Timeout: 60
       MemorySize: 512
-      Environment:
-        Variables:
-          AWS_REGION: !Ref AWS::Region
       Code:
         S3Bucket: !Sub '${AWS::StackName}-lambda-code'
         S3Key: 'ats-analyzer-action.zip'
