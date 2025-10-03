@@ -117,13 +117,19 @@ async function extractTextFromResume(filename, buffer) {
  * Parse resume using Bedrock Agent
  */
 async function parseResumeWithAgent(resumeText, filename) {
+    // Check if agent is configured
+    if (!process.env.AGENT_ID || process.env.AGENT_ID === 'NONE') {
+        console.log('Bedrock Agent not configured, skipping agent parsing');
+        return {};
+    }
+
     const sessionId = `resume-${Date.now()}`;
 
     const command = new InvokeAgentCommand({
         agentId: process.env.AGENT_ID,
         agentAliasId: process.env.AGENT_ALIAS_ID,
         sessionId: sessionId,
-        inputText: `Parse this resume and extract all relevant information:\n\n${resumeText}`
+        inputText: `Analyze this resume for ATS compatibility:\n\n${resumeText}`
     });
 
     try {
@@ -138,9 +144,15 @@ async function parseResumeWithAgent(resumeText, filename) {
             }
         }
 
+        console.log('Bedrock Agent response:', agentResponse);
+
         // Parse agent response
         try {
-            return JSON.parse(agentResponse);
+            const jsonMatch = agentResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+            return { rawResponse: agentResponse };
         } catch {
             // If not JSON, extract key information
             return {

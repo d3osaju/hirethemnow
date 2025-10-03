@@ -61,7 +61,12 @@
       "Bash(aws ec2 describe-security-groups:*)",
       "Bash(aws ec2 describe-route-tables:*)",
       "Bash(aws ec2 describe-nat-gateways:*)",
-      "Bash(aws s3 ls:*)"
+      "Bash(aws s3 ls:*)",
+      "Bash(aws ec2 create-route:*)",
+      "Bash(aws ec2 create-route-table:*)",
+      "Bash(aws ec2 modify-vpc-endpoint:*)",
+      "Bash(aws lambda update-function-configuration:*)",
+      "Bash(aws bedrock-agent create-agent:*)"
     ],
     "deny": [],
     "ask": []

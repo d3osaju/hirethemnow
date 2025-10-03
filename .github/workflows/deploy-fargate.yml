@@ -56,17 +56,25 @@ jobs:
 
     - name: Package Lambda functions
       run: |
-        echo "📦 Packaging Lambda function..."
+        echo "📦 Packaging Lambda functions..."
 
+        # Package Resume Processor Lambda
         cd aws-infrastructure/lambda-functions/resume-processor
         npm ci --production
         zip -rq resume-processor.zip index.js node_modules package.json package-lock.json
+        cd ../../..
 
-        echo "✅ Lambda function packaged"
+        # Package ATS Analyzer Action Lambda
+        cd aws-infrastructure/lambda-functions/ats-analyzer-action
+        npm ci --production
+        zip -rq ats-analyzer-action.zip index.js node_modules package.json package-lock.json
+        cd ../../..
+
+        echo "✅ Lambda functions packaged"
 
     - name: Upload Lambda to S3
       run: |
-        echo "📤 Uploading Lambda function to S3..."
+        echo "📤 Uploading Lambda functions to S3..."
 
         # Create or use existing S3 bucket for Lambda code
         LAMBDA_BUCKET="${{ env.AI_STACK_NAME }}-lambda-code"
@@ -78,9 +86,12 @@ jobs:
           aws s3 mb "s3://${LAMBDA_BUCKET}" --region ${{ env.AWS_REGION }}
         fi
 
-        # Upload Lambda package
+        # Upload Lambda packages
         aws s3 cp aws-infrastructure/lambda-functions/resume-processor/resume-processor.zip \
           "s3://${LAMBDA_BUCKET}/resume-processor.zip"
+
+        aws s3 cp aws-infrastructure/lambda-functions/ats-analyzer-action/ats-analyzer-action.zip \
+          "s3://${LAMBDA_BUCKET}/ats-analyzer-action.zip"
 
         echo "✅ Lambda code uploaded to S3"
 
@@ -161,30 +172,47 @@ jobs:
 
         echo "✅ AI Agent CloudFormation stack deployed"
 
-    - name: Update Lambda function
+    - name: Update Lambda functions
       run: |
         echo "🔄 Updating Lambda function code..."
 
         LAMBDA_BUCKET="${{ env.AI_STACK_NAME }}-lambda-code"
 
-        # Update the Lambda function (created by CloudFormation)
+        # Update the Resume Processor Lambda
         aws lambda update-function-code \
           --function-name "${{ env.AI_STACK_NAME }}-ResumeProcessor" \
           --s3-bucket "${LAMBDA_BUCKET}" \
           --s3-key "resume-processor.zip" \
           --region ${{ env.AWS_REGION }}
 
-        echo "✅ Lambda function updated"
+        # Update the ATS Analyzer Action Lambda
+        aws lambda update-function-code \
+          --function-name "${{ env.AI_STACK_NAME }}-ATSAnalyzerAction" \
+          --s3-bucket "${LAMBDA_BUCKET}" \
+          --s3-key "ats-analyzer-action.zip" \
+          --region ${{ env.AWS_REGION }}
+
+        echo "✅ Lambda functions updated"
 
     - name: AI Agent deployment summary
       run: |
         echo ""
-        echo "🤖 AI Agent Lambda Deployment Complete!"
+        echo "🤖 AI Agent Deployment Complete!"
         echo "========================================"
         echo ""
-        echo "✅ Lambda function updated: ${{ env.AI_STACK_NAME }}-ResumeProcessor"
-        echo "🎯 Function: Resume ATS Scoring"
+        echo "✅ Bedrock Agent: Resume Analysis Agent"
+        echo "✅ Lambda Functions:"
+        echo "   • ${{ env.AI_STACK_NAME }}-ResumeProcessor (orchestrator)"
+        echo "   • ${{ env.AI_STACK_NAME }}-ATSAnalyzerAction (action group)"
+        echo "🎯 Model: Amazon Nova Pro (amazon.nova-pro-v1:0)"
+        echo "🛠️ Action Group: ATSAnalyzer with analyzeResume primitive"
         echo "💰 Cost: ~$0.20 per resume analyzed"
+        echo ""
+        echo "🏆 Meets AWS AI Agent Competition Requirements:"
+        echo "   ✅ Amazon Bedrock Agent with action group"
+        echo "   ✅ At least 1 primitive/tool (analyzeResume)"
+        echo "   ✅ Autonomous decision-making with reasoning"
+        echo "   ✅ Multi-system integration"
         echo ""
 
   # Existing deployment job
