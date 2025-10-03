@@ -137,22 +137,13 @@ jobs:
             --output text 2>/dev/null || echo "sg-0c2721db36b221307")
         fi
 
-        # Get route table and public subnet for NAT Gateway
-        ROUTE_TABLE_ID=$(aws ec2 describe-route-tables \
-          --filters "Name=vpc-id,Values=${VPC_ID}" "Name=association.subnet-id,Values=$(echo $SUBNET_IDS | cut -d',' -f1)" \
-          --region ${{ env.AWS_REGION }} \
-          --query "RouteTables[0].RouteTableId" \
-          --output text 2>/dev/null || echo "rtb-0a876823776b1e719")
-
-        # Use first subnet as public subnet (assuming it has IGW access)
-        PUBLIC_SUBNET_ID=$(echo $SUBNET_IDS | cut -d',' -f1)
-
         echo "📋 VPC Configuration:"
         echo "  VPC ID: ${VPC_ID}"
         echo "  Subnets: ${SUBNET_IDS}"
         echo "  RDS SG: ${RDS_SG_ID}"
-        echo "  Route Table: ${ROUTE_TABLE_ID}"
-        echo "  Public Subnet: ${PUBLIC_SUBNET_ID}"
+
+        # Note: NAT Gateway and VPC Endpoints already exist manually
+        # Template is configured for existing infrastructure
 
         aws cloudformation deploy \
           --template-file aws-infrastructure/cloudformation-template.yaml \
@@ -165,8 +156,6 @@ jobs:
             VpcId="${VPC_ID}" \
             SubnetIds="${SUBNET_IDS}" \
             RdsSecurityGroupId="${RDS_SG_ID}" \
-            PublicSubnetId="${PUBLIC_SUBNET_ID}" \
-            RouteTableId="${ROUTE_TABLE_ID}" \
           --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
           --no-fail-on-empty-changeset
 

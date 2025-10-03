@@ -27,64 +27,69 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
     Description: 'Security Group ID of the RDS database to allow Lambda access'
 
-  PublicSubnetId:
-    Type: AWS::EC2::Subnet::Id
-    Description: 'Public subnet ID for NAT Gateway (must have Internet Gateway)'
+  # Commented out - only needed if creating NAT Gateway in template
+  # PublicSubnetId:
+  #   Type: AWS::EC2::Subnet::Id
+  #   Description: 'Public subnet ID for NAT Gateway (must have Internet Gateway)'
 
-  RouteTableId:
-    Type: String
-    Description: 'Route table ID associated with Lambda subnets'
+  # RouteTableId:
+  #   Type: String
+  #   Description: 'Route table ID associated with Lambda subnets'
 
 Resources:
-  # Elastic IP for NAT Gateway
-  NatGatewayEIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-nat-eip'
+  # NOTE: NAT Gateway, VPC Endpoints are already created manually
+  # Uncomment these resources for fresh deployments
+  # For existing deployments, these resources already exist and will cause conflicts
 
-  # NAT Gateway for Lambda internet access
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGatewayEIP.AllocationId
-      SubnetId: !Ref PublicSubnetId
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-nat-gateway'
+  # # Elastic IP for NAT Gateway
+  # NatGatewayEIP:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: vpc
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-nat-eip'
 
-  # Route to NAT Gateway
-  NatGatewayRoute:
-    Type: AWS::EC2::Route
-    DependsOn: NatGateway
-    Properties:
-      RouteTableId: !Ref RouteTableId
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
+  # # NAT Gateway for Lambda internet access
+  # NatGateway:
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt NatGatewayEIP.AllocationId
+  #     SubnetId: !Ref PublicSubnetId
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-nat-gateway'
 
-  # S3 VPC Endpoint (Gateway - Free)
-  S3VpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
-      VpcEndpointType: Gateway
-      RouteTableIds:
-        - !Ref RouteTableId
+  # # Route to NAT Gateway
+  # NatGatewayRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn: NatGateway
+  #   Properties:
+  #     RouteTableId: !Ref RouteTableId
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: !Ref NatGateway
 
-  # Bedrock Runtime VPC Endpoint (Interface)
-  BedrockVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
-      VpcEndpointType: Interface
-      SubnetIds: !Ref SubnetIds
-      SecurityGroupIds:
-        - !Ref LambdaSecurityGroup
-      PrivateDnsEnabled: true
+  # # S3 VPC Endpoint (Gateway - Free)
+  # S3VpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+  #     VpcEndpointType: Gateway
+  #     RouteTableIds:
+  #       - !Ref RouteTableId
+
+  # # Bedrock Runtime VPC Endpoint (Interface)
+  # BedrockVpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
+  #     VpcEndpointType: Interface
+  #     SubnetIds: !Ref SubnetIds
+  #     SecurityGroupIds:
+  #       - !Ref LambdaSecurityGroup
+  #     PrivateDnsEnabled: true
 
   # Security Group for Lambda Function
   LambdaSecurityGroup:
