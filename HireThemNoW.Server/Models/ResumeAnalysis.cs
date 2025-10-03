@@ -16,6 +16,9 @@ namespace HireThemNoW.Server.Models
         [Column("resume_url")]
         public string? ResumeUrl { get; set; }
 
+        [Column("personal_info")]
+        public string? PersonalInfo { get; set; }  // JSON object with name, email, phone, location
+
         [Column("technical_skills")]
         public string? TechnicalSkills { get; set; }
 

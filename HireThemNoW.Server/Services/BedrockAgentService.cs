@@ -77,6 +77,7 @@ namespace HireThemNoW.Server.Services
                 {
                     UserId = data.UserId ?? string.Empty,
                     ResumeUrl = data.S3Url,
+                    PersonalInfo = data.PersonalInfo != null ? JsonSerializer.Serialize(data.PersonalInfo) : null,
                     TechnicalSkills = JsonSerializer.Serialize(data.Skills?.Technical ?? new List<string>()),
                     SoftSkills = JsonSerializer.Serialize(data.Skills?.Soft ?? new List<string>()),
                     ProgrammingLanguages = JsonSerializer.Serialize(data.Skills?.Languages ?? new List<string>()),
@@ -132,6 +133,9 @@ namespace HireThemNoW.Server.Services
             {
                 UserId = analysis.UserId,
                 Status = analysis.Status,
+                PersonalInfo = !string.IsNullOrEmpty(analysis.PersonalInfo)
+                    ? JsonSerializer.Deserialize<PersonalInfo>(analysis.PersonalInfo)
+                    : null,
                 Skills = new SkillsData
                 {
                     Technical = DeserializeList(analysis.TechnicalSkills),
