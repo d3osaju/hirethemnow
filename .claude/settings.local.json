@@ -69,7 +69,8 @@
       "Bash(aws bedrock-agent create-agent:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(aws:*)"
     ],
     "deny": [],
     "ask": []
