@@ -79,17 +79,29 @@ Resources:
   #     RouteTableIds:
   #       - !Ref RouteTableId
 
-  # # Bedrock Runtime VPC Endpoint (Interface)
-  # BedrockVpcEndpoint:
-  #   Type: AWS::EC2::VPCEndpoint
-  #   Properties:
-  #     VpcId: !Ref VpcId
-  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
-  #     VpcEndpointType: Interface
-  #     SubnetIds: !Ref SubnetIds
-  #     SecurityGroupIds:
-  #       - !Ref LambdaSecurityGroup
-  #     PrivateDnsEnabled: true
+  # Bedrock Runtime VPC Endpoint (Interface)
+  BedrockRuntimeVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      PrivateDnsEnabled: true
+
+  # Bedrock Agent Runtime VPC Endpoint (Interface)
+  BedrockAgentRuntimeVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-agent-runtime'
+      VpcEndpointType: Interface
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      PrivateDnsEnabled: true
 
   # Security Group for Lambda Function
   LambdaSecurityGroup:
@@ -105,6 +117,17 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-lambda-sg'
+
+  # Allow Lambda to access VPC Endpoints (self-referencing rule)
+  LambdaSelfIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref LambdaSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: 'Allow Lambda to access VPC Endpoints for Bedrock'
 
   # Allow Lambda to access RDS
   RdsIngressFromLambda:
@@ -146,6 +169,7 @@ Resources:
                 Action:
                   - 'bedrock:InvokeModel'
                   - 'bedrock:InvokeModelWithResponseStream'
+                  - 'bedrock:InvokeAgent'
                 Resource: '*'
               - Effect: Allow
                 Action:
