@@ -27,14 +27,26 @@ COPY HireThemNoW.Server/ ./HireThemNoW.Server/
 RUN dotnet publish ./HireThemNoW.Server/ -c Release -o out
 
 # Stage 3: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS runtime
 WORKDIR /app
+
+# Install dotnet-ef tool for migrations
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
 
 # Copy built server application
 COPY --from=server-build /app/out .
 
+# Copy migration files (required for ef database update)
+COPY --from=server-build /app/HireThemNoW.Server/Migrations ./Migrations
+COPY --from=server-build /app/HireThemNoW.Server/HireThemNoW.Server.csproj ./
+
 # Copy built client files to wwwroot
 COPY --from=client-build /app/client/dist ./wwwroot
+
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Set environment variables
 ENV ASPNETCORE_ENVIRONMENT=Production
@@ -43,5 +55,5 @@ ENV ASPNETCORE_URLS=http://+:8080
 # Expose port
 EXPOSE 8080
 
-# Start the application
-ENTRYPOINT ["dotnet", "HireThemNoW.Server.dll"]
+# Use entrypoint script to run migrations before starting app
+ENTRYPOINT ["/app/entrypoint.sh"]
