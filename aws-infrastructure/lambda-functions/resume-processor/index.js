@@ -174,7 +174,8 @@ async function extractStructuredData(resumeText) {
         messages: [
             {
                 role: 'user',
-                content: `You are an expert ATS (Applicant Tracking System) analyzer. Analyze this resume comprehensively and provide detailed scoring and improvement suggestions.
+                content: [{
+                    text: `You are an expert ATS (Applicant Tracking System) analyzer. Analyze this resume comprehensively and provide detailed scoring and improvement suggestions.
 
 Resume:
 ${resumeText}
@@ -268,6 +269,7 @@ ATS Scoring Criteria:
 - Achievements (0-100): Measurable results, metrics, impact
 
 Be specific and actionable. Return ONLY valid JSON.`
+                }]
             }
         ],
         inferenceConfig: {
