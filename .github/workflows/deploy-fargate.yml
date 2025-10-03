@@ -194,6 +194,18 @@ jobs:
 
         echo "✅ Lambda functions updated"
 
+    - name: Setup Bedrock Agent
+      run: |
+        echo "🤖 Setting up Bedrock Agent with action groups..."
+
+        # Make script executable
+        chmod +x aws-infrastructure/setup-bedrock-agent.sh
+
+        # Run setup script
+        bash aws-infrastructure/setup-bedrock-agent.sh
+
+        echo "✅ Bedrock Agent configured"
+
     - name: AI Agent deployment summary
       run: |
         echo ""

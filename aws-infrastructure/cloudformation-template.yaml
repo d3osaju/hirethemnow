@@ -156,7 +156,6 @@ Resources:
   # Lambda Function for Resume Processing
   ResumeProcessorFunction:
     Type: AWS::Lambda::Function
-    DependsOn: ResumeAnalysisAgentAlias
     Properties:
       FunctionName: !Sub '${AWS::StackName}-ResumeProcessor'
       Runtime: nodejs20.x
@@ -174,8 +173,8 @@ Resources:
           DATABASE_PASSWORD: !Ref DatabasePassword
           API_BASE_URL: !Ref ApiBaseUrl
           RESUME_BUCKET: !Sub '${AWS::StackName}-resumes'
-          AGENT_ID: !GetAtt ResumeAnalysisAgent.AgentId
-          AGENT_ALIAS_ID: !GetAtt ResumeAnalysisAgentAlias.AgentAliasId
+          AGENT_ID: 'NONE'
+          AGENT_ALIAS_ID: 'NONE'
       Code:
         S3Bucket: !Sub '${AWS::StackName}-lambda-code'
         S3Key: 'resume-processor.zip'
@@ -280,120 +279,9 @@ Resources:
       Principal: bedrock.amazonaws.com
       SourceArn: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
 
-  # IAM Role for Bedrock Agent
-  BedrockAgentRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${AWS::StackName}-BedrockAgentRole'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: bedrock.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: BedrockAgentPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - 'bedrock:InvokeModel'
-                Resource:
-                  - 'arn:aws:bedrock:*::foundation-model/amazon.nova-pro-v1:0'
-                  - 'arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0'
-              - Effect: Allow
-                Action:
-                  - 'lambda:InvokeFunction'
-                Resource: !GetAtt ATSAnalyzerActionFunction.Arn
-
-  # Bedrock Agent for Resume Analysis
-  ResumeAnalysisAgent:
-    Type: AWS::Bedrock::Agent
-    Properties:
-      AgentName: !Sub '${AWS::StackName}-ResumeAnalysisAgent'
-      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
-      FoundationModel: 'amazon.nova-pro-v1:0'
-      Instruction: |
-        You are an expert resume analysis agent. Your role is to help analyze resumes for ATS (Applicant Tracking System) compatibility.
-
-        When given a resume, you should:
-        1. Use the analyzeResume action to get comprehensive ATS analysis
-        2. Provide detailed insights about strengths and weaknesses
-        3. Suggest specific, actionable improvements
-        4. Explain scoring in clear terms
-
-        Always be specific, actionable, and helpful in your responses.
-      IdleSessionTTLInSeconds: 600
-      AutoPrepare: true
-
-  # Action Group for ATS Analysis
-  ATSAnalyzerActionGroup:
-    Type: AWS::Bedrock::AgentActionGroup
-    Properties:
-      ActionGroupName: ATSAnalyzer
-      AgentId: !GetAtt ResumeAnalysisAgent.AgentId
-      AgentVersion: DRAFT
-      ActionGroupExecutor:
-        Lambda: !GetAtt ATSAnalyzerActionFunction.Arn
-      ApiSchema:
-        Payload: |
-          {
-            "openapi": "3.0.0",
-            "info": {
-              "title": "ATS Resume Analyzer API",
-              "version": "1.0.0",
-              "description": "Action group for analyzing resumes with ATS scoring"
-            },
-            "paths": {
-              "/analyze-resume": {
-                "post": {
-                  "summary": "Analyze a resume for ATS compatibility",
-                  "description": "Analyzes resume text and provides comprehensive ATS scoring",
-                  "operationId": "analyzeResume",
-                  "requestBody": {
-                    "required": true,
-                    "content": {
-                      "application/json": {
-                        "schema": {
-                          "type": "object",
-                          "required": ["resumeText"],
-                          "properties": {
-                            "resumeText": {
-                              "type": "string",
-                              "description": "The full text content of the resume"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "responses": {
-                    "200": {
-                      "description": "Successful analysis",
-                      "content": {
-                        "application/json": {
-                          "schema": {
-                            "type": "object"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-  # Bedrock Agent Alias
-  ResumeAnalysisAgentAlias:
-    Type: AWS::Bedrock::AgentAlias
-    DependsOn: ATSAnalyzerActionGroup
-    Properties:
-      AgentId: !GetAtt ResumeAnalysisAgent.AgentId
-      AgentAliasName: production
-      Description: Production alias for Resume Analysis Agent
+  # IAM Role for Bedrock Agent (created manually via CLI script)
+  # Note: Bedrock Agent resources not supported in CloudFormation yet
+  # Use setup-bedrock-agent.sh script to create agent, action group, and alias
 
 Outputs:
   ResumeBucketName:
@@ -418,20 +306,14 @@ Outputs:
     Description: 'Webhook URL for Lambda to call'
     Value: !Sub '${ApiBaseUrl}/api/AIAgent/webhook/resume-analyzed'
 
-  BedrockAgentId:
-    Description: 'Bedrock Agent ID for Resume Analysis'
-    Value: !GetAtt ResumeAnalysisAgent.AgentId
-    Export:
-      Name: !Sub '${AWS::StackName}-AgentId'
-
-  BedrockAgentAliasId:
-    Description: 'Bedrock Agent Alias ID'
-    Value: !GetAtt ResumeAnalysisAgentAlias.AgentAliasId
-    Export:
-      Name: !Sub '${AWS::StackName}-AgentAliasId'
-
   ATSAnalyzerActionArn:
     Description: 'ATS Analyzer Action Lambda ARN'
     Value: !GetAtt ATSAnalyzerActionFunction.Arn
     Export:
       Name: !Sub '${AWS::StackName}-ATSActionArn'
+
+  ATSAnalyzerActionName:
+    Description: 'ATS Analyzer Action Lambda Name'
+    Value: !Ref ATSAnalyzerActionFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-ATSActionName'
