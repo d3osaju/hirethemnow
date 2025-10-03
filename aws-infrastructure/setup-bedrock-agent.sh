@@ -213,13 +213,23 @@ EXISTING_ACTION=$(aws bedrock-agent list-agent-action-groups \
 if [ -n "$EXISTING_ACTION" ]; then
   echo "✅ Action Group already exists: $EXISTING_ACTION"
 else
-  # Use proper JSON structure for API schema parameter
+  # Create CLI input JSON file for action group
+  cat > /tmp/action-group-input.json <<EOF
+{
+  "agentId": "$AGENT_ID",
+  "agentVersion": "DRAFT",
+  "actionGroupName": "ATSAnalyzer",
+  "actionGroupExecutor": {
+    "lambda": "$LAMBDA_ARN"
+  },
+  "apiSchema": {
+    "payload": $(cat /tmp/ats-analyzer-schema.json)
+  }
+}
+EOF
+
   ACTION_GROUP_ID=$(aws bedrock-agent create-agent-action-group \
-    --agent-id $AGENT_ID \
-    --agent-version DRAFT \
-    --action-group-name ATSAnalyzer \
-    --action-group-executor lambda=$LAMBDA_ARN \
-    --api-schema "payload=$(cat /tmp/ats-analyzer-schema.json | jq -c .)" \
+    --cli-input-json file:///tmp/action-group-input.json \
     --region $REGION \
     --query 'agentActionGroup.actionGroupId' \
     --output text)
