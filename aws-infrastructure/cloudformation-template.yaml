@@ -79,29 +79,34 @@ Resources:
   #     RouteTableIds:
   #       - !Ref RouteTableId
 
-  # Bedrock Runtime VPC Endpoint (Interface)
-  BedrockRuntimeVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
-      VpcEndpointType: Interface
-      SubnetIds: !Ref SubnetIds
-      SecurityGroupIds:
-        - !Ref LambdaSecurityGroup
-      PrivateDnsEnabled: true
+  # NOTE: VPC Endpoints already created manually
+  # Bedrock Runtime VPC Endpoint: vpce-010d13bac43a17df7
+  # Bedrock Agent Runtime VPC Endpoint: vpce-006d387be8b4d6ba2
+  # Uncomment below if deploying to a fresh environment
 
-  # Bedrock Agent Runtime VPC Endpoint (Interface)
-  BedrockAgentRuntimeVpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-agent-runtime'
-      VpcEndpointType: Interface
-      SubnetIds: !Ref SubnetIds
-      SecurityGroupIds:
-        - !Ref LambdaSecurityGroup
-      PrivateDnsEnabled: true
+  # # Bedrock Runtime VPC Endpoint (Interface)
+  # BedrockRuntimeVpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-runtime'
+  #     VpcEndpointType: Interface
+  #     SubnetIds: !Ref SubnetIds
+  #     SecurityGroupIds:
+  #       - !Ref LambdaSecurityGroup
+  #     PrivateDnsEnabled: true
+
+  # # Bedrock Agent Runtime VPC Endpoint (Interface)
+  # BedrockAgentRuntimeVpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcId: !Ref VpcId
+  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.bedrock-agent-runtime'
+  #     VpcEndpointType: Interface
+  #     SubnetIds: !Ref SubnetIds
+  #     SecurityGroupIds:
+  #       - !Ref LambdaSecurityGroup
+  #     PrivateDnsEnabled: true
 
   # Security Group for Lambda Function
   LambdaSecurityGroup:
@@ -118,16 +123,20 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-lambda-sg'
 
-  # Allow Lambda to access VPC Endpoints (self-referencing rule)
-  LambdaSelfIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref LambdaSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      SourceSecurityGroupId: !Ref LambdaSecurityGroup
-      Description: 'Allow Lambda to access VPC Endpoints for Bedrock'
+  # NOTE: Self-referencing security group rule already created manually
+  # Security Group Rule ID: sgr-0288e037ecccdf1d6
+  # Uncomment below if deploying to a fresh environment
+
+  # # Allow Lambda to access VPC Endpoints (self-referencing rule)
+  # LambdaSelfIngress:
+  #   Type: AWS::EC2::SecurityGroupIngress
+  #   Properties:
+  #     GroupId: !Ref LambdaSecurityGroup
+  #     IpProtocol: tcp
+  #     FromPort: 443
+  #     ToPort: 443
+  #     SourceSecurityGroupId: !Ref LambdaSecurityGroup
+  #     Description: 'Allow Lambda to access VPC Endpoints for Bedrock'
 
   # Allow Lambda to access RDS
   RdsIngressFromLambda:
