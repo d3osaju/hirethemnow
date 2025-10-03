@@ -214,6 +214,10 @@ if [ -n "$EXISTING_ACTION" ]; then
   echo "✅ Action Group already exists: $EXISTING_ACTION"
 else
   # Create CLI input JSON file for action group
+  # The payload must be a JSON string (escaped), not an object
+  # Use jq to convert JSON to escaped string
+  SCHEMA_STRING=$(cat /tmp/ats-analyzer-schema.json | jq -c . | jq -Rs .)
+
   cat > /tmp/action-group-input.json <<EOF
 {
   "agentId": "$AGENT_ID",
@@ -223,7 +227,7 @@ else
     "lambda": "$LAMBDA_ARN"
   },
   "apiSchema": {
-    "payload": $(cat /tmp/ats-analyzer-schema.json)
+    "payload": $SCHEMA_STRING
   }
 }
 EOF
