@@ -140,6 +140,8 @@ aws cloudformation deploy \
 - `VpcId`: VPC ID where your RDS and Fargate are deployed (e.g., `vpc-08ab0cef55d004211`)
 - `SubnetIds`: Comma-separated list of at least 2 subnets in different AZs (e.g., `subnet-abc123,subnet-def456`)
 - `RdsSecurityGroupId`: Security group ID of your RDS instance (e.g., `sg-0c2721db36b221307`)
+- `PublicSubnetId`: Public subnet ID for NAT Gateway (must have Internet Gateway attached)
+- `RouteTableId`: Route table ID associated with Lambda subnets
 
 **Finding Your VPC Configuration:**
 
@@ -155,6 +157,19 @@ aws rds describe-db-instances --db-instance-identifier your-db-name \
 # Find your Subnets
 aws rds describe-db-instances --db-instance-identifier your-db-name \
   --query "DBInstances[0].DBSubnetGroup.Subnets[*].SubnetIdentifier" --output text
+
+# Find Route Table ID
+aws ec2 describe-route-tables --filters "Name=vpc-id,Values=YOUR_VPC_ID" \
+  --query "RouteTables[*].RouteTableId" --output text
+
+# Use one of your subnets as PublicSubnetId (same as first subnet in SubnetIds)
+```
+
+**Important Notes:**
+- The template will automatically create a **NAT Gateway** (~$32/month) for Lambda internet access
+- **S3 VPC Endpoint** (free) is created for S3 access
+- **Bedrock VPC Endpoint** (~$7/month) is created for AI model access
+- Total additional infrastructure cost: **~$39/month**
 ```
 
 #### Step 3: Upload Lambda Code
@@ -354,10 +369,13 @@ Key metrics to monitor:
   - ~$5/month for typical usage
 - **S3**: $0.023/GB
   - ~$2/month for resume storage
-- **API Gateway**: $3.50 per million requests
-  - ~$5/month
+- **NAT Gateway**: $0.045/hour + data processing
+  - ~$32/month
+- **Bedrock VPC Endpoint**: $0.01/hour per AZ
+  - ~$7/month (2 AZs)
+- **S3 VPC Endpoint**: Free (Gateway endpoint)
 
-**Total**: ~$30-50/month for moderate usage
+**Total**: ~$65-75/month for moderate usage
 
 ### Cost Optimization Tips
 
