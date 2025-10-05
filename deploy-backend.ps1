@@ -24,6 +24,176 @@ if (Test-Path .env.deploy) {
 $APP_NAME = "hirethemnow"
 $ENV_NAME = "hirethemnow-prod"
 $REGION = $env:AWS_REGION
+$BUCKET_NAME = "hirethemnow-files"
+
+# Step 0: Setup S3 Infrastructure
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "S3 Infrastructure Setup" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+Write-Host "`nChecking S3 bucket..." -ForegroundColor Yellow
+$bucketExists = aws s3api head-bucket --bucket $BUCKET_NAME --region $REGION 2>$null
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "S3 bucket '$BUCKET_NAME' already exists - skipping setup" -ForegroundColor Green
+} else {
+    Write-Host "Creating S3 bucket '$BUCKET_NAME'..." -ForegroundColor Yellow
+
+    # Create bucket
+    if ($REGION -eq "us-east-1") {
+        aws s3api create-bucket --bucket $BUCKET_NAME --region $REGION
+    } else {
+        aws s3api create-bucket --bucket $BUCKET_NAME --region $REGION --create-bucket-configuration LocationConstraint=$REGION
+    }
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Bucket created successfully!" -ForegroundColor Green
+
+        # Enable versioning
+        Write-Host "Enabling versioning..." -ForegroundColor Yellow
+        aws s3api put-bucket-versioning --bucket $BUCKET_NAME --region $REGION --versioning-configuration Status=Enabled
+
+        # Enable encryption
+        Write-Host "Enabling encryption..." -ForegroundColor Yellow
+        $encryptionConfig = @"
+{
+    "Rules": [
+        {
+            "ApplyServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+            },
+            "BucketKeyEnabled": true
+        }
+    ]
+}
+"@
+        $encryptionConfig | Out-File -FilePath encryption.json -Encoding utf8
+        aws s3api put-bucket-encryption --bucket $BUCKET_NAME --region $REGION --server-side-encryption-configuration file://encryption.json
+        Remove-Item encryption.json
+
+        # Block public access
+        Write-Host "Blocking public access..." -ForegroundColor Yellow
+        aws s3api put-public-access-block --bucket $BUCKET_NAME --region $REGION --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+        # Configure lifecycle
+        Write-Host "Configuring lifecycle policy..." -ForegroundColor Yellow
+        $lifecycleConfig = @"
+{
+    "Rules": [
+        {
+            "Id": "DeleteOldResumes",
+            "Status": "Enabled",
+            "Prefix": "resumes/",
+            "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 30
+            }
+        },
+        {
+            "Id": "DeleteOldProfilePics",
+            "Status": "Enabled",
+            "Prefix": "profile-pictures/",
+            "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 30
+            }
+        }
+    ]
+}
+"@
+        $lifecycleConfig | Out-File -FilePath lifecycle.json -Encoding utf8
+        aws s3api put-bucket-lifecycle-configuration --bucket $BUCKET_NAME --region $REGION --lifecycle-configuration file://lifecycle.json
+        Remove-Item lifecycle.json
+
+        # Configure CORS
+        Write-Host "Configuring CORS..." -ForegroundColor Yellow
+        $corsConfig = @"
+{
+    "CORSRules": [
+        {
+            "AllowedOrigins": ["https://d203avobknjbyh.cloudfront.net", "https://doswhc5mmajby.cloudfront.net", "http://localhost:5173"],
+            "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+            "AllowedHeaders": ["*"],
+            "ExposeHeaders": ["ETag"],
+            "MaxAgeSeconds": 3000
+        }
+    ]
+}
+"@
+        $corsConfig | Out-File -FilePath cors.json -Encoding utf8
+        aws s3api put-bucket-cors --bucket $BUCKET_NAME --region $REGION --cors-configuration file://cors.json
+        Remove-Item cors.json
+
+        # Create folder structure
+        Write-Host "Creating folder structure..." -ForegroundColor Yellow
+        echo $null | aws s3 cp - "s3://$BUCKET_NAME/resumes/.keep" --region $REGION 2>$null
+        echo $null | aws s3 cp - "s3://$BUCKET_NAME/profile-pictures/.keep" --region $REGION 2>$null
+
+        Write-Host "S3 bucket configured successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "ERROR: Failed to create S3 bucket" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# Step 0.5: Configure IAM permissions for S3 access
+Write-Host "`n========================================" -ForegroundColor Cyan
+Write-Host "IAM Permissions Setup" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+Write-Host "`nConfiguring S3 permissions for Elastic Beanstalk EC2 role..." -ForegroundColor Yellow
+
+# Check if the role exists
+$roleExists = aws iam get-role --role-name aws-elasticbeanstalk-ec2-role 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: aws-elasticbeanstalk-ec2-role does not exist!" -ForegroundColor Red
+    Write-Host "Please create it first or run the Elastic Beanstalk environment creation." -ForegroundColor Yellow
+} else {
+    # Create inline policy for S3 access
+    $policyName = "HireThemNowS3Access"
+
+    # Create policy as a proper JSON file
+    @"
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::$BUCKET_NAME",
+        "arn:aws:s3:::$BUCKET_NAME/*"
+      ]
+    }
+  ]
+}
+"@ | Set-Content -Path s3-policy.json -Encoding ASCII
+
+    # Check if policy already exists
+    $existingPolicy = aws iam get-role-policy --role-name aws-elasticbeanstalk-ec2-role --policy-name $policyName 2>$null
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "S3 policy already exists, updating..." -ForegroundColor Yellow
+    } else {
+        Write-Host "Creating new S3 policy..." -ForegroundColor Yellow
+    }
+
+    aws iam put-role-policy --role-name aws-elasticbeanstalk-ec2-role --policy-name $policyName --policy-document file://s3-policy.json
+
+    if ($LASTEXITCODE -eq 0) {
+        Remove-Item s3-policy.json -ErrorAction SilentlyContinue
+    }
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "S3 permissions configured successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "WARNING: Failed to configure S3 permissions" -ForegroundColor Yellow
+        Write-Host "You may need to add S3 permissions manually in IAM console" -ForegroundColor Yellow
+    }
+}
 
 # Step 1: Build
 Write-Host "`nStep 1: Building application..." -ForegroundColor Yellow

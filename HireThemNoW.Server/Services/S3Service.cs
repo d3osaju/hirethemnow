@@ -26,14 +26,9 @@ public class S3Service : IS3Service
             var folder = prefix ?? "resumes";
             var fileKey = $"{folder}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}_{fileName}";
 
-            // Use resume bucket for resumes, regular bucket for other files
-            var bucketToUse = folder == "resumes"
-                ? _configuration["AWS:S3:ResumeBucket"] ?? _bucketName
-                : _bucketName;
-
             var request = new PutObjectRequest
             {
-                BucketName = bucketToUse,
+                BucketName = _bucketName,
                 Key = fileKey,
                 InputStream = fileStream,
                 ContentType = contentType,
