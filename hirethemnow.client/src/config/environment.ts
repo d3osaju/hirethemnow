@@ -16,7 +16,7 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
     // If running in production, use production API URL from environment
     if (env === 'production') {
       // Use the AWS Fargate load balancer URL from environment
-      return import.meta.env.VITE_API_BASE_URL || 'http://hirethemnow-fargate-prod-alb-623046515.us-east-1.elb.amazonaws.com/api';
+      return import.meta.env.VITE_API_BASE_URL || 'https://api.hirethemnow.xyz/api';
     }
 
     // For development, use local backend
@@ -40,7 +40,7 @@ export const getEnvironmentConfig = (): EnvironmentConfig => {
 
       // For production domains (CloudFront), use AWS Fargate API
       if (hostname.includes('cloudfront.net') || (hostname.includes('hirethemnow') && !hostname.includes('localhost'))) {
-        return 'http://hirethemnow-fargate-prod-alb-623046515.us-east-1.elb.amazonaws.com/api';
+        return 'https://api.hirethemnow.xyz/api';
       }
     }
 

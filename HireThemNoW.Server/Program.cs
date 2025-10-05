@@ -103,7 +103,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
                 "https://www.hirethemnow.xyz",
                 "https://hirethemnow.xyz",
-                "http://localhost:8080"
+                "http://localhost:8080",
+                "http://hirethemnow-frontend.s3-website-us-east-1.amazonaws.com"
               )
               .AllowAnyMethod()
               .AllowAnyHeader()

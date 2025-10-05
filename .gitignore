@@ -53,3 +53,23 @@ localstack_data/
 # Claude Code local settings
 .claude/settings.local.json
 .claude/*
+
+
+DEPLOYMENT.md
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+eb-options.json
+deployment.zip
+# Deployment secrets
+.env.deploy
+eb-options.json
+deployment.zip
+publish/
+bucket-policy.json
+
+# AWS credentials (should never be committed)
+*credentials*
+*secret*key*
