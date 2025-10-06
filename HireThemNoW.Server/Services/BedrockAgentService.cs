@@ -6,9 +6,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.BedrockRuntime;
 using Amazon.BedrockRuntime.Model;
-using Amazon.Textract;
-using Amazon.Textract.Model;
+using Amazon.S3;
+using Amazon.S3.Model;
 using System.Text;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
 
 namespace HireThemNoW.Server.Services
 {
@@ -17,20 +19,20 @@ namespace HireThemNoW.Server.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<BedrockAgentService> _logger;
         private readonly IAmazonBedrockRuntime _bedrockClient;
-        private readonly IAmazonTextract _textractClient;
+        private readonly IAmazonS3 _s3Client;
         private readonly IConfiguration _configuration;
 
         public BedrockAgentService(
             ApplicationDbContext context,
             ILogger<BedrockAgentService> logger,
             IAmazonBedrockRuntime bedrockClient,
-            IAmazonTextract textractClient,
+            IAmazonS3 s3Client,
             IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
             _bedrockClient = bedrockClient;
-            _textractClient = textractClient;
+            _s3Client = s3Client;
             _configuration = configuration;
         }
 
@@ -231,14 +233,46 @@ namespace HireThemNoW.Server.Services
 
                 var bucketName = s3Parts[0];
                 var objectKey = s3Parts[1];
+                var fileName = Path.GetFileName(objectKey);
 
-                _logger.LogDebug("Parsed S3 URL - Bucket: {Bucket}, Key: {Key}", bucketName, objectKey);
+                _logger.LogDebug("Parsed S3 URL - Bucket: {Bucket}, Key: {Key}, FileName: {FileName}", 
+                    bucketName, objectKey, fileName);
 
-                // Step 1: Extract text using Textract
+                // Step 1: Download PDF from S3
+                var downloadStartTime = DateTime.UtcNow;
+                _logger.LogInformation("Downloading PDF document from S3: {FileName}", fileName);
+
+                var pdfBytes = await DownloadDocumentFromS3Async(bucketName, objectKey);
+                var downloadTime = (DateTime.UtcNow - downloadStartTime).TotalSeconds;
+
+                _logger.LogInformation(
+                    "Document download completed in {DownloadTime:F2}s, size: {Size} bytes",
+                    downloadTime, pdfBytes.Length);
+
+                // Step 2: Validate file size
+                var maxFileSizeBytes = _configuration.GetValue<long>("ResumeParsing:MaxFileSizeBytes", 5242880); // 5MB default
+                if (pdfBytes.Length > maxFileSizeBytes)
+                {
+                    var fileSizeMB = pdfBytes.Length / (1024.0 * 1024.0);
+                    var maxSizeMB = maxFileSizeBytes / (1024.0 * 1024.0);
+                    _logger.LogWarning(
+                        "File size exceeds limit: {FileName}, size: {FileSizeMB:F2}MB, limit: {MaxSizeMB:F2}MB",
+                        fileName, fileSizeMB, maxSizeMB);
+                    
+                    return new ParsedResumeResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The file is too large. Please upload a PDF file smaller than {maxSizeMB:F0}MB.",
+                        PlainText = string.Empty,
+                        StructuredContent = new StructuredResumeContent()
+                    };
+                }
+
+                // Step 3: Extract text from PDF using PdfPig
                 var extractStartTime = DateTime.UtcNow;
-                _logger.LogInformation("Starting text extraction from document using Textract");
+                _logger.LogInformation("Starting text extraction from PDF using PdfPig: {FileName}", fileName);
 
-                var plainText = await ExtractTextFromDocumentAsync(bucketName, objectKey);
+                var plainText = ExtractTextFromPdfAsync(pdfBytes, fileName);
                 var extractTime = (DateTime.UtcNow - extractStartTime).TotalSeconds;
 
                 _logger.LogInformation(
@@ -247,19 +281,19 @@ namespace HireThemNoW.Server.Services
 
                 if (string.IsNullOrWhiteSpace(plainText))
                 {
-                    _logger.LogWarning("No text extracted from document");
+                    _logger.LogWarning("No text extracted from PDF document: {FileName}", fileName);
                     return new ParsedResumeResult
                     {
                         Success = false,
-                        ErrorMessage = "No text could be extracted from the document",
+                        ErrorMessage = "No text could be extracted from the PDF document. The file may be empty or contain only images.",
                         PlainText = string.Empty,
                         StructuredContent = new StructuredResumeContent()
                     };
                 }
 
-                // Step 2: Structure the text using Claude via Bedrock
+                // Step 4: Structure the text using Nova via Bedrock
                 var structureStartTime = DateTime.UtcNow;
-                _logger.LogInformation("Starting content structuring with Claude via Bedrock");
+                _logger.LogInformation("Starting content structuring with Nova via Bedrock");
 
                 var structuredContent = await StructureResumeWithClaudeAsync(plainText);
                 var structureTime = (DateTime.UtcNow - structureStartTime).TotalSeconds;
@@ -280,17 +314,131 @@ namespace HireThemNoW.Server.Services
                     StructuredContent = structuredContent
                 };
             }
-            catch (ArgumentException ex)
+            catch (FileNotFoundException ex)
             {
                 var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
                 _logger.LogError(ex,
-                    "Invalid argument while parsing resume from S3 URL: {S3Url}, time elapsed: {ProcessingTime:F2}s",
-                    s3Url, processingTime);
+                    "File not found while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
 
                 return new ParsedResumeResult
                 {
                     Success = false,
-                    ErrorMessage = "Invalid input provided for resume parsing.",
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Access denied while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("password-protected") || ex.Message.Contains("encrypted"))
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Encrypted or password-protected PDF while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("corrupted") || ex.Message.Contains("invalid") || ex.Message.Contains("format"))
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Corrupted or invalid PDF while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (AmazonBedrockRuntimeException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Bedrock rejected content while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, StatusCode: {StatusCode}, ErrorCode: {ErrorCode}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, ex.StatusCode, ex.ErrorCode, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (AmazonBedrockRuntimeException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
+                                                            ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Bedrock service unavailable while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, StatusCode: {StatusCode}, ErrorCode: {ErrorCode}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, ex.StatusCode, ex.ErrorCode, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (AmazonS3Exception ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "S3 error while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, StatusCode: {StatusCode}, ErrorCode: {ErrorCode}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, ex.StatusCode, ex.ErrorCode, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
+                    PlainText = string.Empty,
+                    StructuredContent = new StructuredResumeContent()
+                };
+            }
+            catch (ArgumentException ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
+                _logger.LogError(ex,
+                    "Invalid argument while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
+
+                return new ParsedResumeResult
+                {
+                    Success = false,
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
                     PlainText = string.Empty,
                     StructuredContent = new StructuredResumeContent()
                 };
@@ -298,14 +446,15 @@ namespace HireThemNoW.Server.Services
             catch (TimeoutException ex)
             {
                 var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
                 _logger.LogError(ex,
-                    "Timeout while parsing resume from S3 URL: {S3Url}, time elapsed: {ProcessingTime:F2}s",
-                    s3Url, processingTime);
+                    "Timeout while parsing resume from S3 URL: {S3Url}, FileName: {FileName}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, processingTime);
 
                 return new ParsedResumeResult
                 {
                     Success = false,
-                    ErrorMessage = "Resume parsing timed out. The document may be too large or complex.",
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
                     PlainText = string.Empty,
                     StructuredContent = new StructuredResumeContent()
                 };
@@ -313,68 +462,145 @@ namespace HireThemNoW.Server.Services
             catch (Exception ex)
             {
                 var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                var fileName = Path.GetFileName(s3Url);
                 _logger.LogError(ex,
-                    "Unexpected error parsing resume from S3 URL: {S3Url}, time elapsed: {ProcessingTime:F2}s",
-                    s3Url, processingTime);
+                    "Unexpected error parsing resume from S3 URL: {S3Url}, FileName: {FileName}, ExceptionType: {ExceptionType}, time elapsed: {ProcessingTime:F2}s",
+                    s3Url, fileName, ex.GetType().Name, processingTime);
 
                 return new ParsedResumeResult
                 {
                     Success = false,
-                    ErrorMessage = "An unexpected error occurred while parsing the resume document.",
+                    ErrorMessage = GetUserFriendlyErrorMessage(ex, fileName),
                     PlainText = string.Empty,
                     StructuredContent = new StructuredResumeContent()
                 };
             }
         }
 
-        private async Task<string> ExtractTextFromDocumentAsync(string bucketName, string objectKey)
+        private async Task<byte[]> DownloadDocumentFromS3Async(string bucketName, string objectKey)
         {
+            _logger.LogInformation("Downloading document from S3: {Bucket}/{Key}", bucketName, objectKey);
+            
             try
             {
-                var request = new DetectDocumentTextRequest
+                var request = new GetObjectRequest
                 {
-                    Document = new Document
-                    {
-                        S3Object = new Amazon.Textract.Model.S3Object
-                        {
-                            Bucket = bucketName,
-                            Name = objectKey
-                        }
-                    }
+                    BucketName = bucketName,
+                    Key = objectKey
                 };
 
-                var response = await _textractClient.DetectDocumentTextAsync(request);
-
-                var textBuilder = new StringBuilder();
-                foreach (var block in response.Blocks)
-                {
-                    if (block.BlockType == BlockType.LINE)
-                    {
-                        textBuilder.AppendLine(block.Text);
-                    }
-                }
-
-                return textBuilder.ToString();
+                using var response = await _s3Client.GetObjectAsync(request);
+                using var memoryStream = new MemoryStream();
+                await response.ResponseStream.CopyToAsync(memoryStream);
+                
+                var documentBytes = memoryStream.ToArray();
+                
+                _logger.LogInformation(
+                    "Successfully downloaded document from S3: {Bucket}/{Key}, size: {Size} bytes",
+                    bucketName, objectKey, documentBytes.Length);
+                
+                return documentBytes;
             }
-            catch (AmazonTextractException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            catch (AmazonS3Exception ex) when (ex.ErrorCode == "NoSuchKey")
             {
                 _logger.LogError(ex,
-                    "Access denied to Textract service. IAM permissions missing for textract:DetectDocumentText. " +
-                    "Document: {Bucket}/{Key}. Required permissions: textract:DetectDocumentText, s3:GetObject on bucket {Bucket}",
+                    "Document not found in S3: {Bucket}/{Key}. The file may have been deleted or the key is incorrect.",
+                    bucketName, objectKey);
+                throw new FileNotFoundException($"Document not found in S3: {bucketName}/{objectKey}", ex);
+            }
+            catch (AmazonS3Exception ex) when (ex.ErrorCode == "AccessDenied" || ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _logger.LogError(ex,
+                    "Access denied to S3 document: {Bucket}/{Key}. IAM permissions missing for s3:GetObject. " +
+                    "Required permissions: s3:GetObject on bucket {Bucket}",
                     bucketName, objectKey, bucketName);
-                throw;
+                throw new UnauthorizedAccessException($"Access denied to S3 document: {bucketName}/{objectKey}", ex);
             }
-            catch (AmazonTextractException ex)
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 _logger.LogError(ex,
-                    "Textract service error while extracting text from document: {Bucket}/{Key}. Status: {StatusCode}, Error: {ErrorCode}",
+                    "S3 bucket not found: {Bucket}. Verify the bucket name is correct.",
+                    bucketName);
+                throw new FileNotFoundException($"S3 bucket not found: {bucketName}", ex);
+            }
+            catch (AmazonS3Exception ex)
+            {
+                _logger.LogError(ex,
+                    "S3 service error while downloading document: {Bucket}/{Key}. Status: {StatusCode}, Error: {ErrorCode}",
                     bucketName, objectKey, ex.StatusCode, ex.ErrorCode);
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error extracting text from document: {Bucket}/{Key}", bucketName, objectKey);
+                _logger.LogError(ex,
+                    "Unexpected error downloading document from S3: {Bucket}/{Key}",
+                    bucketName, objectKey);
                 throw;
+            }
+        }
+
+        private string ExtractTextFromPdfAsync(byte[] pdfBytes, string fileName)
+        {
+            _logger.LogInformation("Starting PDF text extraction for file: {FileName}, size: {Size} bytes", fileName, pdfBytes.Length);
+            
+            try
+            {
+                using var document = PdfDocument.Open(pdfBytes);
+                var textBuilder = new StringBuilder();
+                
+                _logger.LogDebug("PDF opened successfully, extracting text from {PageCount} pages", document.NumberOfPages);
+                
+                foreach (Page page in document.GetPages())
+                {
+                    var pageText = page.Text;
+                    textBuilder.AppendLine(pageText);
+                    
+                    _logger.LogDebug("Extracted {CharCount} characters from page {PageNumber}", 
+                        pageText.Length, page.Number);
+                }
+                
+                var extractedText = textBuilder.ToString();
+                
+                _logger.LogInformation(
+                    "Successfully extracted text from PDF: {FileName}, total characters: {CharCount}",
+                    fileName, extractedText.Length);
+                
+                return extractedText;
+            }
+            catch (Exception ex) when (ex.GetType().Name == "PdfDocumentEncryptedException")
+            {
+                _logger.LogError(ex,
+                    "PDF is encrypted or password-protected: {FileName}. Cannot extract text from encrypted PDFs.",
+                    fileName);
+                throw new InvalidOperationException($"The PDF file '{fileName}' is password-protected or encrypted and cannot be processed.", ex);
+            }
+            catch (Exception ex) when (ex.Message.Contains("encrypt") || ex.Message.Contains("password"))
+            {
+                _logger.LogError(ex,
+                    "PDF appears to be encrypted or password-protected: {FileName}",
+                    fileName);
+                throw new InvalidOperationException($"The PDF file '{fileName}' is password-protected or encrypted and cannot be processed.", ex);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex,
+                    "Invalid PDF data provided for file: {FileName}. The byte array may be empty or invalid.",
+                    fileName);
+                throw new InvalidOperationException($"Invalid PDF data for file '{fileName}'.", ex);
+            }
+            catch (Exception ex) when (ex.Message.Contains("PDF") || ex.Message.Contains("format") || ex.Message.Contains("corrupt"))
+            {
+                _logger.LogError(ex,
+                    "PDF format is invalid or corrupted: {FileName}. The file may be damaged or not a valid PDF.",
+                    fileName);
+                throw new InvalidOperationException($"The PDF file '{fileName}' appears to be corrupted or is not a valid PDF format.", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Unexpected error extracting text from PDF: {FileName}",
+                    fileName);
+                throw new InvalidOperationException($"Failed to extract text from PDF file '{fileName}'. The file may be corrupted or in an unsupported format.", ex);
             }
         }
 
@@ -631,6 +857,67 @@ Return ONLY the JSON object, no other text.";
         {
             if (string.IsNullOrEmpty(json)) return new List<string>();
             return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+        }
+
+        /// <summary>
+        /// Maps exceptions to user-friendly error messages while preserving technical details in logs
+        /// </summary>
+        /// <param name="ex">The exception that occurred</param>
+        /// <param name="fileName">The name of the file being processed</param>
+        /// <returns>A user-friendly error message</returns>
+        private string GetUserFriendlyErrorMessage(Exception ex, string fileName)
+        {
+            // File size errors
+            if (ex.Message.Contains("too large") || ex.Message.Contains("file size"))
+            {
+                return "The file is too large. Please upload a PDF file smaller than 5MB.";
+            }
+
+            // S3 access errors
+            if (ex is FileNotFoundException || 
+                ex is UnauthorizedAccessException ||
+                (ex is AmazonS3Exception s3Ex && (s3Ex.ErrorCode == "NoSuchKey" || 
+                                                   s3Ex.ErrorCode == "AccessDenied" || 
+                                                   s3Ex.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                                                   s3Ex.StatusCode == System.Net.HttpStatusCode.NotFound)))
+            {
+                return "Unable to access the uploaded file. Please try uploading again.";
+            }
+
+            // Corrupted or encrypted PDF errors
+            if (ex is InvalidOperationException && 
+                (ex.Message.Contains("password-protected") || 
+                 ex.Message.Contains("encrypted") ||
+                 ex.Message.Contains("corrupted") ||
+                 ex.Message.Contains("invalid") ||
+                 ex.Message.Contains("format")))
+            {
+                return "The PDF file appears to be corrupted or password-protected. Please upload an unprotected PDF.";
+            }
+
+            // Bedrock BadRequest errors (typically corrupted/protected PDFs)
+            if (ex is AmazonBedrockRuntimeException bedrockEx && 
+                bedrockEx.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                return "The PDF file appears to be corrupted or password-protected. Please upload an unprotected PDF.";
+            }
+
+            // Bedrock service unavailable errors
+            if (ex is AmazonBedrockRuntimeException bedrockServiceEx && 
+                (bedrockServiceEx.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
+                 bedrockServiceEx.StatusCode == System.Net.HttpStatusCode.TooManyRequests))
+            {
+                return "Resume parsing service is temporarily unavailable. Please try again in a few moments.";
+            }
+
+            // Timeout errors
+            if (ex is TimeoutException)
+            {
+                return "The resume is taking too long to process. Please try a simpler PDF format.";
+            }
+
+            // Generic fallback
+            return "An unexpected error occurred while parsing the resume document.";
         }
     }
 }

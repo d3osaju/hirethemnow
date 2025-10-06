@@ -169,7 +169,12 @@ public class ResumeParsingService : IResumeParsingService
             {
                 // Parsing failed
                 var errorMessage = parseResult.ErrorMessage ?? "Unknown error during parsing";
-                var userFriendlyMessage = "Failed to extract information from resume. Please ensure the file is a valid PDF, DOC, or DOCX document.";
+                
+                // Use the specific error message from the parsing result if available,
+                // otherwise provide a generic message
+                var userFriendlyMessage = !string.IsNullOrEmpty(parseResult.ErrorMessage)
+                    ? parseResult.ErrorMessage
+                    : "Failed to extract information from resume. Please ensure the file is a valid PDF document.";
 
                 _logger.LogWarning(
                     "Resume parsing failed for user {UserId}, resume content ID {ResumeContentId}: {ErrorMessage}",

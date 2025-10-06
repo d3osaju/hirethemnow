@@ -164,3 +164,10 @@ F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\zh-Hans
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\AWSSDK.BedrockRuntime.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\AWSSDK.Textract.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Core.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.DocumentLayoutAnalysis.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Fonts.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Package.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Tokenization.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Tokens.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.dll

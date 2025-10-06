@@ -56,12 +56,67 @@ cp .env.example .env.deploy
 ### AWS Setup
 
 1. Create AWS account
-2. Create IAM user with permissions: EC2, S3, ElasticBeanstalk, RDS, ACM, CloudFront
+2. Create IAM user with permissions: EC2, S3, ElasticBeanstalk, RDS, ACM, CloudFront, Bedrock
 3. Configure AWS CLI:
 ```powershell
 aws configure
 # Enter Access Key, Secret Key, region (us-east-1)
 ```
+
+**Note:** Bedrock access is required for AI-powered resume parsing using Amazon Nova Pro.
+
+---
+
+## 📄 Resume Parsing
+
+### Supported Formats
+- **PDF only** - Currently, only PDF files are supported for resume uploads
+- **File size limit:** 5MB maximum
+- **Processing:** Background processing with status tracking (pending → processing → completed/failed)
+
+### Technology Stack
+- **Text Extraction:** PdfPig library (open-source .NET PDF parser)
+- **AI Structuring:** AWS Bedrock with Amazon Nova Pro model
+- **Storage:** AWS S3 for resume files
+
+### Configuration
+Resume parsing is configured in `appsettings.json`:
+
+```json
+{
+  "ResumeParsing": {
+    "BedrockModelId": "amazon.nova-pro-v1:0",
+    "MaxFileSizeBytes": 5242880,
+    "ParsingTimeoutSeconds": 30,
+    "SupportedFormats": ["pdf"],
+    "EnableBackgroundProcessing": true,
+    "PollingIntervalSeconds": 10,
+    "MaxConcurrentProcessing": 3
+  }
+}
+```
+
+### How It Works
+1. User uploads PDF resume via API
+2. File stored in S3 with status "pending"
+3. Background service downloads PDF from S3
+4. PdfPig extracts text from PDF
+5. Text sent to Bedrock Nova Pro for structuring
+6. Structured data stored in database with status "completed"
+
+### Error Handling
+The system provides user-friendly error messages for common issues:
+- **Corrupted/encrypted PDFs:** "The PDF file appears to be corrupted or password-protected"
+- **File too large:** "The file is too large. Please upload a PDF file smaller than 5MB"
+- **Service unavailable:** "Resume parsing service is temporarily unavailable"
+- **Unsupported format:** "Only PDF files are currently supported"
+
+### Required AWS Permissions
+- `bedrock:InvokeModel` - For Amazon Nova Pro
+- `s3:GetObject` - For downloading resumes from S3
+- `s3:PutObject` - For uploading resumes to S3
+
+**Note:** Textract is no longer required or used.
 
 ---
 
@@ -421,6 +476,8 @@ Deployment scripts automatically set:
 - **Database:** PostgreSQL 17.4 (RDS)
 - **Storage:** AWS S3 (resumes)
 - **Auth:** JWT + Google OAuth
+- **AI/ML:** AWS Bedrock (Amazon Nova Pro for resume structuring)
+- **PDF Processing:** PdfPig library for text extraction
 
 ### Frontend
 - **Framework:** React 18 + Vite
@@ -436,8 +493,8 @@ Deployment scripts automatically set:
 
 ## ✨ Features
 
-- 📝 Resume upload & parsing
-- 🤖 AI-powered resume analysis
+- 📝 Resume upload & parsing (PDF only, max 5MB)
+- 🤖 AI-powered resume analysis (AWS Bedrock Nova Pro)
 - 🎯 ATS score calculation
 - 📊 Application tracking
 - 🔐 Google OAuth authentication

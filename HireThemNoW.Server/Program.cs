@@ -7,7 +7,6 @@ using HireThemNoW.Server.Data;
 using Amazon.S3;
 using Amazon.SimpleEmail;
 using Amazon.BedrockRuntime;
-using Amazon.Textract;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,11 +67,10 @@ else
     builder.Services.AddAWSService<IAmazonS3>();
     builder.Services.AddAWSService<IAmazonSimpleEmailService>();
     builder.Services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
-    builder.Services.AddAWSService<Amazon.Textract.IAmazonTextract>();
 }
 builder.Services.AddScoped<IS3Service, S3Service>();
 
-// Add AI Agent Service (Bedrock + Textract integration)
+// Add AI Agent Service (Bedrock integration)
 builder.Services.AddScoped<IBedrockAgentService, BedrockAgentService>();
 
 // Add Resume Parsing Service
@@ -121,6 +119,9 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+// Validate configuration at startup
+ValidateConfiguration(builder.Configuration);
 
 var app = builder.Build();
 
@@ -180,6 +181,36 @@ app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
 app.Run();
+
+// Configuration validation method
+static void ValidateConfiguration(IConfiguration configuration)
+{
+    Console.WriteLine("Validating configuration...");
+    
+    // Validate ResumeParsing configuration
+    var supportedFormats = configuration.GetSection("ResumeParsing:SupportedFormats").Get<string[]>();
+    if (supportedFormats == null || supportedFormats.Length == 0)
+    {
+        throw new InvalidOperationException("ResumeParsing:SupportedFormats must be configured with at least one format");
+    }
+    
+    var bedrockModelId = configuration["ResumeParsing:BedrockModelId"];
+    if (string.IsNullOrEmpty(bedrockModelId))
+    {
+        throw new InvalidOperationException("ResumeParsing:BedrockModelId must be configured");
+    }
+    
+    var maxFileSizeBytes = configuration.GetValue<int>("ResumeParsing:MaxFileSizeBytes");
+    if (maxFileSizeBytes <= 0)
+    {
+        throw new InvalidOperationException("ResumeParsing:MaxFileSizeBytes must be greater than 0");
+    }
+    
+    Console.WriteLine($"Configuration validated successfully:");
+    Console.WriteLine($"  - Supported formats: {string.Join(", ", supportedFormats)}");
+    Console.WriteLine($"  - Bedrock model: {bedrockModelId}");
+    Console.WriteLine($"  - Max file size: {maxFileSizeBytes / 1024 / 1024}MB");
+}
 
 // Make Program class accessible for integration tests
 public partial class Program { }

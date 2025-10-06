@@ -194,8 +194,8 @@ if ($LASTEXITCODE -ne 0) {
         Write-Host "You may need to add S3 permissions manually in IAM console" -ForegroundColor Yellow
     }
     
-    # Configure AI Services (Bedrock + Textract) permissions
-    Write-Host "`nConfiguring AI Services (Bedrock + Textract) permissions..." -ForegroundColor Yellow
+    # Configure AI Services (Bedrock) permissions
+    Write-Host "`nConfiguring AI Services (Bedrock) permissions..." -ForegroundColor Yellow
     
     $aiPolicyName = "HireThemNowAIServicesAccess"
     
@@ -228,15 +228,6 @@ if ($LASTEXITCODE -ne 0) {
       "Resource": [
         "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0"
       ]
-    },
-    {
-      "Sid": "TextractAccess",
-      "Effect": "Allow",
-      "Action": [
-        "textract:DetectDocumentText",
-        "textract:AnalyzeDocument"
-      ],
-      "Resource": "*"
     }
   ]
 }
@@ -249,7 +240,6 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -eq 0) {
         Write-Host "AI Services permissions configured successfully!" -ForegroundColor Green
         Write-Host "  - Bedrock (Nova Pro): bedrock:InvokeModel" -ForegroundColor Gray
-        Write-Host "  - Textract: textract:DetectDocumentText" -ForegroundColor Gray
         Write-Host "  - S3: s3:GetObject, s3:PutObject" -ForegroundColor Gray
         Remove-Item ai-services-policy.json -ErrorAction SilentlyContinue
     } else {
@@ -280,7 +270,7 @@ $manifest = @"
     <handlers>
       <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
     </handlers>
-    <aspNetCore processPath="dotnet" arguments=".\HireThemNoW.Server.dll" stdoutLogEnabled="false" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
+    <aspNetCore processPath="dotnet" arguments=".\HireThemNoW.Server.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess" />
   </system.webServer>
 </configuration>
 "@

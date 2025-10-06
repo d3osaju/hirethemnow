@@ -9,10 +9,18 @@ HireThemNoW/
 ├── HireThemNow.Test/            # Integration tests
 ├── publish/                     # Build output directory
 ├── .elasticbeanstalk/          # AWS Elastic Beanstalk configuration
+├── .ebextensions/              # Elastic Beanstalk extensions
 ├── deploy-backend.ps1          # Backend deployment script
 ├── deploy-frontend.ps1         # Frontend deployment script
+├── check-deployment.ps1        # Deployment verification script
+├── check-parsing-logs.ps1      # Resume parsing logs checker
+├── test-complete-flow.ps1      # End-to-end flow testing
+├── test-iam-config.ps1         # IAM configuration testing
 ├── .env.deploy                 # Deployment credentials (gitignored)
+├── .env.deploy.example         # Example deployment credentials
 ├── .env.example                # Example environment variables
+├── cloudfront-config.json      # CloudFront distribution configuration
+├── deployment.zip              # Backend deployment package
 └── HireThemNoW.sln             # Visual Studio solution file
 ```
 
@@ -31,7 +39,12 @@ HireThemNoW.Server/
 │   ├── S3Service.cs           # S3 implementation
 │   ├── IEmailService.cs       # Email service interface
 │   ├── EmailService.cs        # SES email implementation
-│   └── IBedrockAgentService.cs # AI service interface
+│   ├── IBedrockAgentService.cs # AI service interface
+│   ├── BedrockAgentService.cs # AI service implementation
+│   ├── IResumeParsingService.cs # Resume parsing interface
+│   ├── ResumeParsingService.cs # Resume parsing implementation
+│   ├── ResumeParsingBackgroundService.cs # Background resume processing
+│   └── UserTrialHelper.cs     # User trial management utility
 ├── Properties/                 # Launch settings
 ├── bin/                        # Build output (gitignored)
 ├── obj/                        # Build intermediates (gitignored)
@@ -47,12 +60,17 @@ HireThemNoW.Server/
 ```
 hirethemnow.client/
 ├── src/                        # Source code
+│   ├── assets/                # Static assets (images, fonts, etc.)
 │   ├── components/            # React components
+│   ├── config/                # Configuration files
+│   ├── context/               # React context providers
 │   ├── pages/                 # Page components
 │   ├── services/              # API client and utilities
 │   ├── hooks/                 # Custom React hooks
 │   ├── types/                 # TypeScript type definitions
 │   ├── App.tsx                # Root component
+│   ├── App.css                # Root component styles
+│   ├── index.css              # Global styles
 │   └── main.tsx               # Application entry point
 ├── public/                     # Static assets
 ├── dist/                       # Build output (gitignored)
