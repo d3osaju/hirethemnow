@@ -10,7 +10,8 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 
 const DashboardLayout: React.FC = () => {
@@ -22,6 +23,7 @@ const DashboardLayout: React.FC = () => {
   const navigation = [
     { name: 'Email Center', href: '/dashboard', icon: Mail, current: location.pathname === '/dashboard' },
     { name: 'Resume Analysis', href: '/dashboard/resume-analysis', icon: Sparkles, current: location.pathname === '/dashboard/resume-analysis' },
+    { name: 'Parsed Resume', href: '/dashboard/parsed-resume', icon: FileText, current: location.pathname === '/dashboard/parsed-resume' },
     { name: 'Profile', href: '/dashboard/profile', icon: User, current: location.pathname === '/dashboard/profile' },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings, current: location.pathname === '/dashboard/settings' },
   ];

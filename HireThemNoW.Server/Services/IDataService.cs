@@ -15,4 +15,10 @@ public interface IDataService
     Task<EmailPreference?> GetEmailPreferencesAsync(string userId);
     Task<EmailPreference> CreateEmailPreferencesAsync(EmailPreference preferences);
     Task<EmailPreference> UpdateEmailPreferencesAsync(EmailPreference preferences);
+
+    // Resume Content
+    Task<ResumeContent> SaveResumeContentAsync(ResumeContent content);
+    Task<ResumeContent?> GetLatestResumeContentAsync(string userId);
+    Task<List<ResumeContent>> GetResumeContentHistoryAsync(string userId);
+    Task UpdateResumeContentStatusAsync(int id, string status, string? error = null);
 }

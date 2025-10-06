@@ -15,7 +15,7 @@ public class S3Service : IS3Service
         _s3Client = s3Client;
         _configuration = configuration;
         _logger = logger;
-        _bucketName = _configuration["AWS:S3:BucketName"] ?? "hirethemnow-resumes";
+        _bucketName = _configuration["AWS:S3:BucketName"] ?? "hirethemnow-files";
     }
 
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string? prefix = null)

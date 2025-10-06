@@ -164,3 +164,5 @@ F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\zh-Hans\Microso
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.SimpleEmail.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.BedrockRuntime.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.Textract.dll

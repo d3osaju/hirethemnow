@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SkillExpertise> SkillExpertises { get; set; }
     public DbSet<ReleaseNote> ReleaseNotes { get; set; }
     public DbSet<ResumeAnalysis> ResumeAnalyses { get; set; }
+    public DbSet<ResumeContent> ResumeContents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -91,6 +92,23 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.UserId).IsRequired();
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ResumeContent configuration
+        modelBuilder.Entity<ResumeContent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.S3Key).IsRequired();
+            entity.Property(e => e.FileName).IsRequired();
+            entity.Property(e => e.ContentType).IsRequired();
+            entity.Property(e => e.ParsedContent).IsRequired();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.UploadedAt });
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)

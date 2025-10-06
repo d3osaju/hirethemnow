@@ -69,7 +69,7 @@ $policy = @"
 }
 "@
 
-$policy | Out-File -FilePath bucket-policy.json -Encoding utf8NoBOM
+$policy | Out-File -FilePath bucket-policy.json -Encoding utf8
 aws s3api put-bucket-policy --bucket $BUCKET_NAME --policy file://bucket-policy.json --region $REGION 2>$null
 Remove-Item bucket-policy.json -ErrorAction SilentlyContinue
 

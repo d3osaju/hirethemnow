@@ -193,6 +193,71 @@ if ($LASTEXITCODE -ne 0) {
         Write-Host "WARNING: Failed to configure S3 permissions" -ForegroundColor Yellow
         Write-Host "You may need to add S3 permissions manually in IAM console" -ForegroundColor Yellow
     }
+    
+    # Configure AI Services (Bedrock + Textract) permissions
+    Write-Host "`nConfiguring AI Services (Bedrock + Textract) permissions..." -ForegroundColor Yellow
+    
+    $aiPolicyName = "HireThemNowAIServicesAccess"
+    
+    # Create comprehensive policy for AI services
+    @"
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3ResumeAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::$BUCKET_NAME",
+        "arn:aws:s3:::$BUCKET_NAME/*"
+      ]
+    },
+    {
+      "Sid": "BedrockAccess",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0"
+      ]
+    },
+    {
+      "Sid": "TextractAccess",
+      "Effect": "Allow",
+      "Action": [
+        "textract:DetectDocumentText",
+        "textract:AnalyzeDocument"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+"@ | Set-Content -Path ai-services-policy.json -Encoding ASCII
+
+    # Force update policy (overwrites if exists)
+    Write-Host "Applying AI Services policy (force update)..." -ForegroundColor Yellow
+    aws iam put-role-policy --role-name aws-elasticbeanstalk-ec2-role --policy-name $aiPolicyName --policy-document file://ai-services-policy.json
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "AI Services permissions configured successfully!" -ForegroundColor Green
+        Write-Host "  - Bedrock (Nova Pro): bedrock:InvokeModel" -ForegroundColor Gray
+        Write-Host "  - Textract: textract:DetectDocumentText" -ForegroundColor Gray
+        Write-Host "  - S3: s3:GetObject, s3:PutObject" -ForegroundColor Gray
+        Remove-Item ai-services-policy.json -ErrorAction SilentlyContinue
+    } else {
+        Write-Host "ERROR: Failed to configure AI Services permissions" -ForegroundColor Red
+        Write-Host "Resume parsing will not work without these permissions!" -ForegroundColor Yellow
+        Remove-Item ai-services-policy.json -ErrorAction SilentlyContinue
+        exit 1
+    }
 }
 
 # Step 1: Build
@@ -223,8 +288,20 @@ $manifest | Out-File -FilePath publish/app/web.config -Encoding utf8
 
 # Step 3: Package
 Write-Host "`nStep 3: Creating deployment package..." -ForegroundColor Yellow
+
+# Copy .ebextensions to publish folder if it exists
+if (Test-Path .ebextensions) {
+    Write-Host "Including .ebextensions configuration..." -ForegroundColor Yellow
+    Copy-Item -Path .ebextensions -Destination publish/ -Recurse -Force
+}
+
 cd publish
-Compress-Archive -Path app\* -DestinationPath ../deployment.zip -Force
+# Package both app and .ebextensions
+if (Test-Path .ebextensions) {
+    Compress-Archive -Path app\*,.ebextensions -DestinationPath ../deployment.zip -Force
+} else {
+    Compress-Archive -Path app\* -DestinationPath ../deployment.zip -Force
+}
 cd ..
 
 # Step 4: Upload to S3

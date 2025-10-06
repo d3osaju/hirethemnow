@@ -8,6 +8,7 @@ namespace HireThemNoW.Server.Services
         Task StoreResumeAnalysisAsync(ResumeAnalysisData data);
         Task<ResumeAnalysisResult?> GetLatestAnalysisAsync(string userId);
         Task CreatePendingAnalysisAsync(string userId, string s3Url);
+        Task<ParsedResumeResult> ParseAndStructureResumeAsync(string s3Url);
     }
 
     public class ResumeAnalysisResult

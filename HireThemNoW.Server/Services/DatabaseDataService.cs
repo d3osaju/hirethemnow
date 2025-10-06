@@ -83,4 +83,128 @@ public class DatabaseDataService : IDataService
         await _context.SaveChangesAsync();
         return preferences;
     }
+
+    // Resume Content
+    public async Task<ResumeContent> SaveResumeContentAsync(ResumeContent content)
+    {
+        if (content == null)
+        {
+            throw new ArgumentNullException(nameof(content), "Resume content cannot be null");
+        }
+
+        if (string.IsNullOrWhiteSpace(content.UserId))
+        {
+            throw new ArgumentException("User ID is required", nameof(content));
+        }
+
+        try
+        {
+            content.CreatedAt = DateTime.UtcNow;
+            content.UpdatedAt = DateTime.UtcNow;
+
+            _context.ResumeContents.Add(content);
+            await _context.SaveChangesAsync();
+            return content;
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new InvalidOperationException(
+                $"Database error while saving resume content for user {content.UserId}: {ex.Message}", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to save resume content for user {content.UserId}: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<ResumeContent?> GetLatestResumeContentAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException("User ID is required", nameof(userId));
+        }
+
+        try
+        {
+            return await _context.ResumeContents
+                .Where(rc => rc.UserId == userId)
+                .OrderByDescending(rc => rc.UploadedAt)
+                .FirstOrDefaultAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to retrieve latest resume content for user {userId}: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<List<ResumeContent>> GetResumeContentHistoryAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException("User ID is required", nameof(userId));
+        }
+
+        try
+        {
+            return await _context.ResumeContents
+                .Where(rc => rc.UserId == userId)
+                .OrderByDescending(rc => rc.UploadedAt)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to retrieve resume content history for user {userId}: {ex.Message}", ex);
+        }
+    }
+
+    public async Task UpdateResumeContentStatusAsync(int id, string status, string? error = null)
+    {
+        if (id <= 0)
+        {
+            throw new ArgumentException("Invalid resume content ID", nameof(id));
+        }
+
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            throw new ArgumentException("Status is required", nameof(status));
+        }
+
+        try
+        {
+            var content = await _context.ResumeContents.FindAsync(id);
+            if (content == null)
+            {
+                throw new InvalidOperationException($"Resume content with ID {id} not found");
+            }
+
+            content.ParsingStatus = status;
+            content.ParsingError = error;
+            content.UpdatedAt = DateTime.UtcNow;
+
+            if (status == "completed")
+            {
+                content.ParsedAt = DateTime.UtcNow;
+            }
+
+            _context.ResumeContents.Update(content);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new InvalidOperationException(
+                $"Database error while updating resume content status for ID {id}: {ex.Message}", ex);
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // Re-throw if it's already our custom exception
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to update resume content status for ID {id}: {ex.Message}", ex);
+        }
+    }
 }

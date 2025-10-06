@@ -6,6 +6,8 @@ using HireThemNoW.Server.Services;
 using HireThemNoW.Server.Data;
 using Amazon.S3;
 using Amazon.SimpleEmail;
+using Amazon.BedrockRuntime;
+using Amazon.Textract;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,11 +67,19 @@ else
     // Production AWS configuration
     builder.Services.AddAWSService<IAmazonS3>();
     builder.Services.AddAWSService<IAmazonSimpleEmailService>();
+    builder.Services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
+    builder.Services.AddAWSService<Amazon.Textract.IAmazonTextract>();
 }
 builder.Services.AddScoped<IS3Service, S3Service>();
 
-// Add AI Agent Service (optional - only works if AWS Bedrock is configured)
+// Add AI Agent Service (Bedrock + Textract integration)
 builder.Services.AddScoped<IBedrockAgentService, BedrockAgentService>();
+
+// Add Resume Parsing Service
+builder.Services.AddScoped<IResumeParsingService, ResumeParsingService>();
+
+// Add Resume Parsing Background Service
+builder.Services.AddHostedService<ResumeParsingBackgroundService>();
 
 // Add Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();

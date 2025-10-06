@@ -26,8 +26,10 @@
     <PkgMicrosoft_VisualStudio_Azure_Containers_Tools_Targets Condition=" '$(PkgMicrosoft_VisualStudio_Azure_Containers_Tools_Targets)' == '' ">C:\Users\deosa\.nuget\packages\microsoft.visualstudio.azure.containers.tools.targets\1.22.1</PkgMicrosoft_VisualStudio_Azure_Containers_Tools_Targets>
     <PkgMicrosoft_CodeAnalysis_Analyzers Condition=" '$(PkgMicrosoft_CodeAnalysis_Analyzers)' == '' ">C:\Users\deosa\.nuget\packages\microsoft.codeanalysis.analyzers\3.3.4</PkgMicrosoft_CodeAnalysis_Analyzers>
     <PkgMicrosoft_EntityFrameworkCore_Tools Condition=" '$(PkgMicrosoft_EntityFrameworkCore_Tools)' == '' ">C:\Users\deosa\.nuget\packages\microsoft.entityframeworkcore.tools\9.0.9</PkgMicrosoft_EntityFrameworkCore_Tools>
-    <PkgAWSSDK_Core Condition=" '$(PkgAWSSDK_Core)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.core\4.0.0.29</PkgAWSSDK_Core>
+    <PkgAWSSDK_Core Condition=" '$(PkgAWSSDK_Core)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.core\4.0.0.32</PkgAWSSDK_Core>
+    <PkgAWSSDK_Textract Condition=" '$(PkgAWSSDK_Textract)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.textract\4.0.2.6</PkgAWSSDK_Textract>
     <PkgAWSSDK_SimpleEmail Condition=" '$(PkgAWSSDK_SimpleEmail)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.simpleemail\4.0.0.9</PkgAWSSDK_SimpleEmail>
     <PkgAWSSDK_S3 Condition=" '$(PkgAWSSDK_S3)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.s3\4.0.7.4</PkgAWSSDK_S3>
+    <PkgAWSSDK_BedrockRuntime Condition=" '$(PkgAWSSDK_BedrockRuntime)' == '' ">C:\Users\deosa\.nuget\packages\awssdk.bedrockruntime\4.0.7.2</PkgAWSSDK_BedrockRuntime>
   </PropertyGroup>
 </Project>

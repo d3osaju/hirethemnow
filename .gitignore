@@ -73,3 +73,6 @@ bucket-policy.json
 # AWS credentials (should never be committed)
 *credentials*
 *secret*key*
+
+
+test-token.txt

@@ -50,6 +50,10 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "AWSSDK.BedrockRuntime": {
+              "target": "Package",
+              "version": "[4.0.7.2, )"
+            },
             "AWSSDK.Extensions.NETCore.Setup": {
               "target": "Package",
               "version": "[4.0.3.1, )"
@@ -61,6 +65,10 @@
             "AWSSDK.SimpleEmail": {
               "target": "Package",
               "version": "[4.0.0.9, )"
+            },
+            "AWSSDK.Textract": {
+              "target": "Package",
+              "version": "[4.0.2.6, )"
             },
             "Amazon.Lambda.AspNetCoreServer.Hosting": {
               "target": "Package",

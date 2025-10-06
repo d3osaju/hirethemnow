@@ -87,7 +87,7 @@ export const authAPI = {
 
 // Resume API
 export const resumeAPI = {
-  uploadResume: async (file: File): Promise<ApiResponse<{ resumeUrl: string; fileName: string }>> => {
+  uploadResume: async (file: File): Promise<ApiResponse<{ resumeUrl: string; fileName: string; status: string; parsingStatus: string; parsingId: number }>> => {
     const formData = new FormData();
     formData.append('resume', file);
 
@@ -101,6 +101,21 @@ export const resumeAPI = {
 
   getResumeStatus: async (): Promise<ApiResponse<{ hasResume: boolean; needsUpload: boolean; status: string; resumeUrl?: string }>> => {
     const response = await api.get('/resume/status');
+    return response.data;
+  },
+
+  getParsingStatus: async (): Promise<ApiResponse<{ id: number; fileName: string; status: string; uploadedAt: string; parsedAt: string | null; error: string | null }>> => {
+    const response = await api.get('/resume/parsing-status');
+    return response.data;
+  },
+
+  getResumeContent: async (): Promise<ApiResponse<{ id: number; fileName: string; contentType: string; parsedContent: string; textContent: string; status: string; uploadedAt: string; parsedAt: string | null }>> => {
+    const response = await api.get('/resume/content');
+    return response.data;
+  },
+
+  getResumeHistory: async (): Promise<ApiResponse<Array<{ id: number; fileName: string; contentType: string; status: string; uploadedAt: string; parsedAt: string | null; fileSizeBytes: number; error: string | null }>>> => {
+    const response = await api.get('/resume/content/history');
     return response.data;
   },
 

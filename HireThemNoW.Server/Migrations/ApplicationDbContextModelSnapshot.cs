@@ -325,6 +325,82 @@ namespace HireThemNoW.Server.Migrations
                     b.ToTable("resume_analyses");
                 });
 
+            modelBuilder.Entity("HireThemNoW.Server.Models.ResumeContent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("file_name");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<DateTime?>("ParsedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("parsed_at");
+
+                    b.Property<string>("ParsedContent")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("parsed_content");
+
+                    b.Property<string>("ParsingError")
+                        .HasColumnType("text")
+                        .HasColumnName("parsing_error");
+
+                    b.Property<string>("ParsingStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("parsing_status");
+
+                    b.Property<string>("S3Key")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("s3_key");
+
+                    b.Property<string>("TextContent")
+                        .HasColumnType("text")
+                        .HasColumnName("text_content");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "UploadedAt");
+
+                    b.ToTable("resume_contents");
+                });
+
             modelBuilder.Entity("HireThemNoW.Server.Models.SkillExpertise", b =>
                 {
                     b.Property<int>("Id")
@@ -1076,6 +1152,17 @@ namespace HireThemNoW.Server.Migrations
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.ResumeAnalysis", b =>
+                {
+                    b.HasOne("HireThemNoW.Server.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HireThemNoW.Server.Models.ResumeContent", b =>
                 {
                     b.HasOne("HireThemNoW.Server.Models.User", "User")
                         .WithMany()

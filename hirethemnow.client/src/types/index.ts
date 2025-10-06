@@ -36,3 +36,65 @@ export interface OnboardingData {
   resume: File | null;
 }
 
+// Resume Parsing Types
+export interface ParsedResumeContent {
+  personalInfo?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    website?: string;
+  };
+  summary?: string;
+  experience?: Array<{
+    company?: string;
+    title?: string;
+    location?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+    achievements?: string[];
+  }>;
+  education?: Array<{
+    institution?: string;
+    degree?: string;
+    field?: string;
+    graduationDate?: string;
+    gpa?: string;
+  }>;
+  skills?: {
+    technical?: string[];
+    soft?: string[];
+    languages?: string[];
+    tools?: string[];
+  };
+  certifications?: string[];
+  projects?: Array<{
+    name?: string;
+    description?: string;
+    technologies?: string[];
+    url?: string;
+  }>;
+}
+
+export interface ResumeParsingStatus {
+  id: number;
+  fileName: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  uploadedAt: string;
+  parsedAt: string | null;
+  error: string | null;
+}
+
+export interface ResumeContentData {
+  id: number;
+  fileName: string;
+  contentType: string;
+  parsedContent: string; // JSON string
+  textContent: string;
+  status: string;
+  uploadedAt: string;
+  parsedAt: string | null;
+}
+
