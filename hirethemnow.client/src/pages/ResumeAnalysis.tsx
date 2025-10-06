@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { resumeAPI } from '../services/api';
+import toast from 'react-hot-toast';
 import {
   FileText,
   CheckCircle,
   Target,
   Sparkles,
   ArrowUp,
-  Upload
+  Upload,
+  RefreshCw,
+  Download
 } from 'lucide-react';
 
 interface ATSScore {
@@ -50,13 +54,35 @@ const ResumeAnalysis: React.FC = () => {
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [resumeData, setResumeData] = useState<{ hasResume: boolean; status: string; resumeUrl?: string } | null>(null);
+  const [resumeCheckLoading, setResumeCheckLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       fetchAnalysis();
+      checkResumeStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const checkResumeStatus = async () => {
+    try {
+      setResumeCheckLoading(true);
+      const response = await resumeAPI.getResumeStatus();
+      if (response.success) {
+        setResumeData(response.data);
+      } else {
+        setResumeData({ hasResume: false, status: 'none' });
+      }
+    } catch (error) {
+      console.error('Failed to check resume status:', error);
+      setResumeData({ hasResume: false, status: 'none' });
+    } finally {
+      setResumeCheckLoading(false);
+    }
+  };
 
   const fetchAnalysis = async () => {
     if (!user) return;
@@ -82,6 +108,71 @@ const ResumeAnalysis: React.FC = () => {
       console.error('Error fetching analysis:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      setUploadLoading(true);
+      const response = await resumeAPI.uploadResume(file);
+      if (response.success) {
+        await checkResumeStatus();
+        toast.success('Resume uploaded successfully! You can now analyze it.');
+      } else {
+        toast.error('Upload failed: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload failed. Please try again.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleAnalyzeResume = async () => {
+    if (!user) return;
+
+    try {
+      setAnalyzeLoading(true);
+      const response = await fetch('/api/AIAgent/analyze-resume', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ userId: user.id })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Resume analysis started! This may take 30-60 seconds.');
+        // Refresh the analysis to show processing state
+        await fetchAnalysis();
+      } else {
+        toast.error('Failed to start analysis: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Analysis error:', error);
+      toast.error('Failed to start analysis. Please try again.');
+    } finally {
+      setAnalyzeLoading(false);
+    }
+  };
+
+  const handleDownloadResume = async () => {
+    try {
+      const result = await resumeAPI.downloadResume();
+      if (!result.success) {
+        if (result.needsUpload) {
+          toast.error('No resume found. Please upload a resume first.');
+        } else {
+          toast.error('Failed to download resume: ' + result.message);
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download resume. Please try again.');
     }
   };
 
@@ -195,38 +286,212 @@ const ResumeAnalysis: React.FC = () => {
     );
   }
 
-  // Show welcome state if no analysis exists (user hasn't uploaded resume)
+  // Show welcome state if no analysis exists
   if (!analysis) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <div className="bg-blue-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-10 h-10 text-blue-600" />
+          <div className="bg-white rounded-lg shadow-sm p-8">
+            <div className="text-center mb-8">
+              <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+                <Sparkles className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">AI Resume Analysis</h2>
+              <p className="text-gray-600 mb-2 text-lg">
+                Get AI-powered insights to optimize your resume for ATS systems
+              </p>
+              <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+                Our AI analyzes your resume and provides comprehensive ATS scoring, identifies strengths,
+                suggests improvements, and analyzes keywords using Amazon Bedrock Nova Pro.
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">AI Resume Analysis</h2>
-            <p className="text-gray-600 mb-2">
-              Get AI-powered insights to optimize your resume for ATS systems
-            </p>
-            <p className="text-sm text-gray-500 mb-8 max-w-2xl mx-auto">
-              Upload your resume to get started. Our AI will analyze it and provide comprehensive scoring, strengths, improvements, and keyword recommendations powered by Amazon Bedrock Nova Pro.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => window.location.href = '/dashboard/profile'}
-                className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Upload className="w-5 h-5 mr-2" />
-                Go to Profile & Upload Resume
-              </button>
-              <button
-                onClick={fetchAnalysis}
-                className="inline-flex items-center justify-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Check Again
-              </button>
-            </div>
+
+            {resumeCheckLoading ? (
+              <div className="border border-gray-200 rounded-lg p-8">
+                <div className="animate-pulse flex flex-col items-center">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-64"></div>
+                </div>
+              </div>
+            ) : resumeData?.hasResume ? (
+              // Resume exists, show analyze button
+              <div className="space-y-6">
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-green-100 rounded-lg">
+                        <FileText className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Resume Ready for Analysis</h3>
+                        <p className="text-sm text-gray-600">Your resume has been uploaded successfully</p>
+                      </div>
+                    </div>
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleDownloadResume}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-white border border-green-300 text-green-700 font-medium rounded-lg hover:bg-green-50 transition-colors"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Resume
+                    </button>
+                    <button
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.doc,.docx';
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            await handleFileUpload(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                      disabled={uploadLoading}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Update Resume
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg p-8 text-white text-center">
+                  <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+                  <h3 className="text-2xl font-bold mb-3">Ready to Analyze?</h3>
+                  <p className="mb-6 opacity-90">
+                    Start your AI-powered resume analysis to discover how to optimize your resume for ATS systems
+                  </p>
+                  <button
+                    onClick={handleAnalyzeResume}
+                    disabled={analyzeLoading}
+                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-bold text-lg rounded-lg hover:bg-gray-100 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                  >
+                    {analyzeLoading ? (
+                      <>
+                        <RefreshCw className="w-6 h-6 mr-3 animate-spin" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-6 h-6 mr-3" />
+                        Analyze Resume Now
+                      </>
+                    )}
+                  </button>
+                  <p className="text-sm mt-4 opacity-75">Analysis typically takes 30-60 seconds</p>
+                </div>
+              </div>
+            ) : (
+              // No resume uploaded, show upload section
+              <div className="space-y-6">
+                <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-8">
+                  <div className="text-center">
+                    <Upload className="mx-auto h-16 w-16 text-blue-600 mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload Your Resume</h3>
+                    <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+                      Upload your resume to get started with AI-powered analysis. Supported formats: PDF, DOC, DOCX
+                    </p>
+                    <button
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.doc,.docx';
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (file) {
+                            await handleFileUpload(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                      disabled={uploadLoading}
+                      className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-semibold text-lg rounded-lg hover:bg-blue-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <RefreshCw className="w-6 h-6 mr-3 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 mr-3" />
+                          Choose File to Upload
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-start space-x-3">
+                    <FileText className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700 font-medium mb-2">
+                        Already uploaded to your profile?
+                      </p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        If you've uploaded your resume in your profile settings, it will automatically appear here.
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => window.location.href = '/dashboard/profile'}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Go to Profile
+                        </button>
+                        <button
+                          onClick={() => {
+                            checkResumeStatus();
+                            fetchAnalysis();
+                          }}
+                          className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Refresh Status
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h4 className="font-semibold text-gray-900 mb-3">What you'll get:</h4>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <span><strong>ATS Score:</strong> Overall score and detailed breakdown across key categories</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <span><strong>Strengths Analysis:</strong> Identify what's working well in your resume</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <span><strong>Priority Improvements:</strong> Actionable suggestions to boost your score</span>
+                    </li>
+                    <li className="flex items-start">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <span><strong>Keyword Analysis:</strong> Found and missing keywords for better visibility</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -250,13 +515,32 @@ const ResumeAnalysis: React.FC = () => {
                 AI-powered insights to optimize your resume for ATS systems
               </p>
             </div>
-            <button
-              onClick={fetchAnalysis}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center text-sm"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Refresh Analysis
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchAnalysis}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center text-sm"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </button>
+              <button
+                onClick={handleAnalyzeResume}
+                disabled={analyzeLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {analyzeLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Re-Analyze
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <p className="mt-2 text-sm text-gray-500">
             Last analyzed: {new Date(analysis.processedAt).toLocaleDateString('en-US', {
