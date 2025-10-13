@@ -21,4 +21,10 @@ public interface IDataService
     Task<ResumeContent?> GetLatestResumeContentAsync(string userId);
     Task<List<ResumeContent>> GetResumeContentHistoryAsync(string userId);
     Task UpdateResumeContentStatusAsync(int id, string status, string? error = null);
+
+    // Resume Analysis
+    Task<ResumeAnalysis> SaveResumeAnalysisAsync(ResumeAnalysis analysis);
+    Task<ResumeAnalysis?> GetLatestResumeAnalysisAsync(string userId);
+    Task<ResumeAnalysis?> GetResumeAnalysisByIdAsync(int analysisId, string userId);
+    Task UpdateResumeAnalysisStatusAsync(int id, string status, string? error = null);
 }

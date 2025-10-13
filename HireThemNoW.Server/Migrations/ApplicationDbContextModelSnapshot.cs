@@ -184,6 +184,10 @@ namespace HireThemNoW.Server.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AnalysisError")
+                        .HasColumnType("text")
+                        .HasColumnName("analysis_error");
+
                     b.Property<int?>("AtsAchievementsScore")
                         .HasColumnType("integer")
                         .HasColumnName("ats_achievements_score");
@@ -268,6 +272,10 @@ namespace HireThemNoW.Server.Migrations
                         .HasColumnType("text")
                         .HasColumnName("recommendations");
 
+                    b.Property<int?>("ResumeContentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("resume_content_id");
+
                     b.Property<string>("ResumeUrl")
                         .HasColumnType("text")
                         .HasColumnName("resume_url");
@@ -275,6 +283,10 @@ namespace HireThemNoW.Server.Migrations
                     b.Property<string>("S3Url")
                         .HasColumnType("text")
                         .HasColumnName("s3_url");
+
+                    b.Property<string>("SectionFeedback")
+                        .HasColumnType("text")
+                        .HasColumnName("section_feedback");
 
                     b.Property<string>("SoftSkills")
                         .HasColumnType("text")
@@ -319,6 +331,8 @@ namespace HireThemNoW.Server.Migrations
                         .HasColumnName("years_of_experience");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ResumeContentId");
 
                     b.HasIndex("UserId");
 
@@ -1153,11 +1167,18 @@ namespace HireThemNoW.Server.Migrations
 
             modelBuilder.Entity("HireThemNoW.Server.Models.ResumeAnalysis", b =>
                 {
+                    b.HasOne("HireThemNoW.Server.Models.ResumeContent", "ResumeContent")
+                        .WithMany()
+                        .HasForeignKey("ResumeContentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("HireThemNoW.Server.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ResumeContent");
 
                     b.Navigation("User");
                 });

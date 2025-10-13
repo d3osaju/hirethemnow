@@ -15,14 +15,16 @@ public class ResumeController : ControllerBase
     private readonly IDataService _dataService;
     private readonly IBedrockAgentService _bedrockService;
     private readonly IResumeParsingService _resumeParsingService;
+    private readonly IResumeAnalysisService _resumeAnalysisService;
     private readonly IConfiguration _configuration;
 
-    public ResumeController(IS3Service s3Service, IDataService dataService, IBedrockAgentService bedrockService, IResumeParsingService resumeParsingService, IConfiguration configuration)
+    public ResumeController(IS3Service s3Service, IDataService dataService, IBedrockAgentService bedrockService, IResumeParsingService resumeParsingService, IResumeAnalysisService resumeAnalysisService, IConfiguration configuration)
     {
         _s3Service = s3Service;
         _dataService = dataService;
         _bedrockService = bedrockService;
         _resumeParsingService = resumeParsingService;
+        _resumeAnalysisService = resumeAnalysisService;
         _configuration = configuration;
     }
 
@@ -128,9 +130,23 @@ public class ResumeController : ControllerBase
                 UpdatedAt = DateTime.UtcNow
             };
 
+            ResumeAnalysis? resumeAnalysis = null;
             try
             {
                 resumeContent = await _dataService.SaveResumeContentAsync(resumeContent);
+                
+                // Create ResumeAnalysis record with status "waiting_for_parsing"
+                resumeAnalysis = new ResumeAnalysis
+                {
+                    UserId = userId,
+                    ResumeContentId = resumeContent.Id,
+                    Status = "waiting_for_parsing",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    ProcessedAt = DateTime.UtcNow
+                };
+                
+                resumeAnalysis = await _dataService.SaveResumeAnalysisAsync(resumeAnalysis);
             }
             catch (Exception)
             {
@@ -145,7 +161,9 @@ public class ResumeController : ControllerBase
                     fileName = resume.FileName, 
                     status = "pending",
                     parsingStatus = "pending",
-                    parsingId = resumeContent.Id
+                    parsingId = resumeContent.Id,
+                    analysisId = resumeAnalysis?.Id,
+                    analysisStatus = "waiting_for_parsing"
                 }
             });
         }

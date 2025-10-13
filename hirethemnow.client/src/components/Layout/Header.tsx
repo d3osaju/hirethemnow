@@ -22,7 +22,14 @@ const Header: React.FC = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            {/* Navigation links removed - users access profile via profile button */}
+            {user && (
+              <Link
+                to="/resume-analysis"
+                className="text-gray-600 hover:text-gray-900 font-medium transition-all duration-300 hover:scale-105"
+              >
+                Resume Analysis
+              </Link>
+            )}
           </nav>
 
           {/* User Menu */}

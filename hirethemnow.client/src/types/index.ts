@@ -98,3 +98,42 @@ export interface ResumeContentData {
   parsedAt: string | null;
 }
 
+// Resume Analysis Types
+export interface AnalysisStatus {
+  status: string;
+  message?: string;
+  overallScore?: number;
+  completedAt?: string;
+  errorMessage?: string;
+}
+
+export interface SectionFeedback {
+  sectionName: string;
+  score: number;
+  issues: string[];
+  suggestions: string[];
+}
+
+export interface ResumeAnalysisResult {
+  id: number;
+  userId: string;
+  atsOverallScore: number;
+  atsFormattingScore: number;
+  atsKeywordsScore: number;
+  atsExperienceScore: number;
+  atsEducationScore: number;
+  atsSkillsScore: number;
+  atsAchievementsScore: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  keywordsFound: string[];
+  keywordsMissing: string[];
+  keywordDensity: number;
+  readabilityScore: number;
+  readabilityIssues: string[];
+  sectionFeedback: string; // JSON string of SectionFeedback[]
+  status: string;
+  processedAt: string;
+}
+

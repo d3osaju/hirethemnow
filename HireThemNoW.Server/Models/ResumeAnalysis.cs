@@ -13,6 +13,9 @@ namespace HireThemNoW.Server.Models
         [Column("user_id")]
         public string UserId { get; set; } = string.Empty;
 
+        [Column("resume_content_id")]
+        public int? ResumeContentId { get; set; }
+
         [Column("resume_url")]
         public string? ResumeUrl { get; set; }
 
@@ -98,8 +101,14 @@ namespace HireThemNoW.Server.Models
         [Column("recommendations")]
         public string? Recommendations { get; set; }  // JSON array
 
+        [Column("section_feedback")]
+        public string? SectionFeedback { get; set; }  // JSON object with section-by-section feedback
+
+        [Column("analysis_error")]
+        public string? AnalysisError { get; set; }
+
         [Column("status")]
-        public string Status { get; set; } = "pending"; // pending, processing, completed, failed
+        public string Status { get; set; } = "pending"; // pending, waiting_for_parsing, processing, completed, failed
 
         [Column("processed_at")]
         public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
@@ -110,8 +119,11 @@ namespace HireThemNoW.Server.Models
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation property
+        // Navigation properties
         [ForeignKey("UserId")]
         public virtual User? User { get; set; }
+
+        [ForeignKey("ResumeContentId")]
+        public virtual ResumeContent? ResumeContent { get; set; }
     }
 }

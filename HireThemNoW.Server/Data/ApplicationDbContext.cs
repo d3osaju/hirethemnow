@@ -96,6 +96,10 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ResumeContent)
+                .WithMany()
+                .HasForeignKey(e => e.ResumeContentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ResumeContent configuration

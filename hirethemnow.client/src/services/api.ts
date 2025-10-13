@@ -248,6 +248,45 @@ export const dataAPI = {
   },
 };
 
+// Resume Analysis API
+export const resumeAnalysisAPI = {
+  getStatus: async (): Promise<ApiResponse<{ status: string; message?: string; overallScore?: number; completedAt?: string; errorMessage?: string }>> => {
+    const response = await api.get('/resume/analysis/status');
+    return response.data;
+  },
+
+  getResults: async (): Promise<ApiResponse<{
+    id: number;
+    userId: string;
+    atsOverallScore: number;
+    atsFormattingScore: number;
+    atsKeywordsScore: number;
+    atsExperienceScore: number;
+    atsEducationScore: number;
+    atsSkillsScore: number;
+    atsAchievementsScore: number;
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+    keywordsFound: string[];
+    keywordsMissing: string[];
+    keywordDensity: number;
+    readabilityScore: number;
+    readabilityIssues: string[];
+    sectionFeedback: string;
+    status: string;
+    processedAt: string;
+  }>> => {
+    const response = await api.get('/resume/analysis/results');
+    return response.data;
+  },
+
+  retry: async (): Promise<ApiResponse<string>> => {
+    const response = await api.post('/resume/analysis/retry');
+    return response.data;
+  },
+};
+
 // Release Notes API
 export const releaseNotesAPI = {
   getReleaseNotes: async (): Promise<ApiResponse<Array<{ id: number; version: string; releaseDate: string; features: string[]; isPublished: boolean; createdAt: string }>>> => {

@@ -810,6 +810,230 @@ Return ONLY the JSON object, no other text.";
             }
         }
 
+        public async Task<AtsAnalysisResult> AnalyzeResumeForAtsAsync(string prompt)
+        {
+            var startTime = DateTime.UtcNow;
+            _logger.LogInformation("Starting ATS analysis with Bedrock");
+
+            try
+            {
+                // Construct Bedrock request with analysis prompt
+                var requestBody = new
+                {
+                    messages = new[]
+                    {
+                        new
+                        {
+                            role = "user",
+                            content = new[]
+                            {
+                                new { text = prompt }
+                            }
+                        }
+                    },
+                    inferenceConfig = new
+                    {
+                        maxTokens = 8192,  // Increased for detailed analysis
+                        temperature = 0.2, // Low for consistency
+                        topP = 0.9
+                    }
+                };
+
+                var requestBodyJson = JsonSerializer.Serialize(requestBody);
+                var requestBodyStream = new MemoryStream(Encoding.UTF8.GetBytes(requestBodyJson));
+
+                var invokeRequest = new InvokeModelRequest
+                {
+                    ModelId = "amazon.nova-pro-v1:0",
+                    Body = requestBodyStream,
+                    ContentType = "application/json",
+                    Accept = "application/json"
+                };
+
+                _logger.LogDebug("Invoking Bedrock Nova Pro model for ATS analysis");
+
+                var response = await _bedrockClient.InvokeModelAsync(invokeRequest);
+
+                using var reader = new StreamReader(response.Body);
+                var responseBody = await reader.ReadToEndAsync();
+
+                var analysisTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogInformation("Bedrock ATS analysis completed in {AnalysisTime:F2}s", analysisTime);
+
+                // Parse Nova response
+                var novaResponse = JsonSerializer.Deserialize<NovaResponse>(responseBody);
+                if (novaResponse?.Output?.Message?.Content == null || novaResponse.Output.Message.Content.Length == 0)
+                {
+                    _logger.LogWarning("Empty response from Bedrock Nova Pro for ATS analysis");
+                    throw new InvalidOperationException("Received empty response from Bedrock");
+                }
+
+                var contentText = novaResponse.Output.Message.Content[0].Text;
+
+                // Remove markdown code blocks if present
+                contentText = contentText.Trim();
+                if (contentText.StartsWith("```json"))
+                {
+                    contentText = contentText.Substring(7);
+                }
+                if (contentText.StartsWith("```"))
+                {
+                    contentText = contentText.Substring(3);
+                }
+                if (contentText.EndsWith("```"))
+                {
+                    contentText = contentText.Substring(0, contentText.Length - 3);
+                }
+                contentText = contentText.Trim();
+
+                _logger.LogDebug("Parsing ATS analysis JSON response from Bedrock");
+
+                // Parse and validate JSON response
+                var analysisResult = JsonSerializer.Deserialize<AtsAnalysisResult>(contentText, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (analysisResult == null)
+                {
+                    _logger.LogError("Failed to deserialize ATS analysis result from Bedrock response");
+                    throw new InvalidOperationException("Failed to parse ATS analysis response");
+                }
+
+                // Validate response structure
+                ValidateAtsAnalysisResult(analysisResult);
+
+                _logger.LogInformation("Successfully completed ATS analysis with overall scores - Formatting: {Formatting}, Keywords: {Keywords}, Experience: {Experience}",
+                    analysisResult.FormattingScore, analysisResult.KeywordsScore, analysisResult.ExperienceScore);
+
+                return analysisResult;
+            }
+            catch (AmazonBedrockRuntimeException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Access denied to Bedrock Nova Pro model for ATS analysis. IAM permissions missing. " +
+                    "Required permissions: bedrock:InvokeModel on resource arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0. " +
+                    "Processing time: {ProcessingTime:F2}s",
+                    processingTime);
+                throw new InvalidOperationException("ATS analysis service is not properly configured", ex);
+            }
+            catch (AmazonBedrockRuntimeException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable || 
+                                                            ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Bedrock service unavailable or throttled for ATS analysis. Status: {StatusCode}, Error: {ErrorCode}, " +
+                    "Processing time: {ProcessingTime:F2}s",
+                    ex.StatusCode, ex.ErrorCode, processingTime);
+                throw new InvalidOperationException("ATS analysis service is temporarily unavailable. Please try again in a few minutes.", ex);
+            }
+            catch (AmazonBedrockRuntimeException ex) when (ex.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Bedrock rejected ATS analysis request. Status: {StatusCode}, Error: {ErrorCode}, " +
+                    "Processing time: {ProcessingTime:F2}s",
+                    ex.StatusCode, ex.ErrorCode, processingTime);
+                throw new InvalidOperationException("Invalid request for ATS analysis", ex);
+            }
+            catch (AmazonBedrockRuntimeException ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Bedrock service error during ATS analysis. Status: {StatusCode}, Error: {ErrorCode}, " +
+                    "Processing time: {ProcessingTime:F2}s",
+                    ex.StatusCode, ex.ErrorCode, processingTime);
+                throw new InvalidOperationException("ATS analysis service error", ex);
+            }
+            catch (TimeoutException ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Timeout during ATS analysis with Bedrock. Processing time: {ProcessingTime:F2}s",
+                    processingTime);
+                throw new InvalidOperationException("ATS analysis timed out. Please try again.", ex);
+            }
+            catch (JsonException ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Failed to parse JSON response from Bedrock ATS analysis. Processing time: {ProcessingTime:F2}s",
+                    processingTime);
+                throw new InvalidOperationException("Invalid response format from ATS analysis service", ex);
+            }
+            catch (Exception ex)
+            {
+                var processingTime = (DateTime.UtcNow - startTime).TotalSeconds;
+                _logger.LogError(ex,
+                    "Unexpected error during ATS analysis with Bedrock. ExceptionType: {ExceptionType}, " +
+                    "Processing time: {ProcessingTime:F2}s",
+                    ex.GetType().Name, processingTime);
+                throw new InvalidOperationException("An unexpected error occurred during ATS analysis", ex);
+            }
+        }
+
+        private void ValidateAtsAnalysisResult(AtsAnalysisResult result)
+        {
+            var errors = new List<string>();
+
+            // Validate score ranges (0-100)
+            if (result.FormattingScore < 0 || result.FormattingScore > 100)
+                errors.Add($"FormattingScore out of range: {result.FormattingScore}");
+            
+            if (result.KeywordsScore < 0 || result.KeywordsScore > 100)
+                errors.Add($"KeywordsScore out of range: {result.KeywordsScore}");
+            
+            if (result.ExperienceScore < 0 || result.ExperienceScore > 100)
+                errors.Add($"ExperienceScore out of range: {result.ExperienceScore}");
+            
+            if (result.EducationScore < 0 || result.EducationScore > 100)
+                errors.Add($"EducationScore out of range: {result.EducationScore}");
+            
+            if (result.SkillsScore < 0 || result.SkillsScore > 100)
+                errors.Add($"SkillsScore out of range: {result.SkillsScore}");
+            
+            if (result.AchievementsScore < 0 || result.AchievementsScore > 100)
+                errors.Add($"AchievementsScore out of range: {result.AchievementsScore}");
+            
+            if (result.ReadabilityScore < 0 || result.ReadabilityScore > 100)
+                errors.Add($"ReadabilityScore out of range: {result.ReadabilityScore}");
+            
+            if (result.KeywordDensity < 0 || result.KeywordDensity > 100)
+                errors.Add($"KeywordDensity out of range: {result.KeywordDensity}");
+
+            // Validate required arrays are not null
+            if (result.Strengths == null)
+                errors.Add("Strengths array is null");
+            
+            if (result.Weaknesses == null)
+                errors.Add("Weaknesses array is null");
+            
+            if (result.Recommendations == null)
+                errors.Add("Recommendations array is null");
+            
+            if (result.KeywordsFound == null)
+                errors.Add("KeywordsFound array is null");
+            
+            if (result.KeywordsMissing == null)
+                errors.Add("KeywordsMissing array is null");
+            
+            if (result.ReadabilityIssues == null)
+                errors.Add("ReadabilityIssues array is null");
+            
+            if (result.SectionFeedback == null)
+                errors.Add("SectionFeedback dictionary is null");
+
+            if (errors.Any())
+            {
+                var errorMessage = "ATS analysis result validation failed: " + string.Join(", ", errors);
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
+            }
+
+            _logger.LogDebug("ATS analysis result validation passed");
+        }
+
         // Helper classes for model responses
         private class ClaudeResponse
         {
@@ -919,5 +1143,7 @@ Return ONLY the JSON object, no other text.";
             // Generic fallback
             return "An unexpected error occurred while parsing the resume document.";
         }
+
+
     }
 }

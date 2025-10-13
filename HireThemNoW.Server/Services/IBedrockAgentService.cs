@@ -9,6 +9,7 @@ namespace HireThemNoW.Server.Services
         Task<ResumeAnalysisResult?> GetLatestAnalysisAsync(string userId);
         Task CreatePendingAnalysisAsync(string userId, string s3Url);
         Task<ParsedResumeResult> ParseAndStructureResumeAsync(string s3Url);
+        Task<AtsAnalysisResult> AnalyzeResumeForAtsAsync(string prompt);
     }
 
     public class ResumeAnalysisResult
@@ -102,6 +103,8 @@ namespace HireThemNoW.Server.Services
         public string? Year { get; set; }
         public string? Gpa { get; set; }
     }
+
+
 
     public class ResumeAnalysisData
     {

@@ -308,7 +308,8 @@ Upload resume file.
     "fileName": "resume.pdf",
     "status": "pending",
     "parsingStatus": "pending",
-    "parsingId": 123
+    "parsingId": 123,
+    "analysisId": 456
   }
 }
 ```
@@ -320,9 +321,10 @@ Upload resume file.
 **Process**:
 1. Upload to S3
 2. Update user's resumeUrl
-3. Create pending analysis record
-4. Create pending resume content record
-5. Background service processes asynchronously
+3. Create ResumeContent record with status "pending"
+4. Create ResumeAnalysis record with status "waiting_for_parsing"
+5. Background service processes parsing first, then analysis automatically
+6. User receives email notifications when parsing and analysis complete
 
 ---
 
@@ -452,6 +454,250 @@ Get resume upload history.
   ]
 }
 ```
+
+---
+
+## Resume Analysis Endpoints
+
+### GET /api/resume/analysis/status
+Get current resume analysis status.
+
+**Auth**: Required
+
+**Response** (waiting for parsing):
+```json
+{
+  "success": true,
+  "message": "Your resume is being parsed. Analysis will begin automatically once parsing is complete.",
+  "data": {
+    "status": "waiting_for_parsing",
+    "message": "Your resume is being parsed. Analysis will begin automatically once parsing is complete.",
+    "overallScore": null,
+    "completedAt": null,
+    "errorMessage": null
+  }
+}
+```
+
+**Response** (processing):
+```json
+{
+  "success": true,
+  "message": "Your resume is being analyzed for ATS compatibility. This usually takes 10-15 seconds.",
+  "data": {
+    "status": "processing",
+    "message": "Your resume is being analyzed for ATS compatibility. This usually takes 10-15 seconds.",
+    "overallScore": null,
+    "completedAt": null,
+    "errorMessage": null
+  }
+}
+```
+
+**Response** (completed):
+```json
+{
+  "success": true,
+  "message": "Analysis completed successfully",
+  "data": {
+    "status": "completed",
+    "message": "Analysis completed successfully",
+    "overallScore": 85,
+    "completedAt": "2025-01-01T00:01:30Z",
+    "errorMessage": null
+  }
+}
+```
+
+**Response** (failed):
+```json
+{
+  "success": true,
+  "message": "Analysis failed",
+  "data": {
+    "status": "failed",
+    "message": "Analysis failed",
+    "overallScore": null,
+    "completedAt": null,
+    "errorMessage": "Analysis service is temporarily unavailable. Please try again in a few minutes."
+  }
+}
+```
+
+**Status Codes**:
+- `200`: Analysis completed or failed
+- `202`: Analysis in progress (waiting_for_parsing or processing)
+- `404`: No analysis found for user
+
+**Status Values**:
+- `waiting_for_parsing`: Resume is being parsed, analysis will start automatically
+- `processing`: Analysis is currently running
+- `completed`: Analysis finished successfully
+- `failed`: Analysis failed with error
+
+---
+
+### GET /api/resume/analysis/results
+Get detailed resume analysis results.
+
+**Auth**: Required
+
+**Response** (completed):
+```json
+{
+  "success": true,
+  "message": "Analysis results retrieved successfully",
+  "data": {
+    "id": 123,
+    "userId": "user-id",
+    "status": "completed",
+    "atsOverallScore": 85,
+    "atsFormattingScore": 90,
+    "atsKeywordsScore": 80,
+    "atsExperienceScore": 85,
+    "atsEducationScore": 90,
+    "atsSkillsScore": 85,
+    "atsAchievementsScore": 80,
+    "strengths": [
+      "Strong technical skills clearly presented",
+      "Quantifiable achievements in work experience",
+      "Professional formatting and structure"
+    ],
+    "weaknesses": [
+      "Missing industry-specific keywords",
+      "Limited leadership experience mentioned",
+      "Could benefit from more action verbs"
+    ],
+    "recommendations": [
+      "Add more industry-specific keywords like 'Agile', 'Scrum', 'CI/CD'",
+      "Quantify more achievements with specific numbers and percentages",
+      "Use stronger action verbs like 'spearheaded', 'optimized', 'architected'",
+      "Add a skills section with technical and soft skills",
+      "Include relevant certifications if available"
+    ],
+    "keywordsFound": [
+      "JavaScript",
+      "React",
+      "Node.js",
+      "MongoDB",
+      "Git"
+    ],
+    "keywordsMissing": [
+      "TypeScript",
+      "AWS",
+      "Docker",
+      "Kubernetes",
+      "Agile"
+    ],
+    "keywordDensity": 75,
+    "readabilityScore": 85,
+    "readabilityIssues": [
+      "Some sentences are too long (>25 words)",
+      "Consider using more bullet points for better readability"
+    ],
+    "sectionFeedback": {
+      "personalInfo": {
+        "score": 95,
+        "issues": [],
+        "suggestions": ["Consider adding a LinkedIn profile URL"]
+      },
+      "summary": {
+        "score": 80,
+        "issues": ["Summary could be more concise"],
+        "suggestions": ["Focus on top 3-4 key achievements", "Add more industry keywords"]
+      },
+      "experience": {
+        "score": 85,
+        "issues": ["Some achievements lack quantification"],
+        "suggestions": ["Add more specific metrics and numbers", "Use stronger action verbs"]
+      },
+      "education": {
+        "score": 90,
+        "issues": [],
+        "suggestions": ["Consider adding relevant coursework if recent graduate"]
+      },
+      "skills": {
+        "score": 75,
+        "issues": ["Skills section could be more comprehensive"],
+        "suggestions": ["Categorize skills (Technical, Soft, Languages)", "Add more industry-relevant skills"]
+      }
+    },
+    "processedAt": "2025-01-01T00:01:30Z",
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-01T00:01:30Z"
+  }
+}
+```
+
+**Response** (still processing):
+```json
+{
+  "success": true,
+  "message": "Your resume is still being analyzed. Please check back in a few moments.",
+  "data": {
+    "status": "processing",
+    "message": "Your resume is being analyzed for ATS compatibility. This usually takes 10-15 seconds."
+  }
+}
+```
+
+**Status Codes**:
+- `200`: Analysis completed, returns full results
+- `202`: Analysis still in progress
+- `404`: No analysis found for user
+
+**Error Responses**:
+- `404`: No analysis found for user
+- `202`: Analysis still in progress (not an error, but indicates results not ready)
+
+---
+
+### POST /api/resume/analysis/retry
+Retry failed resume analysis.
+
+**Auth**: Required
+
+**Response** (success):
+```json
+{
+  "success": true,
+  "message": "Analysis retry initiated successfully. Your resume will be re-analyzed shortly.",
+  "data": {
+    "status": "processing",
+    "message": "Analysis retry initiated successfully. Your resume will be re-analyzed shortly."
+  }
+}
+```
+
+**Response** (no analysis found):
+```json
+{
+  "success": false,
+  "message": "No analysis found to retry. Please upload a resume first."
+}
+```
+
+**Response** (parsing not complete):
+```json
+{
+  "success": true,
+  "message": "Analysis retry initiated. Waiting for resume parsing to complete first.",
+  "data": {
+    "status": "waiting_for_parsing",
+    "message": "Analysis retry initiated. Waiting for resume parsing to complete first."
+  }
+}
+```
+
+**Status Codes**:
+- `200`: Retry initiated successfully
+- `404`: No analysis found for user
+
+**Notes**:
+- Resets analysis status and clears error messages
+- If parsing is not complete, sets status to "waiting_for_parsing"
+- If parsing is complete, sets status to "processing"
+- Background service will pick up the retry automatically
 
 ---
 

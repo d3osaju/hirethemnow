@@ -387,10 +387,22 @@ curl https://hirethemnow.xyz
 # View recent logs
 aws logs tail /aws/elasticbeanstalk/hirethemnow-prod/var/log/web.stdout.log --follow
 
-# Search logs
+# Search for errors
 aws logs filter-log-events `
   --log-group-name /aws/elasticbeanstalk/hirethemnow-prod `
   --filter-pattern "ERROR" `
+  --start-time $(Get-Date).AddHours(-1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+# Search for analysis-specific logs
+aws logs filter-log-events `
+  --log-group-name /aws/elasticbeanstalk/hirethemnow-prod `
+  --filter-pattern "ATS analysis" `
+  --start-time $(Get-Date).AddHours(-1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+# Search for background service logs
+aws logs filter-log-events `
+  --log-group-name /aws/elasticbeanstalk/hirethemnow-prod `
+  --filter-pattern "ResumeParsingBackgroundService" `
   --start-time $(Get-Date).AddHours(-1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 ```
 

@@ -166,3 +166,10 @@ F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\runtimes\browse
 F:\DevProjects\HireThemNow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.SimpleEmail.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.BedrockRuntime.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\AWSSDK.Textract.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.Core.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.DocumentLayoutAnalysis.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.Fonts.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.Package.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.Tokenization.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.Tokens.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\UglyToad.PdfPig.dll

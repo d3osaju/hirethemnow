@@ -76,6 +76,9 @@ builder.Services.AddScoped<IBedrockAgentService, BedrockAgentService>();
 // Add Resume Parsing Service
 builder.Services.AddScoped<IResumeParsingService, ResumeParsingService>();
 
+// Add Resume Analysis Service
+builder.Services.AddScoped<IResumeAnalysisService, ResumeAnalysisService>();
+
 // Add Resume Parsing Background Service
 builder.Services.AddHostedService<ResumeParsingBackgroundService>();
 

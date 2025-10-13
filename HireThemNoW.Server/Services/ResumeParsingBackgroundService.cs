@@ -69,7 +69,23 @@ public class ResumeParsingBackgroundService : BackgroundService
         {
             try
             {
-                await ProcessPendingResumesAsync(stoppingToken);
+                // Call ProcessPendingResumesAsync first (parsing priority)
+                var resumesProcessed = await ProcessPendingResumesAsync(stoppingToken);
+                
+                // Calculate available processing slots
+                var availableSlots = _maxConcurrentProcessing - resumesProcessed;
+                
+                // Call ProcessPendingAnalysesAsync with remaining slots
+                // Respect total MaxConcurrentProcessing limit
+                if (availableSlots > 0)
+                {
+                    await ProcessPendingAnalysesAsync(availableSlots, stoppingToken);
+                }
+                else
+                {
+                    _logger.LogDebug("All {MaxConcurrent} processing slots used for resume parsing, skipping analysis processing this cycle", 
+                        _maxConcurrentProcessing);
+                }
             }
             catch (Exception ex)
             {
@@ -83,7 +99,7 @@ public class ResumeParsingBackgroundService : BackgroundService
         _logger.LogInformation("Resume parsing background service stopping");
     }
 
-    private async Task ProcessPendingResumesAsync(CancellationToken stoppingToken)
+    private async Task<int> ProcessPendingResumesAsync(CancellationToken stoppingToken)
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -100,7 +116,7 @@ public class ResumeParsingBackgroundService : BackgroundService
             if (pendingResumes.Count == 0)
             {
                 _logger.LogDebug("No pending resumes found for processing");
-                return;
+                return 0;
             }
 
             _logger.LogInformation("Found {Count} pending resume(s) to process", pendingResumes.Count);
@@ -108,6 +124,8 @@ public class ResumeParsingBackgroundService : BackgroundService
             // Process each resume
             var tasks = pendingResumes.Select(resume => ProcessResumeAsync(resume, stoppingToken));
             await Task.WhenAll(tasks);
+            
+            return pendingResumes.Count;
         }
         catch (OperationCanceledException)
         {
@@ -117,6 +135,59 @@ public class ResumeParsingBackgroundService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error querying for pending resumes");
+            return 0;
+        }
+    }
+
+    private async Task ProcessPendingAnalysesAsync(int availableSlots, CancellationToken stoppingToken)
+    {
+        if (availableSlots <= 0)
+        {
+            _logger.LogDebug("No available slots for analysis processing");
+            return;
+        }
+
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        try
+        {
+            // Query for ResumeAnalysis records with status "waiting_for_parsing"
+            // Join with ResumeContents to check parsing status
+            // Filter for completed parsing
+            var waitingAnalyses = await context.ResumeAnalyses
+                .Where(ra => ra.Status == "waiting_for_parsing")
+                .Join(context.ResumeContents,
+                    ra => ra.ResumeContentId,
+                    rc => rc.Id,
+                    (ra, rc) => new { Analysis = ra, Content = rc })
+                .Where(x => x.Content.ParsingStatus == "completed")
+                .Select(x => x.Analysis)
+                .OrderBy(ra => ra.CreatedAt) // Order by creation date
+                .Take(availableSlots) // Respect MaxConcurrentProcessing limit
+                .ToListAsync(stoppingToken);
+
+            if (waitingAnalyses.Count == 0)
+            {
+                _logger.LogDebug("No pending analyses found for processing");
+                return;
+            }
+
+            _logger.LogInformation("Found {Count} pending analysis/analyses to process (available slots: {AvailableSlots})", 
+                waitingAnalyses.Count, availableSlots);
+
+            // Process each analysis asynchronously
+            var tasks = waitingAnalyses.Select(analysis => ProcessAnalysisAsync(analysis, stoppingToken));
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Analysis processing cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error querying for pending analyses");
         }
     }
 
@@ -183,6 +254,23 @@ public class ResumeParsingBackgroundService : BackgroundService
                 _logger.LogInformation(
                     "Successfully completed background parsing for resume content ID {ResumeContentId}, user {UserId}, total time: {TotalTime:F2}s",
                     resumeContent.Id, resumeContent.UserId, totalTime);
+
+                // Send parsing complete email notification
+                try
+                {
+                    var emailService = updateScope.ServiceProvider.GetRequiredService<IEmailService>();
+                    var user = await updateContext.Users.FindAsync(resumeContent.UserId);
+                    if (user != null)
+                    {
+                        await emailService.SendParsingCompleteEmailAsync(user.Id, user.Email, user.Name);
+                        _logger.LogInformation("Parsing complete email sent to user {UserId}", resumeContent.UserId);
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning(emailEx, "Failed to send parsing complete email to user {UserId}", resumeContent.UserId);
+                    // Don't fail the parsing if email fails
+                }
             }
             else
             {
@@ -226,6 +314,159 @@ public class ResumeParsingBackgroundService : BackgroundService
                     "Failed to update resume content status to failed for ID {ResumeContentId}",
                     resumeContent.Id);
             }
+        }
+    }
+
+    private async Task ProcessAnalysisAsync(ResumeAnalysis analysis, CancellationToken stoppingToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var resumeAnalysisService = scope.ServiceProvider.GetRequiredService<IResumeAnalysisService>();
+
+        var startTime = DateTime.UtcNow;
+        
+        _logger.LogInformation(
+            "Starting background analysis processing for analysis ID {AnalysisId}, user {UserId}, resumeContentId {ResumeContentId}",
+            analysis.Id, analysis.UserId, analysis.ResumeContentId);
+
+        try
+        {
+            // Update analysis status to "processing"
+            analysis.Status = "processing";
+            analysis.UpdatedAt = DateTime.UtcNow;
+            context.ResumeAnalyses.Update(analysis);
+            await context.SaveChangesAsync(stoppingToken);
+            
+            _logger.LogInformation(
+                "Updated status to processing for analysis ID {AnalysisId}",
+                analysis.Id);
+
+            // Get resumeContentId from analysis
+            if (!analysis.ResumeContentId.HasValue)
+            {
+                throw new InvalidOperationException($"Analysis ID {analysis.Id} does not have a ResumeContentId");
+            }
+
+            var resumeContentId = analysis.ResumeContentId.Value;
+
+            // Call ResumeAnalysisService.AnalyzeResumeAsync
+            var analysisStartTime = DateTime.UtcNow;
+            var updatedAnalysis = await resumeAnalysisService.AnalyzeResumeAsync(analysis.UserId, resumeContentId);
+            var analysisTime = (DateTime.UtcNow - analysisStartTime).TotalSeconds;
+
+            var totalTime = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogInformation(
+                "Successfully completed background analysis for analysis ID {AnalysisId}, user {UserId}, analysis time: {AnalysisTime:F2}s, total time: {TotalTime:F2}s, overall score: {Score}",
+                analysis.Id, analysis.UserId, analysisTime, totalTime, updatedAnalysis.AtsOverallScore);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation(
+                "Background analysis cancelled for analysis ID {AnalysisId}",
+                analysis.Id);
+            
+            // Reset to waiting_for_parsing so it can be retried
+            try
+            {
+                using var resetScope = _serviceProvider.CreateScope();
+                var resetContext = resetScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                
+                var analysisToReset = await resetContext.ResumeAnalyses.FindAsync(analysis.Id);
+                if (analysisToReset != null)
+                {
+                    analysisToReset.Status = "waiting_for_parsing";
+                    analysisToReset.UpdatedAt = DateTime.UtcNow;
+                    resetContext.ResumeAnalyses.Update(analysisToReset);
+                    await resetContext.SaveChangesAsync(CancellationToken.None);
+                }
+            }
+            catch (Exception resetEx)
+            {
+                _logger.LogError(resetEx, "Failed to reset analysis status after cancellation for analysis ID {AnalysisId}", analysis.Id);
+            }
+            
+            throw;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("parsing is not complete"))
+        {
+            var totalTime = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogWarning(ex, 
+                "Parsing not complete for analysis ID {AnalysisId}, user {UserId} after {TotalTime:F2}s - keeping status as waiting_for_parsing", 
+                analysis.Id, analysis.UserId, totalTime);
+
+            // Update status back to waiting_for_parsing and clear any error
+            await HandleAnalysisErrorAsync(analysis.Id, "waiting_for_parsing", null, stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            var totalTime = (DateTime.UtcNow - startTime).TotalSeconds;
+            _logger.LogError(ex,
+                "Unexpected error in background analysis for analysis ID {AnalysisId}, user {UserId}, time elapsed: {TotalTime:F2}s: {ErrorType}",
+                analysis.Id, analysis.UserId, totalTime, ex.GetType().Name);
+
+            // Handle errors and update status to "failed"
+            var userFriendlyMessage = ex.Message.Contains("timeout") || ex.Message.Contains("took too long")
+                ? "Analysis took too long. Please try again."
+                : ex.Message.Contains("service") && ex.Message.Contains("unavailable")
+                ? "Analysis service is temporarily unavailable. Please try again in a few minutes."
+                : ex.Message.Contains("Invalid") && ex.Message.Contains("response")
+                ? "Unable to analyze resume. Please re-upload your resume."
+                : "An unexpected error occurred during analysis. Please try again.";
+
+            await HandleAnalysisErrorAsync(analysis.Id, "failed", userFriendlyMessage, stoppingToken);
+        }
+    }
+
+    private async Task HandleAnalysisErrorAsync(int analysisId, string status, string? errorMessage, CancellationToken stoppingToken)
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            
+            var analysis = await context.ResumeAnalyses.FindAsync(analysisId);
+            if (analysis != null)
+            {
+                analysis.Status = status;
+                analysis.AnalysisError = errorMessage;
+                analysis.UpdatedAt = DateTime.UtcNow;
+
+                context.ResumeAnalyses.Update(analysis);
+                await context.SaveChangesAsync(stoppingToken);
+
+                _logger.LogInformation("Updated analysis status to '{Status}' for analysis ID {AnalysisId}, error: {Error}", 
+                    status, analysisId, errorMessage ?? "none");
+
+                // Send analysis failed email notification if status is failed
+                if (status == "failed" && !string.IsNullOrEmpty(errorMessage))
+                {
+                    try
+                    {
+                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                        var user = await context.Users.FindAsync(analysis.UserId);
+                        if (user != null)
+                        {
+                            await emailService.SendAnalysisFailedEmailAsync(user.Id, user.Email, user.Name, errorMessage);
+                            _logger.LogInformation("Analysis failed email sent to user {UserId}", analysis.UserId);
+                        }
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogWarning(emailEx, "Failed to send analysis failed email to user {UserId}", analysis.UserId);
+                        // Don't fail the error handling if email fails
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Analysis ID {AnalysisId} not found when trying to update status to '{Status}'", 
+                    analysisId, status);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update analysis status to '{Status}' for analysis ID {AnalysisId}", 
+                status, analysisId);
         }
     }
 }

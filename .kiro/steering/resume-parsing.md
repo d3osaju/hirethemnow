@@ -25,19 +25,35 @@ Store in S3 with "pending" status
     ↓
 Create ResumeContent record (status: pending)
     ↓
-Background service polls for pending resumes
+Create ResumeAnalysis record (status: waiting_for_parsing)
+    ↓
+Background service polls for pending resumes (PARSING PHASE)
     ↓
 Download PDF from S3
     ↓
 PdfPig extracts text
     ↓
-Send text to Bedrock Nova Pro
+Send text to Bedrock Nova Pro for structuring
     ↓
 Bedrock returns structured JSON
     ↓
-Store in database (status: completed)
+Store parsed content in database (status: completed)
     ↓
-Send email notification to user
+Send parsing complete email notification
+    ↓
+Background service polls for pending analyses (ANALYSIS PHASE)
+    ↓
+Retrieve parsed content from database
+    ↓
+Send structured content to Bedrock Nova Pro for ATS analysis
+    ↓
+Bedrock returns detailed ATS analysis with scores
+    ↓
+Calculate weighted overall score
+    ↓
+Store analysis results in database (status: completed)
+    ↓
+Send analysis complete email notification with ATS score
 ```
 
 ## Configuration
@@ -49,11 +65,16 @@ Send email notification to user
   "ResumeParsing": {
     "MaxFileSizeBytes": 5242880,
     "ParsingTimeoutSeconds": 30,
+    "AnalysisTimeoutSeconds": 45,
     "SupportedFormats": ["pdf"],
     "EnableBackgroundProcessing": true,
     "PollingIntervalSeconds": 10,
     "MaxConcurrentProcessing": 3,
-    "BedrockModelId": "amazon.nova-pro-v1:0"
+    "BedrockModelId": "amazon.nova-pro-v1:0",
+    "AnalysisBedrockModelId": "amazon.nova-pro-v1:0",
+    "AnalysisMaxTokens": 8192,
+    "AnalysisTemperature": 0.2,
+    "AnalysisTopP": 0.9
   }
 }
 ```
@@ -63,12 +84,17 @@ Send email notification to user
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | MaxFileSizeBytes | int | 5242880 | Max file size (5MB) |
-| ParsingTimeoutSeconds | int | 30 | Bedrock timeout |
+| ParsingTimeoutSeconds | int | 30 | Bedrock timeout for parsing |
+| AnalysisTimeoutSeconds | int | 45 | Bedrock timeout for ATS analysis |
 | SupportedFormats | string[] | ["pdf"] | Allowed file types |
 | EnableBackgroundProcessing | bool | true | Enable background worker |
 | PollingIntervalSeconds | int | 10 | Background polling interval |
-| MaxConcurrentProcessing | int | 3 | Max concurrent parses |
-| BedrockModelId | string | amazon.nova-pro-v1:0 | Bedrock model ID |
+| MaxConcurrentProcessing | int | 3 | Max concurrent processing (parsing + analysis) |
+| BedrockModelId | string | amazon.nova-pro-v1:0 | Bedrock model for parsing |
+| AnalysisBedrockModelId | string | amazon.nova-pro-v1:0 | Bedrock model for ATS analysis |
+| AnalysisMaxTokens | int | 8192 | Max tokens for analysis (increased for detailed feedback) |
+| AnalysisTemperature | float | 0.2 | Temperature for analysis (low for consistency) |
+| AnalysisTopP | float | 0.9 | TopP for analysis |
 
 ## Supported Formats
 
@@ -218,14 +244,19 @@ The system:
 
 ### ResumeParsingBackgroundService
 
-A hosted service that runs continuously:
+A hosted service that runs continuously with dual-phase processing:
 
 ```csharp
 protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 {
     while (!stoppingToken.IsCancellationRequested)
     {
+        // Phase 1: Process pending resumes (parsing priority)
         await ProcessPendingResumesAsync();
+        
+        // Phase 2: Process pending analyses (after parsing completes)
+        await ProcessPendingAnalysesAsync();
+        
         await Task.Delay(TimeSpan.FromSeconds(pollingInterval), stoppingToken);
     }
 }
@@ -233,21 +264,35 @@ protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 
 ### Processing Logic
 
-1. **Query pending resumes**: Get up to `MaxConcurrentProcessing` resumes with status "pending"
+**Phase 1 - Resume Parsing**:
+1. **Query pending resumes**: Get ResumeContent records with status "pending"
 2. **Update status**: Set to "processing"
 3. **Download from S3**: Get PDF file
 4. **Extract text**: Use PdfPig
-5. **Structure with AI**: Call Bedrock
+5. **Structure with AI**: Call Bedrock for content structuring
 6. **Store results**: Update database with structured content
 7. **Update status**: Set to "completed" or "failed"
-8. **Handle errors**: Log and set error message
+8. **Send notification**: Email user about parsing completion
+
+**Phase 2 - ATS Analysis**:
+1. **Query pending analyses**: Get ResumeAnalysis records with status "waiting_for_parsing"
+2. **Check parsing status**: Verify corresponding ResumeContent is "completed"
+3. **Update status**: Set analysis to "processing"
+4. **Retrieve parsed content**: Get structured content from database
+5. **Analyze with AI**: Call Bedrock for detailed ATS analysis
+6. **Calculate scores**: Apply weighted scoring algorithm
+7. **Store results**: Update database with analysis results
+8. **Update status**: Set to "completed" or "failed"
+9. **Send notification**: Email user with ATS score and results
 
 ### Concurrency
 
-- Max concurrent processing: 3 (configurable)
+- Max concurrent processing: 3 total (configurable) across both parsing and analysis
 - Polling interval: 10 seconds (configurable)
-- Each resume processed independently
-- Failures don't block other resumes
+- Parsing takes priority over analysis
+- Each resume/analysis processed independently
+- Failures don't block other processing
+- Available slots calculated dynamically (parsing first, then analysis)
 
 ## Database Schema
 
@@ -276,12 +321,55 @@ CREATE INDEX idx_resume_contents_user_id ON resume_contents(user_id);
 CREATE INDEX idx_resume_contents_user_uploaded ON resume_contents(user_id, uploaded_at);
 ```
 
+### ResumeAnalysis Table
+
+```sql
+CREATE TABLE resume_analyses (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR NOT NULL,
+    resume_content_id INTEGER,
+    status VARCHAR NOT NULL DEFAULT 'waiting_for_parsing',
+    analysis_error TEXT,
+    ats_overall_score INTEGER,
+    ats_formatting_score INTEGER,
+    ats_keywords_score INTEGER,
+    ats_experience_score INTEGER,
+    ats_education_score INTEGER,
+    ats_skills_score INTEGER,
+    ats_achievements_score INTEGER,
+    strengths TEXT, -- JSON array
+    weaknesses TEXT, -- JSON array
+    recommendations TEXT, -- JSON array
+    keywords_found TEXT, -- JSON array
+    keywords_missing TEXT, -- JSON array
+    keyword_density INTEGER,
+    readability_score INTEGER,
+    readability_issues TEXT, -- JSON array
+    section_feedback TEXT, -- JSON object
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (resume_content_id) REFERENCES resume_contents(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_resume_analyses_user_id ON resume_analyses(user_id);
+CREATE INDEX idx_resume_analyses_status ON resume_analyses(status);
+```
+
 ### Status Values
 
+**ResumeContent**:
 - `pending`: Waiting for processing
 - `processing`: Currently being parsed
 - `completed`: Successfully parsed
 - `failed`: Parsing failed (see parsing_error)
+
+**ResumeAnalysis**:
+- `waiting_for_parsing`: Created, waiting for parsing to complete
+- `processing`: Currently being analyzed
+- `completed`: Analysis finished successfully
+- `failed`: Analysis failed (see analysis_error)
 
 ## API Integration
 

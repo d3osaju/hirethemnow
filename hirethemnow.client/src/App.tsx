@@ -13,6 +13,7 @@ import Onboarding from './pages/onboarding/Onboarding';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import ResumeAnalysis from './pages/ResumeAnalysis';
+import ResumeAnalysisPage from './pages/ResumeAnalysisPage';
 import ParsedResume from './pages/ParsedResume';
 import SubscriptionExpired from './pages/SubscriptionExpired';
 import NotFound from './pages/NotFound';
@@ -114,6 +115,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Resume Analysis - standalone route */}
+          <Route
+            path="/resume-analysis"
+            element={
+              <ProtectedRoute>
+                <ResumeAnalysisPage />
               </ProtectedRoute>
             }
           />
