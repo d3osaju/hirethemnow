@@ -11,8 +11,9 @@ Steering documents provide context and instructions that help Kiro (and develope
 ### 📋 [Application Overview](./application-overview.md)
 High-level overview of the HireThemNow platform, including:
 - Technology stack (ASP.NET Core 8, React 18, PostgreSQL)
-- Key features (resume parsing, ATS scoring, job tracking)
-- Architecture and request flow
+- Key features (two-phase resume processing, comprehensive ATS analysis, job tracking)
+- Service architecture with ResumeAnalysisService and dual-phase background processing
+- Request flow and processing architecture
 - Project structure
 - Environment configuration
 - Live URLs and deployment info
@@ -23,11 +24,11 @@ High-level overview of the HireThemNow platform, including:
 
 ### 🗄️ [Database Schema](./database-schema.md)
 Complete database schema documentation, including:
-- All tables and columns with descriptions
+- All tables and columns with descriptions (including ResumeAnalysis table)
 - Data types and constraints
-- Relationships and foreign keys
-- Indexes and performance considerations
-- JSON column formats
+- Relationships and foreign keys (ResumeContent ↔ ResumeAnalysis)
+- Indexes and performance considerations (analysis status indexing)
+- JSON column formats (analysis results, section feedback)
 - Migration commands
 - Best practices
 
@@ -48,6 +49,7 @@ Comprehensive API documentation covering:
 - Authentication (login, register, Google OAuth)
 - User management (profile, picture upload)
 - Resume operations (upload, download, parsing status)
+- **Resume analysis (status, results, retry)** - New comprehensive ATS analysis endpoints
 - AI agent (resume analysis)
 - Email preferences
 - Privacy settings
@@ -61,19 +63,21 @@ Comprehensive API documentation covering:
 ---
 
 ### 📄 [Resume Parsing System](./resume-parsing.md)
-Detailed documentation of the resume parsing system:
-- Two-stage parsing (PdfPig + AWS Bedrock)
-- Processing flow and architecture
-- Configuration options
+Detailed documentation of the two-phase resume processing system:
+- **Phase 1**: Resume parsing (PdfPig + AWS Bedrock for structuring)
+- **Phase 2**: ATS analysis (AWS Bedrock for detailed scoring and recommendations)
+- Sequential processing architecture with automatic transitions
+- Dual Bedrock configuration (parsing vs analysis optimized settings)
+- Background service coordination of both phases
+- Configuration options (parsing and analysis parameters)
 - Supported formats (PDF only)
-- Background processing
-- Error handling
-- Performance metrics
+- Error handling and retry mechanisms
+- Performance metrics and monitoring
 - AWS permissions required
 - Testing strategies
 - Troubleshooting
 
-**Use this when**: Working on resume upload, parsing, or AI integration features.
+**Use this when**: Working on resume upload, parsing, analysis, or AI integration features.
 
 ---
 
@@ -82,17 +86,17 @@ Complete guide to AWS services used:
 - Elastic Beanstalk (backend hosting)
 - S3 (file storage)
 - RDS (PostgreSQL database)
-- Bedrock (AI resume parsing)
+- **Bedrock (dual-purpose AI: parsing + analysis)** - Enhanced with separate configurations
 - SES (email notifications)
 - CloudFront (CDN)
 - ACM (SSL certificates)
 - IAM (access management)
 
 Each service includes:
-- Configuration details
+- Configuration details (including analysis-specific Bedrock settings)
 - Permissions required
-- Cost optimization tips
-- Monitoring and alerts
+- Cost optimization tips (dual-phase processing considerations)
+- Monitoring and alerts (analysis-specific metrics)
 - Troubleshooting
 
 **Use this when**: Deploying, configuring AWS services, or troubleshooting infrastructure issues.
@@ -101,7 +105,7 @@ Each service includes:
 
 ### 💻 [Coding Standards](./coding-standards.md)
 Coding standards and best practices for:
-- C# / .NET backend
+- C# / .NET backend (including ResumeAnalysisController patterns)
 - TypeScript / React frontend
 - Database queries
 - Testing
@@ -112,10 +116,10 @@ Coding standards and best practices for:
 Includes:
 - Naming conventions
 - File organization
-- Code examples (good vs bad)
-- Error handling patterns
-- Dependency injection
-- Logging standards
+- Code examples (good vs bad) with analysis service patterns
+- Error handling patterns (status-based responses)
+- Dependency injection (service registration examples)
+- Logging standards (structured logging for analysis operations)
 - Security best practices
 
 **Use this when**: Writing new code, reviewing pull requests, or establishing team standards.
@@ -131,9 +135,11 @@ Step-by-step deployment procedures:
 - Database setup and migrations
 - SSL certificate configuration
 - Custom domain setup
-- Monitoring and logging
+- **Environment variables (including all ResumeParsing analysis configuration)**
+- **Service dependencies (ResumeAnalysisService registration)**
+- Monitoring and logging (analysis-specific CloudWatch patterns)
 - Rollback procedures
-- Troubleshooting
+- **Analysis system troubleshooting**
 - CI/CD pipeline (future)
 - Backup and disaster recovery
 
@@ -151,10 +157,17 @@ Step-by-step deployment procedures:
 3. Update [Database Schema](./database-schema.md) if needed
 4. Test with examples from API docs
 
-**Working with resume parsing**:
-1. Read [Resume Parsing System](./resume-parsing.md) for architecture
-2. Check [AWS Services](./aws-services.md) for Bedrock configuration
-3. Follow error handling patterns from [Coding Standards](./coding-standards.md)
+**Working with resume processing (parsing + analysis)**:
+1. Read [Resume Parsing System](./resume-parsing.md) for two-phase architecture
+2. Check [AWS Services](./aws-services.md) for dual Bedrock configuration
+3. Review [API Endpoints](./api-endpoints.md) for analysis endpoints
+4. Follow error handling patterns from [Coding Standards](./coding-standards.md)
+
+**Working with resume analysis**:
+1. Review [API Endpoints](./api-endpoints.md) for analysis status and results endpoints
+2. Check [Database Schema](./database-schema.md) for ResumeAnalysis table structure
+3. Follow [Coding Standards](./coding-standards.md) for status-based response patterns
+4. Use [Deployment Guide](./deployment-guide.md) for analysis troubleshooting
 
 **Deploying changes**:
 1. Follow [Deployment Guide](./deployment-guide.md) procedures
@@ -166,6 +179,25 @@ Step-by-step deployment procedures:
 2. Create migration following [Coding Standards](./coding-standards.md)
 3. Test locally before deploying
 4. Deploy using [Deployment Guide](./deployment-guide.md)
+
+### Analysis Endpoints Quick Reference
+
+**Key Analysis Endpoints**:
+- `GET /api/resume/analysis/status` - Check analysis progress
+- `GET /api/resume/analysis/results` - Get detailed ATS scores and recommendations
+- `POST /api/resume/analysis/retry` - Retry failed analysis
+
+**Analysis Status Values**:
+- `waiting_for_parsing` - Resume being parsed, analysis will start automatically
+- `processing` - Analysis currently running (10-15 seconds)
+- `completed` - Analysis finished with results available
+- `failed` - Analysis failed, retry available
+
+**Common Analysis Tasks**:
+- Check analysis status after resume upload
+- Handle processing states with appropriate UI feedback
+- Implement retry functionality for failed analyses
+- Display comprehensive ATS scores and actionable recommendations
 
 ---
 
@@ -200,7 +232,7 @@ These steering documents should be updated when:
 
 ### AWS Services
 - **S3**: File storage
-- **Bedrock**: AI resume parsing (Amazon Nova Pro)
+- **Bedrock**: Dual-purpose AI (Amazon Nova Pro for parsing + analysis)
 - **RDS**: PostgreSQL database
 - **SES**: Email notifications
 - **CloudFront**: CDN
@@ -241,6 +273,15 @@ When updating steering documents:
 ---
 
 ## Version History
+
+- **v1.1** (2025-10-14): Updated for comprehensive ATS analysis system
+  - Enhanced application overview with two-phase processing architecture
+  - Updated database schema with ResumeAnalysis table and relationships
+  - Added comprehensive analysis API endpoints documentation
+  - Enhanced resume parsing system with dual-phase processing
+  - Updated AWS services with dual Bedrock configuration
+  - Added analysis-specific coding standards and patterns
+  - Enhanced deployment guide with analysis configuration and troubleshooting
 
 - **v1.0** (2025-10-09): Initial steering documentation created
   - Application overview

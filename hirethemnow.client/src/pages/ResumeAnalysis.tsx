@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { resumeAPI } from '../services/api';
+import { resumeAPI, resumeAnalysisAPI } from '../services/api';
+import { ensureArray, ensureNumber } from '../utils/dataHelpers';
 import toast from 'react-hot-toast';
 import {
   FileText,
@@ -12,60 +13,34 @@ import {
   RefreshCw,
   Download
 } from 'lucide-react';
-
-interface ATSScore {
-  overall: number;
-  breakdown: {
-    formatting: number;
-    keywords: number;
-    experience: number;
-    education: number;
-    skills: number;
-    achievements: number;
-  };
-}
-
-interface ImprovementSuggestion {
-  category: string;
-  issue: string;
-  suggestion: string;
-  impact: 'high' | 'medium' | 'low';
-  priority: number;
-}
-
-interface ResumeAnalysis {
-  userId: string;
-  status: string;
-  atsScore: ATSScore;
-  strengths: string[];
-  weaknesses: string[];
-  improvements: ImprovementSuggestion[];
-  keywords: {
-    found: string[];
-    missing: string[];
-    density: number;
-  };
-  processedAt: string;
-  s3Url?: string;
-}
+import type { AnalysisStatus, ResumeAnalysisResult } from '../types';
 
 const ResumeAnalysis: React.FC = () => {
   const { user } = useAuth();
-  const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<ResumeAnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [retryLoading, setRetryLoading] = useState(false);
   const [resumeData, setResumeData] = useState<{ hasResume: boolean; status: string; resumeUrl?: string } | null>(null);
   const [resumeCheckLoading, setResumeCheckLoading] = useState(true);
+  const [polling, setPolling] = useState(false);
 
   useEffect(() => {
     if (user) {
-      fetchAnalysis();
+      fetchAnalysisStatus();
       checkResumeStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      setPolling(false);
+    };
+  }, []);
 
   const checkResumeStatus = async () => {
     try {
@@ -84,30 +59,56 @@ const ResumeAnalysis: React.FC = () => {
     }
   };
 
-  const fetchAnalysis = async () => {
+  const fetchAnalysisStatus = async () => {
     if (!user) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/AIAgent/resume-analysis/${user.id}`);
-      const data = await response.json();
-
-      if (data.success && data.data) {
-        setAnalysis(data.data);
-      } else if (response.status === 404) {
-        // User hasn't uploaded a resume yet - this is not an error
-        setError(null);
-        setAnalysis(null);
+      const response = await resumeAnalysisAPI.getStatus();
+      
+      if (response.success && response.data) {
+        setAnalysisStatus(response.data);
+        
+        // If analysis is completed, fetch the full results
+        if (response.data.status === 'completed') {
+          await fetchAnalysisResults();
+        }
+        // If analysis is processing or waiting, start polling
+        else if (response.data.status === 'processing' || response.data.status === 'waiting_for_parsing') {
+          startPolling();
+        }
+      } else {
+        // No analysis found - this is not an error, just means no resume uploaded yet
+        setAnalysisStatus(null);
+        setAnalysisResults(null);
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } };
+      if (error.response?.status === 404) {
+        // No analysis found - not an error
+        setAnalysisStatus(null);
+        setAnalysisResults(null);
       } else {
         setError('Failed to load resume analysis. Please try again.');
+        console.error('Error fetching analysis status:', err);
       }
-    } catch (err) {
-      setError('Failed to load resume analysis. Please try again.');
-      console.error('Error fetching analysis:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnalysisResults = async () => {
+    try {
+      const response = await resumeAnalysisAPI.getResults();
+      
+      if (response.success && response.data) {
+        setAnalysisResults(response.data);
+      }
+    } catch (err: unknown) {
+      console.error('Error fetching analysis results:', err);
+      // Don't set error here as status might still be valid
     }
   };
 
@@ -129,34 +130,59 @@ const ResumeAnalysis: React.FC = () => {
     }
   };
 
-  const handleAnalyzeResume = async () => {
-    if (!user) return;
+  const startPolling = () => {
+    if (polling) return; // Already polling
+    
+    setPolling(true);
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await resumeAnalysisAPI.getStatus();
+        
+        if (response.success && response.data) {
+          setAnalysisStatus(response.data);
+          
+          // Stop polling if analysis is completed or failed
+          if (response.data.status === 'completed' || response.data.status === 'failed') {
+            clearInterval(pollInterval);
+            setPolling(false);
+            
+            // Fetch full results if completed
+            if (response.data.status === 'completed') {
+              await fetchAnalysisResults();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+        // Continue polling even if there's an error
+      }
+    }, 3000); // Poll every 3 seconds
 
+    // Cleanup after 5 minutes to prevent infinite polling
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      setPolling(false);
+    }, 300000);
+  };
+
+  const handleRetryAnalysis = async () => {
     try {
-      setAnalyzeLoading(true);
-      const response = await fetch('/api/AIAgent/analyze-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ userId: user.id })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Resume analysis started! This may take 30-60 seconds.');
-        // Refresh the analysis to show processing state
-        await fetchAnalysis();
+      setRetryLoading(true);
+      const response = await resumeAnalysisAPI.retry();
+      
+      if (response.success) {
+        toast.success('Analysis retry initiated! This may take 30-60 seconds.');
+        // Refresh the analysis status
+        await fetchAnalysisStatus();
       } else {
-        toast.error('Failed to start analysis: ' + data.message);
+        toast.error('Failed to retry analysis: ' + response.message);
       }
     } catch (error) {
-      console.error('Analysis error:', error);
-      toast.error('Failed to start analysis. Please try again.');
+      console.error('Retry error:', error);
+      toast.error('Failed to retry analysis. Please try again.');
     } finally {
-      setAnalyzeLoading(false);
+      setRetryLoading(false);
     }
   };
 
@@ -188,14 +214,7 @@ const ResumeAnalysis: React.FC = () => {
     return 'bg-red-600';
   };
 
-  const getImpactColor = (impact: string) => {
-    switch (impact) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   if (loading) {
     return (
@@ -209,7 +228,7 @@ const ResumeAnalysis: React.FC = () => {
   }
 
   // Show processing state
-  if (analysis && analysis.status === 'processing') {
+  if (analysisStatus && (analysisStatus.status === 'processing' || analysisStatus.status === 'waiting_for_parsing')) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
@@ -222,13 +241,14 @@ const ResumeAnalysis: React.FC = () => {
                 <div className="animate-spin rounded-full h-28 w-28 border-t-2 border-b-2 border-blue-600"></div>
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Analyzing Your Resume...</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">
+              {analysisStatus.status === 'waiting_for_parsing' ? 'Parsing Your Resume...' : 'Analyzing Your Resume...'}
+            </h2>
             <p className="text-gray-600 mb-2 text-lg">
-              Our AI is working its magic! 🪄
+              {analysisStatus.status === 'waiting_for_parsing' ? 'Extracting text from your resume 📄' : 'Our AI is working its magic! 🪄'}
             </p>
             <p className="text-sm text-gray-500 mb-6 max-w-2xl mx-auto">
-              We're analyzing your resume with Amazon Bedrock Nova Pro to provide comprehensive ATS scoring,
-              identify strengths, suggest improvements, and analyze keywords.
+              {analysisStatus.message || 'Processing your resume...'}
             </p>
             <div className="bg-blue-50 rounded-lg p-6 mb-6 max-w-xl mx-auto">
               <div className="flex items-start space-x-3 text-left">
@@ -248,7 +268,7 @@ const ResumeAnalysis: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={fetchAnalysis}
+              onClick={fetchAnalysisStatus}
               className="inline-flex items-center justify-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
             >
               <FileText className="w-5 h-5 mr-2" />
@@ -260,8 +280,8 @@ const ResumeAnalysis: React.FC = () => {
     );
   }
 
-  // Show error state only if there's an actual error (not just missing analysis)
-  if (error) {
+  // Show error state for network errors or failed analysis
+  if (error || (analysisStatus && analysisStatus.status === 'failed')) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
@@ -271,15 +291,36 @@ const ResumeAnalysis: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-3">Unable to Load Analysis</h2>
             <p className="text-gray-600 mb-8">
-              {error}
+              {error || analysisStatus?.errorMessage || 'Analysis failed. Please try again.'}
             </p>
-            <button
-              onClick={fetchAnalysis}
-              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <FileText className="w-5 h-5 mr-2" />
-              Try Again
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={fetchAnalysisStatus}
+                className="inline-flex items-center justify-center px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                Check Status
+              </button>
+              {analysisStatus?.status === 'failed' && (
+                <button
+                  onClick={handleRetryAnalysis}
+                  disabled={retryLoading}
+                  className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {retryLoading ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-5 h-5 mr-2" />
+                      Retry Analysis
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -287,7 +328,7 @@ const ResumeAnalysis: React.FC = () => {
   }
 
   // Show welcome state if no analysis exists
-  if (!analysis) {
+  if (!analysisStatus && !analysisResults) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4">
@@ -371,28 +412,18 @@ const ResumeAnalysis: React.FC = () => {
 
                 <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg p-8 text-white text-center">
                   <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-                  <h3 className="text-2xl font-bold mb-3">Ready to Analyze?</h3>
+                  <h3 className="text-2xl font-bold mb-3">Analysis Will Start Automatically</h3>
                   <p className="mb-6 opacity-90">
-                    Start your AI-powered resume analysis to discover how to optimize your resume for ATS systems
+                    Your resume analysis will begin automatically once parsing is complete. No action needed!
                   </p>
                   <button
-                    onClick={handleAnalyzeResume}
-                    disabled={analyzeLoading}
-                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-bold text-lg rounded-lg hover:bg-gray-100 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                    onClick={fetchAnalysisStatus}
+                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 font-bold text-lg rounded-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
                   >
-                    {analyzeLoading ? (
-                      <>
-                        <RefreshCw className="w-6 h-6 mr-3 animate-spin" />
-                        Starting Analysis...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-6 h-6 mr-3" />
-                        Analyze Resume Now
-                      </>
-                    )}
+                    <RefreshCw className="w-6 h-6 mr-3" />
+                    Check Analysis Status
                   </button>
-                  <p className="text-sm mt-4 opacity-75">Analysis typically takes 30-60 seconds</p>
+                  <p className="text-sm mt-4 opacity-75">Analysis typically takes 30-60 seconds after parsing</p>
                 </div>
               </div>
             ) : (
@@ -457,7 +488,7 @@ const ResumeAnalysis: React.FC = () => {
                         <button
                           onClick={() => {
                             checkResumeStatus();
-                            fetchAnalysis();
+                            fetchAnalysisStatus();
                           }}
                           className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
                         >
@@ -498,9 +529,22 @@ const ResumeAnalysis: React.FC = () => {
     );
   }
 
-  const sortedImprovements = [...analysis.improvements].sort((a, b) => b.priority - a.priority);
-
-  return (
+  // Show completed analysis results
+  if (analysisResults && analysisStatus?.status === 'completed') {
+    // Ensure all data is properly formatted with defensive programming
+    const safeStrengths = ensureArray(analysisResults.strengths);
+    const safeRecommendations = ensureArray(analysisResults.recommendations);
+    const safeKeywordsFound = ensureArray(analysisResults.keywordsFound);
+    const safeKeywordsMissing = ensureArray(analysisResults.keywordsMissing);
+    const safeOverallScore = ensureNumber(analysisResults.atsOverallScore, 0);
+    const safeFormattingScore = ensureNumber(analysisResults.atsFormattingScore, 0);
+    const safeKeywordsScore = ensureNumber(analysisResults.atsKeywordsScore, 0);
+    const safeExperienceScore = ensureNumber(analysisResults.atsExperienceScore, 0);
+    const safeEducationScore = ensureNumber(analysisResults.atsEducationScore, 0);
+    const safeSkillsScore = ensureNumber(analysisResults.atsSkillsScore, 0);
+    const safeAchievementsScore = ensureNumber(analysisResults.atsAchievementsScore, 0);
+    
+    return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -517,21 +561,21 @@ const ResumeAnalysis: React.FC = () => {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={fetchAnalysis}
+                onClick={fetchAnalysisStatus}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center text-sm"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </button>
               <button
-                onClick={handleAnalyzeResume}
-                disabled={analyzeLoading}
+                onClick={handleRetryAnalysis}
+                disabled={retryLoading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {analyzeLoading ? (
+                {retryLoading ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing...
+                    Retrying...
                   </>
                 ) : (
                   <>
@@ -543,7 +587,7 @@ const ResumeAnalysis: React.FC = () => {
             </div>
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            Last analyzed: {new Date(analysis.processedAt).toLocaleDateString('en-US', {
+            Last analyzed: {new Date(analysisResults.processedAt).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
@@ -574,21 +618,21 @@ const ResumeAnalysis: React.FC = () => {
                   stroke="white"
                   strokeWidth="12"
                   fill="none"
-                  strokeDasharray={`${analysis.atsScore.overall * 4.4} 440`}
+                  strokeDasharray={`${(analysisResults.atsOverallScore ?? 0) * 4.4} 440`}
                   strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div>
-                  <div className="text-5xl font-bold">{analysis.atsScore.overall}</div>
+                  <div className="text-5xl font-bold">{safeOverallScore}</div>
                   <div className="text-sm opacity-90">out of 100</div>
                 </div>
               </div>
             </div>
             <p className="mt-6 text-lg opacity-90">
-              {analysis.atsScore.overall >= 80 && 'Excellent! Your resume is well-optimized for ATS systems.'}
-              {analysis.atsScore.overall >= 60 && analysis.atsScore.overall < 80 && 'Good start! A few improvements can boost your score.'}
-              {analysis.atsScore.overall < 60 && 'Needs improvement. Follow the suggestions below to optimize your resume.'}
+              {safeOverallScore >= 80 && 'Excellent! Your resume is well-optimized for ATS systems.'}
+              {safeOverallScore >= 60 && safeOverallScore < 80 && 'Good start! A few improvements can boost your score.'}
+              {safeOverallScore < 60 && 'Needs improvement. Follow the suggestions below to optimize your resume.'}
             </p>
           </div>
         </div>
@@ -601,7 +645,14 @@ const ResumeAnalysis: React.FC = () => {
               Score Breakdown
             </h3>
             <div className="space-y-4">
-              {Object.entries(analysis.atsScore.breakdown).map(([category, score]) => (
+              {[
+                { category: 'formatting', score: safeFormattingScore },
+                { category: 'keywords', score: safeKeywordsScore },
+                { category: 'experience', score: safeExperienceScore },
+                { category: 'education', score: safeEducationScore },
+                { category: 'skills', score: safeSkillsScore },
+                { category: 'achievements', score: safeAchievementsScore }
+              ].map(({ category, score }) => (
                 <div key={category}>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-700 capitalize">{category}</span>
@@ -624,9 +675,9 @@ const ResumeAnalysis: React.FC = () => {
               <CheckCircle className="w-6 h-6 mr-2 text-green-600" />
               Strengths
             </h3>
-            {analysis.strengths.length > 0 ? (
+            {safeStrengths.length > 0 ? (
               <ul className="space-y-3">
-                {analysis.strengths.map((strength, index) => (
+                {safeStrengths.map((strength, index) => (
                   <li key={index} className="flex items-start">
                     <CheckCircle className="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
                     <span className="text-gray-700">{strength}</span>
@@ -645,9 +696,9 @@ const ResumeAnalysis: React.FC = () => {
             <ArrowUp className="w-6 h-6 mr-2 text-orange-600" />
             Priority Improvements
           </h3>
-          {sortedImprovements.length > 0 ? (
+          {safeRecommendations.length > 0 ? (
             <div className="space-y-4">
-              {sortedImprovements.map((improvement, index) => (
+              {safeRecommendations.map((recommendation, index) => (
                 <div
                   key={index}
                   className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
@@ -655,14 +706,13 @@ const ResumeAnalysis: React.FC = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-gray-900">{improvement.category}</h4>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getImpactColor(improvement.impact)}`}>
-                          {improvement.impact.toUpperCase()} IMPACT
+                        <h4 className="font-semibold text-gray-900">Recommendation {index + 1}</h4>
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          IMPROVEMENT
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{improvement.issue}</p>
                       <p className="text-sm text-blue-600 font-medium">
-                        💡 {improvement.suggestion}
+                        💡 {recommendation}
                       </p>
                     </div>
                   </div>
@@ -678,9 +728,9 @@ const ResumeAnalysis: React.FC = () => {
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Keywords Found</h3>
-            {analysis.keywords.found.length > 0 ? (
+            {safeKeywordsFound.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {analysis.keywords.found.map((keyword, index) => (
+                {safeKeywordsFound.map((keyword, index) => (
                   <span
                     key={index}
                     className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full"
@@ -696,9 +746,9 @@ const ResumeAnalysis: React.FC = () => {
 
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Missing Keywords</h3>
-            {analysis.keywords.missing.length > 0 ? (
+            {safeKeywordsMissing.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {analysis.keywords.missing.map((keyword, index) => (
+                {safeKeywordsMissing.map((keyword, index) => (
                   <span
                     key={index}
                     className="px-3 py-1 bg-red-100 text-red-800 text-sm rounded-full"
@@ -712,6 +762,17 @@ const ResumeAnalysis: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+    </div>
+    );
+  }
+
+  // If we get here, something unexpected happened
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading your resume analysis...</p>
       </div>
     </div>
   );

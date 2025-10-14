@@ -1,10 +1,11 @@
 import React from 'react';
 import { Hash, CheckCircle, AlertCircle, TrendingUp, Search, Plus } from 'lucide-react';
+import { ensureArray, ensureNumber } from '../../utils/dataHelpers';
 
 interface KeywordsAnalysisProps {
-  keywordsFound: string[];
-  keywordsMissing: string[];
-  keywordDensity: number;
+  keywordsFound: string[] | string | null | undefined;
+  keywordsMissing: string[] | string | null | undefined;
+  keywordDensity: number | string | null | undefined;
 }
 
 const KeywordsAnalysis: React.FC<KeywordsAnalysisProps> = ({ 
@@ -12,6 +13,10 @@ const KeywordsAnalysis: React.FC<KeywordsAnalysisProps> = ({
   keywordsMissing, 
   keywordDensity 
 }) => {
+  // Ensure data types are correct, even if backend returns JSON strings
+  const safeKeywordsFound = ensureArray(keywordsFound);
+  const safeKeywordsMissing = ensureArray(keywordsMissing);
+  const safeDensity = ensureNumber(keywordDensity, 0);
   const getDensityColor = (density: number) => {
     if (density >= 70) return 'text-green-600';
     if (density >= 50) return 'text-yellow-600';
@@ -45,32 +50,32 @@ const KeywordsAnalysis: React.FC<KeywordsAnalysisProps> = ({
             <span className="font-semibold text-gray-900">Keyword Density</span>
           </div>
           <div className="text-right">
-            <span className={`text-2xl font-bold ${getDensityColor(keywordDensity)}`}>
-              {keywordDensity}%
+            <span className={`text-2xl font-bold ${getDensityColor(safeDensity)}`}>
+              {safeDensity}%
             </span>
             <div className={`text-xs font-medium px-2 py-1 rounded-full inline-block ml-2 ${
-              keywordDensity >= 70 
+              safeDensity >= 70 
                 ? 'bg-green-100 text-green-800' 
-                : keywordDensity >= 50 
+                : safeDensity >= 50 
                 ? 'bg-yellow-100 text-yellow-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
-              {getDensityLabel(keywordDensity)}
+              {getDensityLabel(safeDensity)}
             </div>
           </div>
         </div>
         
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className={`h-full ${getDensityBgColor(keywordDensity)} transition-all duration-1000 ease-out`}
-            style={{ width: `${keywordDensity}%` }}
+            className={`h-full ${getDensityBgColor(safeDensity)} transition-all duration-1000 ease-out`}
+            style={{ width: `${safeDensity}%` }}
           />
         </div>
         
         <p className="text-sm text-gray-600 mt-2">
-          {keywordDensity >= 70 
+          {safeDensity >= 70 
             ? 'Great keyword coverage! Your resume includes most relevant industry terms.'
-            : keywordDensity >= 50 
+            : safeDensity >= 50 
             ? 'Good keyword usage, but there\'s room for improvement.'
             : 'Low keyword density. Consider adding more industry-relevant terms.'
           }
@@ -83,13 +88,13 @@ const KeywordsAnalysis: React.FC<KeywordsAnalysisProps> = ({
           <CheckCircle className="w-5 h-5 text-green-600" />
           <h4 className="font-semibold text-gray-900">Keywords Found</h4>
           <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-            {keywordsFound.length}
+            {safeKeywordsFound.length}
           </span>
         </div>
         
-        {keywordsFound.length > 0 ? (
+        {safeKeywordsFound.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {keywordsFound.map((keyword, index) => (
+            {safeKeywordsFound.map((keyword, index) => (
               <span
                 key={index}
                 className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full border border-green-200 hover:bg-green-200 transition-colors duration-200"
@@ -113,13 +118,13 @@ const KeywordsAnalysis: React.FC<KeywordsAnalysisProps> = ({
           <AlertCircle className="w-5 h-5 text-orange-600" />
           <h4 className="font-semibold text-gray-900">Suggested Keywords</h4>
           <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
-            {keywordsMissing.length}
+            {safeKeywordsMissing.length}
           </span>
         </div>
         
-        {keywordsMissing.length > 0 ? (
+        {safeKeywordsMissing.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {keywordsMissing.map((keyword, index) => (
+            {safeKeywordsMissing.map((keyword, index) => (
               <span
                 key={index}
                 className="inline-flex items-center px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full border border-orange-200 hover:bg-orange-200 transition-colors duration-200 cursor-pointer"

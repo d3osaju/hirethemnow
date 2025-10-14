@@ -1,11 +1,14 @@
 import React from 'react';
 import { Lightbulb, ArrowUp, CheckSquare, Zap, Star } from 'lucide-react';
+import { ensureArray } from '../../utils/dataHelpers';
 
 interface RecommendationsSectionProps {
-  recommendations: string[];
+  recommendations: string[] | string | null | undefined;
 }
 
 const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({ recommendations }) => {
+  // Ensure recommendations is always an array, even if backend returns JSON string
+  const safeRecommendations = ensureArray(recommendations);
   const getRecommendationIcon = (index: number) => {
     const icons = [Zap, Star, CheckSquare, ArrowUp, Lightbulb];
     const IconComponent = icons[index % icons.length];
@@ -31,9 +34,9 @@ const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({ recomme
         Actionable Recommendations
       </h3>
       
-      {recommendations.length > 0 ? (
+      {safeRecommendations.length > 0 ? (
         <div className="space-y-4">
-          {recommendations.map((recommendation, index) => {
+          {safeRecommendations.map((recommendation, index) => {
             const IconComponent = getRecommendationIcon(index);
             
             return (
@@ -104,7 +107,7 @@ const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({ recomme
       )}
 
       {/* Tips section */}
-      {recommendations.length > 0 && (
+      {safeRecommendations.length > 0 && (
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="bg-purple-50 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-purple-900 mb-2 flex items-center">

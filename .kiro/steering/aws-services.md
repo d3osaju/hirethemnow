@@ -192,15 +192,30 @@ Password: {from environment variable}
 
 ## Bedrock (AI Service)
 
-### Model
+### Overview
+
+HireThemNow uses AWS Bedrock for **dual-purpose AI processing** in a two-phase resume processing architecture:
+
+1. **Phase 1 - Resume Parsing**: Converts unstructured PDF text into structured JSON data
+2. **Phase 2 - ATS Analysis**: Analyzes structured content for ATS compatibility and scoring
+
+Both phases use the same Amazon Nova Pro model but with different configurations optimized for their specific purposes.
+
+### Model Configuration
 
 - **Model ID**: `amazon.nova-pro-v1:0`
 - **Provider**: Amazon
 - **Type**: Large Language Model
-- **Purpose**: Resume text structuring
 - **Region**: us-east-1
+- **Usage**: Dual-purpose (parsing + analysis)
 
-### Configuration
+### Dual Configuration Architecture
+
+The system implements **separate Bedrock configurations** for parsing and analysis phases to optimize each operation:
+
+#### Phase 1: Resume Parsing Configuration
+
+**Purpose**: Convert extracted PDF text into structured JSON format
 
 ```json
 {
@@ -211,34 +226,126 @@ Password: {from environment variable}
 }
 ```
 
-### API Usage
+**Hardcoded Parameters** (optimized for consistency):
+- **Temperature**: `0.0` - Maximum consistency for data extraction
+- **MaxTokens**: `4096` - Sufficient for structured JSON output
+- **TopP**: `0.9` - Standard setting for parsing operations
+
+#### Phase 2: ATS Analysis Configuration
+
+**Purpose**: Perform detailed ATS analysis and generate recommendations
+
+```json
+{
+  "ResumeParsing": {
+    "AnalysisBedrockModelId": "amazon.nova-pro-v1:0",
+    "AnalysisTimeoutSeconds": 45,
+    "AnalysisMaxTokens": 8192,
+    "AnalysisTemperature": 0.2,
+    "AnalysisTopP": 0.9
+  }
+}
+```
+
+**Configuration Parameters**:
+- **AnalysisBedrockModelId**: Model used for ATS analysis (can be different from parsing model)
+- **AnalysisTimeoutSeconds**: `45` - Longer timeout for complex analysis operations
+- **AnalysisMaxTokens**: `8192` - Higher token limit for detailed analysis and recommendations
+- **AnalysisTemperature**: `0.2` - Low temperature for consistent scoring and recommendations
+- **AnalysisTopP**: `0.9` - High TopP for diverse but relevant feedback
+
+### Complete Configuration Example
+
+```json
+{
+  "ResumeParsing": {
+    "MaxFileSizeBytes": 5242880,
+    "ParsingTimeoutSeconds": 30,
+    "AnalysisTimeoutSeconds": 45,
+    "SupportedFormats": ["pdf"],
+    "EnableBackgroundProcessing": true,
+    "PollingIntervalSeconds": 10,
+    "MaxConcurrentProcessing": 3,
+    "BedrockModelId": "amazon.nova-pro-v1:0",
+    "AnalysisBedrockModelId": "amazon.nova-pro-v1:0",
+    "AnalysisMaxTokens": 8192,
+    "AnalysisTemperature": 0.2,
+    "AnalysisTopP": 0.9
+  }
+}
+```
+
+### API Usage Examples
+
+#### Phase 1: Resume Parsing API Call
 
 ```csharp
-var requestBody = new
+// Parsing configuration - optimized for consistency
+var parsingRequestBody = new
 {
     messages = new[]
     {
         new
         {
             role = "user",
-            content = new[] { new { text = prompt } }
+            content = new[] { new { text = parsingPrompt } }
         }
     },
     inferenceConfig = new
     {
-        maxTokens = 4096,
-        temperature = 0.0,
-        topP = 0.9
+        maxTokens = 4096,        // Sufficient for JSON structure
+        temperature = 0.0,       // Maximum consistency
+        topP = 0.9              // Standard setting
     }
 };
 
-var response = await _bedrockClient.InvokeModelAsync(new InvokeModelRequest
+var parsingResponse = await _bedrockClient.InvokeModelAsync(new InvokeModelRequest
 {
-    ModelId = "amazon.nova-pro-v1:0",
-    Body = requestBodyStream,
+    ModelId = _configuration["ResumeParsing:BedrockModelId"], // amazon.nova-pro-v1:0
+    Body = JsonSerializer.SerializeToUtf8Bytes(parsingRequestBody),
     ContentType = "application/json"
 });
 ```
+
+#### Phase 2: ATS Analysis API Call
+
+```csharp
+// Analysis configuration - optimized for detailed feedback
+var analysisRequestBody = new
+{
+    messages = new[]
+    {
+        new
+        {
+            role = "user",
+            content = new[] { new { text = analysisPrompt } }
+        }
+    },
+    inferenceConfig = new
+    {
+        maxTokens = int.Parse(_configuration["ResumeParsing:AnalysisMaxTokens"]), // 8192
+        temperature = double.Parse(_configuration["ResumeParsing:AnalysisTemperature"]), // 0.2
+        topP = double.Parse(_configuration["ResumeParsing:AnalysisTopP"]) // 0.9
+    }
+};
+
+var analysisResponse = await _bedrockClient.InvokeModelAsync(new InvokeModelRequest
+{
+    ModelId = _configuration["ResumeParsing:AnalysisBedrockModelId"], // amazon.nova-pro-v1:0
+    Body = JsonSerializer.SerializeToUtf8Bytes(analysisRequestBody),
+    ContentType = "application/json"
+});
+```
+
+### Configuration Benefits
+
+This dual configuration approach provides:
+
+1. **Optimized Performance**: Each phase uses settings tuned for its specific purpose
+2. **Independent Scaling**: Parsing and analysis can use different models or configurations
+3. **Cost Control**: Different token limits and timeouts based on operation complexity
+4. **Quality Assurance**: Parsing prioritizes consistency while analysis balances consistency with detailed feedback
+5. **Flexibility**: Easy to adjust parameters for each phase independently
 
 ### Permissions Required
 
@@ -259,18 +366,85 @@ var response = await _bedrockClient.InvokeModelAsync(new InvokeModelRequest
 }
 ```
 
+**Notes**:
+- Same permissions required for both parsing and analysis operations
+- Both phases use the same model (`amazon.nova-pro-v1:0`) but with different configurations
+- If using different models for parsing vs analysis, add additional resource ARNs
+
 ### Cost Optimization
 
-- **On-demand pricing**: Pay per token
-- **Batch processing**: Process multiple resumes efficiently
-- **Caching**: Consider caching common patterns
-- **Timeout**: 30 seconds to prevent long-running requests
+#### Pricing Model
+- **On-demand pricing**: Pay per token for both parsing and analysis
+- **Dual usage**: Each resume requires two Bedrock calls (parsing + analysis)
+- **Token consumption**: 
+  - Parsing: ~4,096 tokens per resume (structured output)
+  - Analysis: ~8,192 tokens per resume (detailed feedback)
+  - Total: ~12,288 tokens per complete resume processing
+
+#### Cost Reduction Strategies
+1. **Optimize prompts**: Reduce token usage while maintaining quality
+2. **Batch processing**: Process multiple resumes efficiently in background service
+3. **Timeout management**: 
+   - Parsing: 30 seconds to prevent long-running requests
+   - Analysis: 45 seconds for complex analysis operations
+4. **Error handling**: Avoid unnecessary retries that increase costs
+5. **Configuration tuning**: 
+   - Use lower maxTokens for parsing (4,096 vs 8,192)
+   - Optimize temperature settings to reduce variability
+6. **Caching considerations**: Consider caching common analysis patterns (future enhancement)
+
+#### Cost Monitoring
+- Monitor token usage per phase (parsing vs analysis)
+- Track cost per resume processed
+- Set up CloudWatch alarms for unexpected usage spikes
+- Review monthly Bedrock costs and optimize accordingly
 
 ### Monitoring
 
-- **CloudWatch Logs**: All Bedrock API calls logged
-- **Metrics**: Invocation count, latency, errors
-- **Alarms**: Set for high error rate or latency
+#### CloudWatch Logs
+- **All Bedrock API calls logged**: Both parsing and analysis operations
+- **Log Groups**: `/aws/elasticbeanstalk/hirethemnow-prod`
+- **Log Patterns**: 
+  - Parsing operations: Search for "ResumeParsingService"
+  - Analysis operations: Search for "ResumeAnalysisService" or "ATS analysis"
+  - Background service: Search for "ResumeParsingBackgroundService"
+
+#### Metrics to Track
+1. **Invocation Metrics**:
+   - Total Bedrock invocations (parsing + analysis)
+   - Parsing invocation count
+   - Analysis invocation count
+   - Success/failure rates per phase
+
+2. **Performance Metrics**:
+   - Parsing latency (target: <10 seconds)
+   - Analysis latency (target: <15 seconds)
+   - End-to-end processing time (parsing + analysis)
+   - Token consumption per phase
+
+3. **Error Metrics**:
+   - Parsing error rate (target: <5%)
+   - Analysis error rate (target: <5%)
+   - Timeout occurrences per phase
+   - Retry attempts and success rates
+
+#### CloudWatch Alarms
+
+Set up alarms for:
+1. **High Error Rate**: >5% for either parsing or analysis
+2. **High Latency**: 
+   - Parsing: >30 seconds
+   - Analysis: >45 seconds
+3. **Token Usage Spikes**: Unusual increases in token consumption
+4. **Service Availability**: Bedrock service errors or throttling
+
+#### Analysis-Specific Monitoring
+
+Additional monitoring for the analysis phase:
+- **Analysis completion rate**: Percentage of analyses that complete successfully after parsing
+- **Analysis retry rate**: How often analyses need to be retried
+- **Score distribution**: Monitor ATS score distributions to identify potential issues
+- **Processing queue depth**: Number of analyses waiting for processing
 
 ---
 
@@ -441,6 +615,8 @@ Value: _xyz789.acm-validations.aws.
 }
 ```
 
+**Analysis Operations**: The `bedrock:InvokeModel` permission covers both parsing and analysis operations. No additional permissions are required for the dual-phase processing architecture.
+
 ### Best Practices
 
 1. **Least Privilege**: Only grant necessary permissions
@@ -455,24 +631,54 @@ Value: _xyz789.acm-validations.aws.
 
 ### Monthly Cost Estimates
 
-**Development** (~$25/month):
+**Development** (~$30-35/month):
 - Elastic Beanstalk (t3.micro): $8
 - RDS (db.t3.micro): $15
 - S3 + CloudFront: $2
+- **Bedrock (dual-phase processing)**: $5-10 (estimated 100-200 resumes/month)
 
-**Production** (~$62/month):
+**Production** (~$75-90/month):
 - Elastic Beanstalk (t3.small): $17
 - RDS (db.t3.small): $30
 - S3 + CloudFront: $15
+- **Bedrock (dual-phase processing)**: $13-28 (estimated 500-1000 resumes/month)
+
+### Bedrock Cost Analysis
+
+#### Token-Based Pricing
+- **Amazon Nova Pro**: ~$0.0008 per 1K input tokens, ~$0.0032 per 1K output tokens
+- **Per Resume Processing**:
+  - Parsing: ~4K input + 4K output tokens = ~$0.016 per resume
+  - Analysis: ~4K input + 8K output tokens = ~$0.029 per resume
+  - **Total per resume**: ~$0.045 (parsing + analysis)
+
+#### Volume Estimates
+- **100 resumes/month**: ~$4.50
+- **500 resumes/month**: ~$22.50
+- **1000 resumes/month**: ~$45.00
 
 ### Cost Reduction Tips
 
-1. **Use Free Tier**: First 12 months
-2. **Reserved Instances**: 1-year commitment for 30% savings
-3. **S3 Lifecycle**: Delete old files after 90 days
-4. **CloudFront**: Use regional edge locations only
-5. **RDS**: Use db.t3.micro for development
-6. **Bedrock**: Optimize prompts to reduce tokens
+1. **Infrastructure Optimization**:
+   - Use Free Tier: First 12 months
+   - Reserved Instances: 1-year commitment for 30% savings
+   - RDS: Use db.t3.micro for development
+   - CloudFront: Use regional edge locations only
+   - S3 Lifecycle: Delete old files after 90 days
+
+2. **Bedrock Cost Optimization**:
+   - **Optimize prompts**: Reduce token usage while maintaining quality
+   - **Efficient parsing**: Use structured prompts to minimize output tokens
+   - **Analysis tuning**: Balance detail level with token consumption
+   - **Error handling**: Minimize failed requests that waste tokens
+   - **Batch processing**: Process resumes efficiently to reduce overhead
+   - **Monitor usage**: Track token consumption and set up cost alerts
+
+3. **Analysis-Specific Optimizations**:
+   - **Temperature settings**: Use 0.2 for consistent, concise responses
+   - **Token limits**: Set appropriate maxTokens (8192) to avoid unnecessary costs
+   - **Retry logic**: Implement smart retry mechanisms to avoid duplicate processing
+   - **Caching**: Consider caching common analysis patterns (future enhancement)
 
 ---
 
@@ -496,9 +702,16 @@ Set up alarms for:
    - High request rate
    - 4xx/5xx errors
 
-4. **Bedrock**
-   - High error rate (>5%)
-   - High latency (>30s)
+4. **Bedrock (Dual-Phase Processing)**
+   - **Parsing Phase**:
+     - High error rate (>5%)
+     - High latency (>30s)
+     - Token usage spikes
+   - **Analysis Phase**:
+     - High error rate (>5%)
+     - High latency (>45s)
+     - Analysis completion rate drops (<90%)
+     - High retry rate (>10%)
 
 ### CloudWatch Dashboards
 
@@ -506,7 +719,12 @@ Create dashboard with:
 - EB health status
 - RDS CPU and connections
 - S3 request metrics
-- Bedrock invocation count
+- **Bedrock metrics (dual-phase)**:
+  - Parsing invocation count and success rate
+  - Analysis invocation count and success rate
+  - Token consumption by phase
+  - End-to-end processing time
+  - Queue depth for both phases
 - SES delivery metrics
 
 ---
@@ -582,10 +800,29 @@ Create dashboard with:
 - Verify bucket exists
 - Check file size limits
 
-**Issue**: Bedrock timeout
-- Increase timeout setting
-- Check model availability
-- Verify IAM permissions
+**Issue**: Bedrock parsing timeout
+- Increase ParsingTimeoutSeconds setting (default: 30s)
+- Check model availability for amazon.nova-pro-v1:0
+- Verify IAM permissions for bedrock:InvokeModel
+- Check PDF complexity and size
+
+**Issue**: Bedrock analysis timeout
+- Increase AnalysisTimeoutSeconds setting (default: 45s)
+- Check if parsing completed successfully first
+- Verify analysis model availability
+- Review AnalysisMaxTokens setting (default: 8192)
+
+**Issue**: Analysis stuck in "waiting_for_parsing"
+- Check parsing status first - analysis depends on parsing completion
+- Verify ResumeContent has "completed" status
+- Check background service logs for parsing errors
+- Ensure parsing and analysis are properly linked via resume_content_id
+
+**Issue**: High analysis failure rate
+- Check AnalysisTemperature and AnalysisTopP settings
+- Verify structured content from parsing phase is valid
+- Review analysis prompt for token limit issues
+- Check for Bedrock service throttling or quotas
 
 **Issue**: Email not sending
 - Check SES sandbox mode
@@ -604,6 +841,18 @@ aws rds describe-db-instances --db-instance-identifier hirethemnow-db --region u
 # List S3 objects
 aws s3 ls s3://hirethemnow-files/resumes/
 
-# Test Bedrock access
-aws bedrock-runtime invoke-model --model-id amazon.nova-pro-v1:0 --body '{"messages":[{"role":"user","content":[{"text":"test"}]}],"inferenceConfig":{"maxTokens":10}}' --region us-east-1 output.json
+# Test Bedrock access (parsing configuration)
+aws bedrock-runtime invoke-model --model-id amazon.nova-pro-v1:0 --body '{"messages":[{"role":"user","content":[{"text":"test parsing"}]}],"inferenceConfig":{"maxTokens":4096,"temperature":0.0,"topP":0.9}}' --region us-east-1 parsing-test.json
+
+# Test Bedrock access (analysis configuration)
+aws bedrock-runtime invoke-model --model-id amazon.nova-pro-v1:0 --body '{"messages":[{"role":"user","content":[{"text":"test analysis"}]}],"inferenceConfig":{"maxTokens":8192,"temperature":0.2,"topP":0.9}}' --region us-east-1 analysis-test.json
+
+# Check parsing logs
+aws logs filter-log-events --log-group-name /aws/elasticbeanstalk/hirethemnow-prod --filter-pattern "ResumeParsingService" --start-time $(date -d '1 hour ago' +%s)000
+
+# Check analysis logs
+aws logs filter-log-events --log-group-name /aws/elasticbeanstalk/hirethemnow-prod --filter-pattern "ResumeAnalysisService" --start-time $(date -d '1 hour ago' +%s)000
+
+# Check background service logs
+aws logs filter-log-events --log-group-name /aws/elasticbeanstalk/hirethemnow-prod --filter-pattern "ResumeParsingBackgroundService" --start-time $(date -d '1 hour ago' +%s)000
 ```

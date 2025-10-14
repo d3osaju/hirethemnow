@@ -1,12 +1,16 @@
 import React from 'react';
 import { Eye, AlertTriangle, CheckCircle, BookOpen, FileText } from 'lucide-react';
+import { ensureArray, ensureNumber } from '../../utils/dataHelpers';
 
 interface ReadabilitySectionProps {
-  score: number;
-  issues: string[];
+  score: number | string | null | undefined;
+  issues: string[] | string | null | undefined;
 }
 
 const ReadabilitySection: React.FC<ReadabilitySectionProps> = ({ score, issues }) => {
+  // Ensure data types are correct, even if backend returns JSON strings
+  const safeScore = ensureNumber(score, 0);
+  const safeIssues = ensureArray(issues);
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
@@ -48,25 +52,25 @@ const ReadabilitySection: React.FC<ReadabilitySectionProps> = ({ score, issues }
       </h3>
 
       {/* Readability Score */}
-      <div className={`mb-6 p-4 rounded-lg border ${getScoreBgLightColor(score)}`}>
+      <div className={`mb-6 p-4 rounded-lg border ${getScoreBgLightColor(safeScore)}`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <BookOpen className={`w-5 h-5 ${getScoreColor(score)}`} />
+            <BookOpen className={`w-5 h-5 ${getScoreColor(safeScore)}`} />
             <span className="font-semibold text-gray-900">Readability Score</span>
           </div>
           <div className="text-right">
-            <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
-              {score}
+            <span className={`text-2xl font-bold ${getScoreColor(safeScore)}`}>
+              {safeScore}
             </span>
             <span className="text-sm text-gray-500">/100</span>
             <div className={`text-xs font-medium px-2 py-1 rounded-full inline-block ml-2 ${
-              score >= 80 
+              safeScore >= 80 
                 ? 'bg-green-100 text-green-800' 
-                : score >= 60 
+                : safeScore >= 60 
                 ? 'bg-yellow-100 text-yellow-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
-              {getScoreLabel(score)}
+              {getScoreLabel(safeScore)}
             </div>
           </div>
         </div>
@@ -74,25 +78,25 @@ const ReadabilitySection: React.FC<ReadabilitySectionProps> = ({ score, issues }
         {/* Progress bar */}
         <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-2">
           <div
-            className={`h-full ${getScoreBgColor(score)} transition-all duration-1000 ease-out`}
-            style={{ width: `${score}%` }}
+            className={`h-full ${getScoreBgColor(safeScore)} transition-all duration-1000 ease-out`}
+            style={{ width: `${safeScore}%` }}
           />
         </div>
         
         <p className="text-sm text-gray-700">
-          {getScoreDescription(score)}
+          {getScoreDescription(safeScore)}
         </p>
       </div>
 
       {/* Readability Issues */}
       <div className="mb-6">
         <div className="flex items-center space-x-2 mb-3">
-          {issues.length > 0 ? (
+          {safeIssues.length > 0 ? (
             <>
               <AlertTriangle className="w-5 h-5 text-orange-600" />
               <h4 className="font-semibold text-gray-900">Readability Issues</h4>
               <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2 py-1 rounded-full">
-                {issues.length}
+                {safeIssues.length}
               </span>
             </>
           ) : (
@@ -106,9 +110,9 @@ const ReadabilitySection: React.FC<ReadabilitySectionProps> = ({ score, issues }
           )}
         </div>
         
-        {issues.length > 0 ? (
+        {safeIssues.length > 0 ? (
           <div className="space-y-2">
-            {issues.map((issue, index) => (
+            {safeIssues.map((issue, index) => (
               <div 
                 key={index} 
                 className="flex items-start space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200"

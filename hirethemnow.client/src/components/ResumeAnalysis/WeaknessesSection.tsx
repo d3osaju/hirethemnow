@@ -1,11 +1,15 @@
 import React from 'react';
 import { AlertTriangle, TrendingDown, Target, ArrowRight } from 'lucide-react';
+import { ensureArray } from '../../utils/dataHelpers';
 
 interface WeaknessesSectionProps {
-  weaknesses: string[];
+  weaknesses: string[] | string | null | undefined;
 }
 
 const WeaknessesSection: React.FC<WeaknessesSectionProps> = ({ weaknesses }) => {
+  // Ensure weaknesses is always an array, even if backend returns JSON string
+  const safeWeaknesses = ensureArray(weaknesses);
+  
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -13,9 +17,9 @@ const WeaknessesSection: React.FC<WeaknessesSectionProps> = ({ weaknesses }) => 
         Areas for Improvement
       </h3>
       
-      {weaknesses.length > 0 ? (
+      {safeWeaknesses.length > 0 ? (
         <div className="space-y-4">
-          {weaknesses.map((weakness, index) => (
+          {safeWeaknesses.map((weakness, index) => (
             <div 
               key={index} 
               className="flex items-start space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors duration-200 group"
@@ -41,9 +45,9 @@ const WeaknessesSection: React.FC<WeaknessesSectionProps> = ({ weaknesses }) => 
               <div>
                 <h4 className="font-semibold">Focus Areas</h4>
                 <p className="text-sm opacity-90">
-                  {weaknesses.length === 1 
+                  {safeWeaknesses.length === 1 
                     ? 'Address this area to improve your ATS score.' 
-                    : `Focus on these ${weaknesses.length} areas to significantly boost your ATS compatibility.`
+                    : `Focus on these ${safeWeaknesses.length} areas to significantly boost your ATS compatibility.`
                   }
                 </p>
               </div>
@@ -64,7 +68,7 @@ const WeaknessesSection: React.FC<WeaknessesSectionProps> = ({ weaknesses }) => 
       )}
 
       {/* Tips section */}
-      {weaknesses.length > 0 && (
+      {safeWeaknesses.length > 0 && (
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="bg-yellow-50 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center">

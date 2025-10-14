@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, ApiResponse } from '../types';
+import type { User, ApiResponse, ResumeAnalysisResult } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;
@@ -255,28 +255,7 @@ export const resumeAnalysisAPI = {
     return response.data;
   },
 
-  getResults: async (): Promise<ApiResponse<{
-    id: number;
-    userId: string;
-    atsOverallScore: number;
-    atsFormattingScore: number;
-    atsKeywordsScore: number;
-    atsExperienceScore: number;
-    atsEducationScore: number;
-    atsSkillsScore: number;
-    atsAchievementsScore: number;
-    strengths: string[];
-    weaknesses: string[];
-    recommendations: string[];
-    keywordsFound: string[];
-    keywordsMissing: string[];
-    keywordDensity: number;
-    readabilityScore: number;
-    readabilityIssues: string[];
-    sectionFeedback: string;
-    status: string;
-    processedAt: string;
-  }>> => {
+  getResults: async (): Promise<ApiResponse<ResumeAnalysisResult>> => {
     const response = await api.get('/resume/analysis/results');
     return response.data;
   },

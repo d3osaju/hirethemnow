@@ -2,59 +2,126 @@
 
 ## Overview
 
-HireThemNow uses a two-stage resume parsing system:
+HireThemNow uses a comprehensive two-phase resume processing system that combines parsing and analysis:
+
+### Phase 1: Resume Parsing
 1. **Text Extraction**: PdfPig library extracts plain text from PDF files
 2. **AI Structuring**: AWS Bedrock (Amazon Nova Pro) structures the text into JSON format
 
+### Phase 2: ATS Analysis
+1. **Content Analysis**: AWS Bedrock analyzes the structured content for ATS compatibility
+2. **Score Calculation**: Generates detailed scores across multiple dimensions (formatting, keywords, experience, etc.)
+3. **Recommendations**: Provides actionable feedback for resume improvement
+
+The two phases are **automatically linked** - when parsing completes successfully, the analysis phase begins immediately without user intervention.
+
 ## Architecture
+
+### Two-Phase Processing Model
+
+The system implements a **sequential two-phase processing architecture** where each phase has distinct responsibilities:
+
+**Phase 1: Resume Parsing**
+- Converts unstructured PDF content into structured JSON data
+- Focuses on data extraction and organization
+- Uses parsing-optimized Bedrock configuration (lower temperature for consistency)
+- Creates foundation for subsequent analysis
+
+**Phase 2: ATS Analysis** 
+- Analyzes structured content for ATS compatibility and optimization
+- Generates detailed scoring across multiple dimensions
+- Uses analysis-optimized Bedrock configuration (higher token limits for detailed feedback)
+- Provides actionable recommendations for improvement
+
+**Automatic Transition**: The system automatically transitions from parsing to analysis when parsing completes successfully. Analysis records are created with status "waiting_for_parsing" and automatically progress to "processing" once the corresponding parsing is complete.
 
 ### Components
 
-1. **ResumeController**: Handles resume upload API endpoint
-2. **ResumeParsingService**: Core parsing logic
-3. **ResumeParsingBackgroundService**: Background worker for async processing
-4. **BedrockAgentService**: AWS Bedrock integration
-5. **S3Service**: File storage and retrieval
+1. **ResumeController**: Handles resume upload API endpoint and creates both parsing and analysis records
+2. **ResumeParsingService**: Core parsing logic for Phase 1 (text extraction and structuring)
+3. **ResumeAnalysisService**: Core analysis logic for Phase 2 (ATS scoring and recommendations)
+4. **ResumeParsingBackgroundService**: Dual-phase background worker that processes both parsing and analysis
+5. **BedrockAgentService**: AWS Bedrock integration with different configurations for parsing vs analysis
+6. **S3Service**: File storage and retrieval
 
 ### Processing Flow
 
+The system follows a **sequential two-phase processing flow** with automatic transition between phases:
+
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                        UPLOAD & INITIALIZATION                  │
+└─────────────────────────────────────────────────────────────────┘
 User uploads PDF
     ↓
 Store in S3 with "pending" status
     ↓
 Create ResumeContent record (status: pending)
     ↓
-Create ResumeAnalysis record (status: waiting_for_parsing)
+Create ResumeAnalysis record (status: waiting_for_parsing) ← AUTOMATIC LINKING
     ↓
-Background service polls for pending resumes (PARSING PHASE)
+┌─────────────────────────────────────────────────────────────────┐
+│                         PHASE 1: PARSING                       │
+│                    (Priority Processing)                        │
+└─────────────────────────────────────────────────────────────────┘
+Background service polls for pending resumes
+    ↓
+Update ResumeContent status to "processing"
     ↓
 Download PDF from S3
     ↓
-PdfPig extracts text
+PdfPig extracts plain text
     ↓
-Send text to Bedrock Nova Pro for structuring
+Send text to Bedrock Nova Pro (parsing configuration)
     ↓
 Bedrock returns structured JSON
     ↓
-Store parsed content in database (status: completed)
+Store parsed content in database
+    ↓
+Update ResumeContent status to "completed"
     ↓
 Send parsing complete email notification
     ↓
-Background service polls for pending analyses (ANALYSIS PHASE)
+AUTOMATIC TRIGGER: ResumeAnalysis status changes from "waiting_for_parsing" to ready for processing
     ↓
-Retrieve parsed content from database
+┌─────────────────────────────────────────────────────────────────┐
+│                        PHASE 2: ANALYSIS                       │
+│                   (Dependent on Phase 1)                       │
+└─────────────────────────────────────────────────────────────────┘
+Background service polls for pending analyses
     ↓
-Send structured content to Bedrock Nova Pro for ATS analysis
+Verify ResumeContent status is "completed" ← DEPENDENCY CHECK
+    ↓
+Update ResumeAnalysis status to "processing"
+    ↓
+Retrieve structured content from database
+    ↓
+Send structured content to Bedrock Nova Pro (analysis configuration)
     ↓
 Bedrock returns detailed ATS analysis with scores
     ↓
-Calculate weighted overall score
+Calculate weighted overall score (formatting: 20%, keywords: 25%, experience: 20%, education: 10%, skills: 15%, achievements: 10%)
     ↓
-Store analysis results in database (status: completed)
+Store analysis results in database
     ↓
-Send analysis complete email notification with ATS score
+Update ResumeAnalysis status to "completed"
+    ↓
+Send analysis complete email notification with ATS score and recommendations
 ```
+
+### Phase Relationship and Dependencies
+
+**Sequential Dependency**: Phase 2 (Analysis) cannot begin until Phase 1 (Parsing) completes successfully. The system enforces this through:
+
+1. **Status Linking**: ResumeAnalysis records start with "waiting_for_parsing" status
+2. **Dependency Verification**: Analysis processing checks that corresponding ResumeContent has "completed" status
+3. **Automatic Transition**: No manual intervention required - the system automatically progresses from parsing to analysis
+4. **Error Isolation**: If parsing fails, analysis remains in "waiting_for_parsing" state until parsing succeeds
+
+**Processing Priority**: The background service prioritizes parsing over analysis to ensure the dependency chain flows efficiently:
+- Parsing tasks are processed first in each polling cycle
+- Analysis tasks are processed only after parsing tasks are handled
+- This ensures maximum throughput while respecting dependencies
 
 ## Configuration
 
@@ -95,6 +162,29 @@ Send analysis complete email notification with ATS score
 | AnalysisMaxTokens | int | 8192 | Max tokens for analysis (increased for detailed feedback) |
 | AnalysisTemperature | float | 0.2 | Temperature for analysis (low for consistency) |
 | AnalysisTopP | float | 0.9 | TopP for analysis |
+
+### Dual Bedrock Model Configuration
+
+The system uses **separate Bedrock configurations** for parsing and analysis phases to optimize each operation:
+
+**Parsing Configuration** (Phase 1):
+- **BedrockModelId**: `amazon.nova-pro-v1:0` - Model used for structuring extracted text into JSON
+- **ParsingTimeoutSeconds**: `30` - Shorter timeout for faster parsing operations
+- **Temperature**: `0.0` (hardcoded) - Maximum consistency for data extraction
+- **MaxTokens**: `4096` (hardcoded) - Sufficient for structured JSON output
+
+**Analysis Configuration** (Phase 2):
+- **AnalysisBedrockModelId**: `amazon.nova-pro-v1:0` - Model used for detailed ATS analysis
+- **AnalysisTimeoutSeconds**: `45` - Longer timeout for complex analysis operations
+- **AnalysisTemperature**: `0.2` - Low temperature for consistent scoring and recommendations
+- **AnalysisTopP**: `0.9` - High TopP for diverse but relevant feedback
+- **AnalysisMaxTokens**: `8192` - Higher token limit for detailed analysis and recommendations
+
+This dual configuration approach allows:
+1. **Optimized Performance**: Each phase uses settings tuned for its specific purpose
+2. **Independent Scaling**: Parsing and analysis can use different models or configurations
+3. **Cost Control**: Different token limits and timeouts based on operation complexity
+4. **Quality Assurance**: Parsing prioritizes consistency while analysis balances consistency with detailed feedback
 
 ## Supported Formats
 
@@ -244,7 +334,9 @@ The system:
 
 ### ResumeParsingBackgroundService
 
-A hosted service that runs continuously with dual-phase processing:
+A hosted service that runs continuously with **dual-phase processing** architecture. The service implements a sophisticated polling mechanism that coordinates both resume parsing and analysis phases while maintaining proper dependencies and resource allocation.
+
+#### Service Architecture
 
 ```csharp
 protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -262,37 +354,259 @@ protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 }
 ```
 
+#### Dual-Phase Polling Mechanism
+
+The background service implements a **sequential dual-phase polling system** that ensures proper dependency management and resource utilization:
+
+**Polling Cycle Structure**:
+1. **Phase 1 Polling**: Query and process pending resume parsing tasks
+2. **Phase 2 Polling**: Query and process pending analysis tasks (only after Phase 1 completes)
+3. **Wait Interval**: Configurable delay (default: 10 seconds) before next cycle
+4. **Repeat**: Continuous loop until service shutdown
+
+**Polling Queries**:
+- **Phase 1**: `SELECT * FROM resume_contents WHERE parsing_status = 'pending' ORDER BY uploaded_at ASC`
+- **Phase 2**: `SELECT * FROM resume_analyses WHERE status = 'waiting_for_parsing' AND resume_content_id IN (SELECT id FROM resume_contents WHERE parsing_status = 'completed') ORDER BY created_at ASC`
+
+**Polling Frequency**:
+- **Interval**: 10 seconds (configurable via `PollingIntervalSeconds`)
+- **Continuous**: Service runs 24/7 without interruption
+- **Graceful Shutdown**: Respects cancellation tokens for clean service stops
+
+#### Priority System (Parsing Before Analysis)
+
+The service implements a **strict priority system** that ensures parsing always takes precedence over analysis:
+
+**Priority Enforcement**:
+1. **Sequential Processing**: Phase 1 (parsing) always completes before Phase 2 (analysis) begins in each cycle
+2. **Resource Allocation**: Available processing slots are allocated to parsing first, then analysis
+3. **Dependency Respect**: Analysis cannot begin until corresponding parsing is complete
+4. **Queue Management**: Parsing tasks are processed in upload order (FIFO), analysis tasks in creation order
+
+**Priority Benefits**:
+- **Efficient Flow**: Ensures maximum throughput by preventing analysis bottlenecks
+- **Resource Optimization**: Prevents analysis tasks from consuming slots when parsing is pending
+- **User Experience**: Users see parsing completion faster, enabling immediate analysis start
+- **System Stability**: Reduces resource contention between phases
+
+**Priority Implementation**:
+```csharp
+// Phase 1: Always process parsing first
+var availableSlots = maxConcurrentProcessing - currentlyProcessing;
+var pendingResumes = await GetPendingResumesAsync(availableSlots);
+await ProcessResumesInParallel(pendingResumes);
+
+// Phase 2: Only process analysis with remaining slots
+var remainingSlots = maxConcurrentProcessing - currentlyProcessing;
+if (remainingSlots > 0)
+{
+    var pendingAnalyses = await GetPendingAnalysesAsync(remainingSlots);
+    await ProcessAnalysesInParallel(pendingAnalyses);
+}
+```
+
 ### Processing Logic
 
-**Phase 1 - Resume Parsing**:
+The background service implements **dual-phase processing** with automatic phase transitions:
+
+**Phase 1 - Resume Parsing** (Priority Processing):
 1. **Query pending resumes**: Get ResumeContent records with status "pending"
 2. **Update status**: Set to "processing"
-3. **Download from S3**: Get PDF file
-4. **Extract text**: Use PdfPig
-5. **Structure with AI**: Call Bedrock for content structuring
-6. **Store results**: Update database with structured content
+3. **Download from S3**: Get PDF file using S3Service
+4. **Extract text**: Use PdfPig library for text extraction
+5. **Structure with AI**: Call Bedrock with parsing-specific configuration (temperature: 0.0, maxTokens: 4096)
+6. **Store results**: Update database with structured JSON content
 7. **Update status**: Set to "completed" or "failed"
 8. **Send notification**: Email user about parsing completion
+9. **Trigger analysis**: Completion automatically makes associated ResumeAnalysis eligible for processing
 
-**Phase 2 - ATS Analysis**:
+**Phase 2 - ATS Analysis** (Dependent Processing):
 1. **Query pending analyses**: Get ResumeAnalysis records with status "waiting_for_parsing"
-2. **Check parsing status**: Verify corresponding ResumeContent is "completed"
-3. **Update status**: Set analysis to "processing"
-4. **Retrieve parsed content**: Get structured content from database
-5. **Analyze with AI**: Call Bedrock for detailed ATS analysis
-6. **Calculate scores**: Apply weighted scoring algorithm
-7. **Store results**: Update database with analysis results
-8. **Update status**: Set to "completed" or "failed"
-9. **Send notification**: Email user with ATS score and results
+2. **Dependency check**: Verify corresponding ResumeContent has status "completed"
+3. **Skip if not ready**: If parsing incomplete, analysis remains in queue for next cycle
+4. **Update status**: Set analysis to "processing" only if parsing is complete
+5. **Retrieve parsed content**: Get structured JSON content from ResumeContent record
+6. **Analyze with AI**: Call Bedrock with analysis-specific configuration (temperature: 0.2, maxTokens: 8192, topP: 0.9)
+7. **Calculate scores**: Apply weighted scoring algorithm across 6 dimensions
+8. **Store results**: Update database with detailed analysis results, scores, and recommendations
+9. **Update status**: Set to "completed" or "failed"
+10. **Send notification**: Email user with ATS score and actionable recommendations
 
-### Concurrency
+**Phase Coordination**:
+- **Automatic Linking**: Each ResumeContent record has a corresponding ResumeAnalysis record created during upload
+- **Status Synchronization**: Analysis status automatically reflects parsing progress
+- **Error Handling**: Parsing failures prevent analysis from proceeding, maintaining data integrity
+- **Resource Management**: Processing slots are allocated with parsing priority to maintain efficient flow
 
-- Max concurrent processing: 3 total (configurable) across both parsing and analysis
-- Polling interval: 10 seconds (configurable)
-- Parsing takes priority over analysis
-- Each resume/analysis processed independently
-- Failures don't block other processing
-- Available slots calculated dynamically (parsing first, then analysis)
+### Phase Relationship and Coordination
+
+**Dependency Management**:
+- **One-to-One Relationship**: Each ResumeContent record has exactly one corresponding ResumeAnalysis record
+- **Foreign Key Linking**: ResumeAnalysis.resume_content_id references ResumeContent.id
+- **Status Coordination**: Analysis cannot proceed until parsing reaches "completed" status
+- **Automatic Progression**: No manual intervention required for phase transitions
+
+**Data Flow Between Phases**:
+1. **Phase 1 Output → Phase 2 Input**: Structured JSON from parsing becomes input for analysis
+2. **Shared Context**: Both phases access the same user context and file metadata
+3. **Error Propagation**: Parsing failures prevent analysis from starting
+4. **Success Chaining**: Parsing success automatically enables analysis processing
+
+**Processing Coordination**:
+- **Sequential Processing**: Analysis waits for parsing completion on the same resume
+- **Parallel Processing**: Different resumes can be in different phases simultaneously
+- **Priority System**: Parsing tasks are processed before analysis tasks in each polling cycle
+- **Resource Sharing**: Both phases share the same Bedrock service but with different configurations
+
+#### Automatic Status Transitions
+
+The background service implements **intelligent automatic status transitions** that coordinate the flow between parsing and analysis phases without manual intervention:
+
+**Status Transition Flow**:
+```
+Upload → pending → processing → completed → analysis_ready
+   ↓         ↓          ↓           ↓            ↓
+ResumeContent Status Progression → Triggers Analysis Status Change
+   ↓
+waiting_for_parsing → processing → completed
+         ↓               ↓           ↓
+    ResumeAnalysis Status Progression
+```
+
+**Automatic Transition Triggers**:
+
+1. **Upload Completion → Parsing Queue**:
+   - **Trigger**: Resume upload to S3 completes successfully
+   - **Action**: ResumeContent status set to "pending"
+   - **Side Effect**: ResumeAnalysis created with status "waiting_for_parsing"
+   - **Next Step**: Background service picks up in next polling cycle
+
+2. **Parsing Start → Processing State**:
+   - **Trigger**: Background service selects resume for processing
+   - **Action**: ResumeContent status updated to "processing"
+   - **Side Effect**: Analysis remains in "waiting_for_parsing"
+   - **Timing**: Immediate when processing begins
+
+3. **Parsing Success → Analysis Eligibility**:
+   - **Trigger**: Resume parsing completes successfully
+   - **Action**: ResumeContent status updated to "completed"
+   - **Side Effect**: Associated ResumeAnalysis becomes eligible for processing
+   - **Next Step**: Analysis will be picked up in subsequent polling cycles
+
+4. **Analysis Start → Processing State**:
+   - **Trigger**: Background service finds completed parsing and available slots
+   - **Action**: ResumeAnalysis status updated to "processing"
+   - **Dependency Check**: Verifies ResumeContent.parsing_status = "completed"
+   - **Timing**: Next polling cycle after parsing completion
+
+5. **Analysis Completion → Final State**:
+   - **Trigger**: Analysis processing completes (success or failure)
+   - **Action**: ResumeAnalysis status updated to "completed" or "failed"
+   - **Side Effect**: Email notification sent to user
+   - **Final State**: Process complete for this resume
+
+**Status Transition Logic**:
+```csharp
+// Automatic transition detection in polling cycle
+private async Task<List<ResumeAnalysis>> GetReadyAnalysesAsync(int maxCount)
+{
+    return await _context.ResumeAnalyses
+        .Where(ra => ra.Status == "waiting_for_parsing")
+        .Where(ra => ra.ResumeContent.ParsingStatus == "completed")
+        .OrderBy(ra => ra.CreatedAt)
+        .Take(maxCount)
+        .ToListAsync();
+}
+
+// Status update with automatic progression
+private async Task CompleteParsingAsync(ResumeContent resume)
+{
+    resume.ParsingStatus = "completed";
+    resume.ParsedAt = DateTime.UtcNow;
+    
+    // Automatic trigger: Analysis becomes eligible
+    var analysis = await _context.ResumeAnalyses
+        .FirstOrDefaultAsync(ra => ra.ResumeContentId == resume.Id);
+    
+    if (analysis != null && analysis.Status == "waiting_for_parsing")
+    {
+        // Analysis will be picked up in next polling cycle automatically
+        _logger.LogInformation("Resume {ResumeId} parsing completed. Analysis {AnalysisId} now eligible for processing.", 
+            resume.Id, analysis.Id);
+    }
+    
+    await _context.SaveChangesAsync();
+}
+```
+
+**Transition Reliability**:
+- **Atomic Updates**: Status changes are wrapped in database transactions
+- **Consistency Checks**: Dependency validation before status transitions
+- **Error Recovery**: Failed transitions don't corrupt system state
+- **Idempotency**: Safe to retry status transitions
+- **Audit Trail**: All status changes logged with timestamps
+
+**Transition Monitoring**:
+- **Status Tracking**: Real-time monitoring of status progression
+- **Stuck Detection**: Identification of resumes stuck in intermediate states
+- **Performance Metrics**: Time spent in each status state
+- **Error Analysis**: Tracking of failed transitions and their causes
+
+#### Concurrency Management Across Both Phases
+
+The service implements **sophisticated concurrency management** that coordinates resource allocation between parsing and analysis phases:
+
+**Concurrency Configuration**:
+- **Max Concurrent Processing**: 3 total slots (configurable via `MaxConcurrentProcessing`)
+- **Shared Resource Pool**: Both phases share the same processing slot pool
+- **Dynamic Allocation**: Slots are allocated dynamically based on phase priority and availability
+- **Real-time Tracking**: Active processing count monitored continuously
+
+**Slot Allocation Strategy**:
+1. **Phase 1 Priority**: Parsing tasks get first access to available slots
+2. **Remaining Capacity**: Analysis tasks use slots not consumed by parsing
+3. **Dynamic Reallocation**: Slots become available as tasks complete
+4. **No Reservation**: No slots are reserved exclusively for either phase
+
+**Concurrency Control Implementation**:
+```csharp
+private async Task ProcessPendingResumesAsync()
+{
+    var currentlyProcessing = GetCurrentlyProcessingCount();
+    var availableSlots = _maxConcurrentProcessing - currentlyProcessing;
+    
+    if (availableSlots <= 0) return;
+    
+    var pendingResumes = await GetPendingResumesAsync(availableSlots);
+    var tasks = pendingResumes.Select(ProcessResumeAsync);
+    await Task.WhenAll(tasks);
+}
+
+private async Task ProcessPendingAnalysesAsync()
+{
+    var currentlyProcessing = GetCurrentlyProcessingCount();
+    var availableSlots = _maxConcurrentProcessing - currentlyProcessing;
+    
+    if (availableSlots <= 0) return;
+    
+    var pendingAnalyses = await GetReadyAnalysesAsync(availableSlots);
+    var tasks = pendingAnalyses.Select(ProcessAnalysisAsync);
+    await Task.WhenAll(tasks);
+}
+```
+
+**Concurrency Benefits**:
+- **Resource Efficiency**: Maximum utilization of available processing capacity
+- **Scalability**: Easy to adjust concurrent processing limits based on system resources
+- **Isolation**: Failures in one task don't affect others
+- **Throughput**: Parallel processing significantly reduces overall processing time
+- **Flexibility**: Can handle varying workloads (parsing-heavy vs analysis-heavy periods)
+
+**Concurrency Monitoring**:
+- **Active Task Tracking**: Real-time count of processing tasks
+- **Slot Utilization**: Monitoring of slot usage patterns
+- **Performance Metrics**: Processing time and throughput measurements
+- **Resource Contention**: Detection of bottlenecks and resource conflicts
 
 ## Database Schema
 

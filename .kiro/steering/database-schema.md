@@ -110,7 +110,7 @@ Stores uploaded resume files and parsing status.
 
 ### ResumeAnalyses
 
-Stores AI-powered resume analysis results and ATS scores.
+Stores AI-powered resume analysis results and ATS scores. Each analysis is linked to a specific ResumeContent record through a foreign key relationship, enabling the two-phase processing architecture where parsing must complete before analysis begins.
 
 **Table Name**: `resume_analyses`
 
@@ -118,41 +118,56 @@ Stores AI-powered resume analysis results and ATS scores.
 |--------|------|----------|---------|-------------|
 | id | int | No | Auto | Primary key |
 | user_id | string | No | - | Foreign key to Users |
-| resume_url | string | Yes | null | S3 URL |
+| resume_content_id | int | Yes | null | Foreign key to ResumeContents (links analysis to specific resume) |
+| resume_url | string | Yes | null | S3 URL (legacy field) |
 | personal_info | string | Yes | null | JSON: name, email, phone, location |
-| technical_skills | string | Yes | null | JSON array |
-| soft_skills | string | Yes | null | JSON array |
-| programming_languages | string | Yes | null | JSON array |
-| tools | string | Yes | null | JSON array |
-| experience_summary | string | Yes | null | Text summary |
-| education | string | Yes | null | JSON array |
-| certifications | string | Yes | null | JSON array |
-| summary | string | Yes | null | Resume summary |
-| years_of_experience | int | Yes | null | Total years |
-| s3_url | string | Yes | null | S3 file URL |
+| technical_skills | string | Yes | null | JSON array of technical skills |
+| soft_skills | string | Yes | null | JSON array of soft skills |
+| programming_languages | string | Yes | null | JSON array of programming languages |
+| tools | string | Yes | null | JSON array of tools and technologies |
+| experience_summary | string | Yes | null | Text summary of work experience |
+| education | string | Yes | null | JSON array of education records |
+| certifications | string | Yes | null | JSON array of certifications |
+| summary | string | Yes | null | Resume summary/objective |
+| years_of_experience | int | Yes | null | Total years of experience |
+| s3_url | string | Yes | null | S3 file URL (legacy field) |
 | ats_overall_score | int | Yes | null | Overall ATS score (0-100) |
-| ats_formatting_score | int | Yes | null | Formatting score |
-| ats_keywords_score | int | Yes | null | Keywords score |
-| ats_experience_score | int | Yes | null | Experience score |
-| ats_education_score | int | Yes | null | Education score |
-| ats_skills_score | int | Yes | null | Skills score |
-| ats_achievements_score | int | Yes | null | Achievements score |
-| strengths | string | Yes | null | JSON array |
-| weaknesses | string | Yes | null | JSON array |
-| improvements | string | Yes | null | JSON array |
-| keywords_found | string | Yes | null | JSON array |
-| keywords_missing | string | Yes | null | JSON array |
-| keyword_density | int | Yes | null | Percentage |
-| readability_score | int | Yes | null | Score (0-100) |
-| readability_issues | string | Yes | null | JSON array |
-| recommendations | string | Yes | null | JSON array |
-| status | string | No | "pending" | "pending", "processing", "completed", "failed" |
-| processed_at | DateTime | No | UtcNow | Processing timestamp |
+| ats_formatting_score | int | Yes | null | Formatting score (0-100) |
+| ats_keywords_score | int | Yes | null | Keywords score (0-100) |
+| ats_experience_score | int | Yes | null | Experience score (0-100) |
+| ats_education_score | int | Yes | null | Education score (0-100) |
+| ats_skills_score | int | Yes | null | Skills score (0-100) |
+| ats_achievements_score | int | Yes | null | Achievements score (0-100) |
+| strengths | string | Yes | null | JSON array of resume strengths |
+| weaknesses | string | Yes | null | JSON array of resume weaknesses |
+| improvements | string | Yes | null | JSON array of improvement suggestions (legacy) |
+| recommendations | string | Yes | null | JSON array of actionable recommendations |
+| keywords_found | string | Yes | null | JSON array of keywords found in resume |
+| keywords_missing | string | Yes | null | JSON array of missing industry keywords |
+| keyword_density | int | Yes | null | Keyword density percentage (0-100) |
+| readability_score | int | Yes | null | Readability score (0-100) |
+| readability_issues | string | Yes | null | JSON array of readability issues |
+| section_feedback | string | Yes | null | JSON object with per-section analysis feedback |
+| analysis_error | string | Yes | null | Error message if analysis failed |
+| status | string | No | "waiting_for_parsing" | Analysis status: "waiting_for_parsing", "processing", "completed", "failed" |
+| processed_at | DateTime | Yes | null | Analysis completion timestamp |
 | created_at | DateTime | No | UtcNow | Creation timestamp |
 | updated_at | DateTime | No | UtcNow | Last update timestamp |
 
+**Indexes**:
+- Index on `user_id`
+- Index on `status` (for background service polling)
+- Index on `resume_content_id` (foreign key)
+
 **Relationships**:
 - Many-to-one with `Users` (CASCADE delete)
+- Many-to-one with `ResumeContents` via `resume_content_id` (SET NULL on delete)
+
+**Status Values**:
+- `waiting_for_parsing`: Analysis created but waiting for corresponding resume parsing to complete
+- `processing`: Analysis is currently being performed by background service
+- `completed`: Analysis finished successfully with results stored
+- `failed`: Analysis failed due to error (see analysis_error column)
 
 ---
 
@@ -219,8 +234,153 @@ Users (1) ----< (Many) ResumeContents
 Users (1) ----< (Many) ResumeAnalyses
 Users (1) ---- (1) EmailPreferences
 
+ResumeContents (1) ----< (Many) ResumeAnalyses
+
 Industries (1) ----< (Many) SkillExpertises
 ```
+
+## Detailed Relationships
+
+### Users ↔ ResumeContents
+- **Type**: One-to-Many
+- **Foreign Key**: `ResumeContents.user_id` → `Users.Id`
+- **Cascade Behavior**: CASCADE DELETE (when user is deleted, all their resume content is deleted)
+- **Purpose**: Links resume uploads to user accounts
+
+### Users ↔ ResumeAnalyses  
+- **Type**: One-to-Many
+- **Foreign Key**: `ResumeAnalyses.user_id` → `Users.Id`
+- **Cascade Behavior**: CASCADE DELETE (when user is deleted, all their analyses are deleted)
+- **Purpose**: Links analysis results to user accounts
+
+### Users ↔ EmailPreferences
+- **Type**: One-to-One
+- **Foreign Key**: `EmailPreferences.UserId` → `Users.Id`
+- **Cascade Behavior**: CASCADE DELETE (when user is deleted, their email preferences are deleted)
+- **Constraint**: Unique constraint on `EmailPreferences.UserId`
+- **Purpose**: Stores user-specific email notification settings
+
+### ResumeContents ↔ ResumeAnalyses
+- **Type**: One-to-Many
+- **Foreign Key**: `ResumeAnalyses.resume_content_id` → `ResumeContents.id`
+- **Cascade Behavior**: SET NULL (when resume content is deleted, analysis records remain but foreign key is set to null)
+- **Purpose**: Links analysis results to specific resume versions, enabling two-phase processing architecture
+- **Dependency**: Analysis cannot proceed until corresponding ResumeContent has status "completed"
+- **Index**: `IX_resume_analyses_resume_content_id` for efficient lookups
+
+### Industries ↔ SkillExpertises
+- **Type**: One-to-Many  
+- **Foreign Key**: `SkillExpertises.IndustryId` → `Industries.Id`
+- **Cascade Behavior**: CASCADE DELETE (when industry is deleted, all associated skills are deleted)
+- **Purpose**: Categorizes skills by industry for user profile suggestions
+
+## Indexes and Performance
+
+### Primary Indexes
+
+All tables have primary key indexes automatically created:
+- `Users.Id` (Primary Key)
+- `ResumeContents.id` (Primary Key, Auto-increment)
+- `ResumeAnalyses.id` (Primary Key, Auto-increment)
+- `EmailPreferences.Id` (Primary Key)
+- `Industries.Id` (Primary Key, Auto-increment)
+- `SkillExpertises.Id` (Primary Key, Auto-increment)
+- `ReleaseNotes.Id` (Primary Key, Auto-increment)
+
+### Foreign Key Indexes
+
+Foreign key relationships have indexes for efficient joins:
+- `IX_EmailPreferences_UserId` on `EmailPreferences.UserId`
+- `IX_resume_contents_user_id` on `ResumeContents.user_id`
+- `IX_resume_analyses_user_id` on `ResumeAnalyses.user_id`
+- `IX_resume_analyses_resume_content_id` on `ResumeAnalyses.resume_content_id`
+- `IX_SkillExpertises_IndustryId` on `SkillExpertises.IndustryId`
+
+### Unique Indexes
+
+Enforce data integrity constraints:
+- `IX_Users_Email` (Unique) on `Users.Email`
+- `IX_EmailPreferences_UserId` (Unique) on `EmailPreferences.UserId`
+- `IX_Industries_Name` (Unique) on `Industries.Name`
+
+### Performance Indexes
+
+Optimized for common query patterns:
+
+#### ResumeContents Performance Indexes
+- `IX_resume_contents_user_uploaded` on `(user_id, uploaded_at)` - For user resume history queries
+- `IX_resume_contents_parsing_status` on `parsing_status` - For background service polling
+
+#### ResumeAnalyses Performance Indexes
+- `IX_resume_analyses_status` on `status` - **Critical for background service polling**
+- `IX_resume_analyses_user_status` on `(user_id, status)` - For user-specific status queries
+- `IX_resume_analyses_processed_at` on `processed_at` - For chronological analysis queries
+
+### Analysis Query Performance Considerations
+
+The ResumeAnalyses table requires special attention for performance due to background processing requirements:
+
+#### Background Service Polling Queries
+```sql
+-- Phase 2 polling query (most frequent)
+SELECT * FROM resume_analyses 
+WHERE status = 'waiting_for_parsing' 
+  AND resume_content_id IN (
+    SELECT id FROM resume_contents 
+    WHERE parsing_status = 'completed'
+  ) 
+ORDER BY created_at ASC;
+```
+
+**Optimization Strategy**:
+- `IX_resume_analyses_status` index enables fast filtering by status
+- `IX_resume_contents_parsing_status` index optimizes the subquery
+- Consider composite index `IX_resume_analyses_status_created` on `(status, created_at)` for high-volume scenarios
+
+#### User Status Queries
+```sql
+-- User checking their analysis status
+SELECT * FROM resume_analyses 
+WHERE user_id = ? 
+ORDER BY created_at DESC 
+LIMIT 1;
+```
+
+**Optimization Strategy**:
+- `IX_resume_analyses_user_id` index handles user filtering
+- Consider composite index `IX_resume_analyses_user_created` on `(user_id, created_at DESC)` for frequent status checks
+
+#### Analysis Results Queries
+```sql
+-- Retrieving completed analysis results
+SELECT * FROM resume_analyses 
+WHERE user_id = ? 
+  AND status = 'completed' 
+ORDER BY processed_at DESC;
+```
+
+**Optimization Strategy**:
+- Composite index `IX_resume_analyses_user_status` on `(user_id, status)` optimizes this common pattern
+- `processed_at` index helps with chronological ordering
+
+### Index Strategy Recommendations
+
+1. **Monitor Query Performance**: Use PostgreSQL's `pg_stat_statements` to identify slow queries
+2. **Background Service Optimization**: The `status` index on ResumeAnalyses is critical for background service performance
+3. **Composite Index Consideration**: For high-volume scenarios, consider composite indexes:
+   - `(user_id, status, created_at)` for user-specific status queries
+   - `(status, created_at)` for background service polling
+4. **Partial Indexes**: Consider partial indexes for active records:
+   - `WHERE status IN ('waiting_for_parsing', 'processing')` for active analyses
+5. **Index Maintenance**: Regular `VACUUM` and `ANALYZE` operations to maintain index performance
+
+### Performance Monitoring
+
+Key metrics to monitor:
+- Background service polling query execution time (should be <100ms)
+- User status check query execution time (should be <50ms)
+- Analysis results retrieval time (should be <200ms)
+- Index usage statistics via `pg_stat_user_indexes`
 
 ## JSON Column Formats
 
@@ -298,6 +458,105 @@ Industries (1) ----< (Many) SkillExpertises
       "github": "github.com/user/repo"
     }
   ]
+}
+```
+
+### ResumeAnalyses JSON Column Formats
+
+#### strengths, weaknesses, recommendations
+```json
+[
+  "Strong technical skills clearly presented",
+  "Quantifiable achievements in work experience",
+  "Professional formatting and structure"
+]
+```
+
+#### keywords_found, keywords_missing
+```json
+[
+  "JavaScript",
+  "React", 
+  "Node.js",
+  "MongoDB",
+  "Git"
+]
+```
+
+#### readability_issues
+```json
+[
+  "Some sentences are too long (>25 words)",
+  "Consider using more bullet points for better readability"
+]
+```
+
+#### technical_skills, soft_skills, programming_languages, tools
+```json
+[
+  "JavaScript",
+  "Python",
+  "React",
+  "Docker"
+]
+```
+
+#### education
+```json
+[
+  {
+    "institution": "University of Technology",
+    "degree": "Bachelor of Science",
+    "field": "Computer Science",
+    "startDate": "2016",
+    "endDate": "2020",
+    "gpa": "3.8",
+    "honors": ["Dean's List", "Magna Cum Laude"]
+  }
+]
+```
+
+#### certifications
+```json
+[
+  {
+    "name": "AWS Certified Solutions Architect",
+    "issuer": "Amazon Web Services",
+    "date": "2023-01",
+    "expirationDate": "2026-01",
+    "credentialId": "AWS-CSA-123456"
+  }
+]
+```
+
+#### section_feedback
+```json
+{
+  "personalInfo": {
+    "score": 95,
+    "issues": [],
+    "suggestions": ["Consider adding a LinkedIn profile URL"]
+  },
+  "summary": {
+    "score": 80,
+    "issues": ["Summary could be more concise"],
+    "suggestions": ["Focus on top 3-4 key achievements", "Add more industry keywords"]
+  },
+  "experience": {
+    "score": 85,
+    "issues": ["Some achievements lack quantification"],
+    "suggestions": ["Add more specific metrics and numbers", "Use stronger action verbs"]
+  },
+  "education": {
+    "score": 90,
+    "issues": [],
+    "suggestions": ["Consider adding relevant coursework if recent graduate"]
+  },
+  "skills": {
+    "score": 75,
+    "issues": ["Skills section could be more comprehensive"],
+    "suggestions": ["Categorize skills (Technical, Soft, Languages)", "Add more industry-relevant skills"]
+  }
 }
 ```
 

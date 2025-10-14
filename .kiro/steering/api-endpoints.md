@@ -309,13 +309,14 @@ Upload resume file.
     "status": "pending",
     "parsingStatus": "pending",
     "parsingId": 123,
-    "analysisId": 456
+    "analysisId": 456,
+    "analysisStatus": "waiting_for_parsing"
   }
 }
 ```
 
 **Validation**:
-- Allowed types: `.pdf` only
+- Allowed types: `.pdf`, `.doc`, `.docx`
 - Max size: 5MB
 
 **Process**:
@@ -385,8 +386,12 @@ Get resume parsing status.
 **Status Values**:
 - `pending`: Waiting for processing
 - `processing`: Currently being parsed
-- `completed`: Successfully parsed
+- `completed`: Successfully parsed (analysis will begin automatically)
 - `failed`: Parsing failed
+
+**Notes**:
+- When parsing completes successfully, the associated ResumeAnalysis status automatically changes from "waiting_for_parsing" to "processing"
+- Use `/api/resume/analysis/status` to check analysis progress after parsing completes
 
 ---
 
@@ -1108,6 +1113,90 @@ Check AWS services health.
   "errors": ["Error details"]
 }
 ```
+
+### Resume Analysis Specific Errors
+
+**Analysis Not Found (404)**:
+```json
+{
+  "success": false,
+  "message": "No resume analysis found. Please upload a resume first."
+}
+```
+
+**Analysis Still Processing (202)**:
+```json
+{
+  "success": true,
+  "message": "Your resume is being analyzed for ATS compatibility. This usually takes 10-15 seconds.",
+  "data": {
+    "status": "processing"
+  }
+}
+```
+
+**Analysis Failed (200 with error details)**:
+```json
+{
+  "success": false,
+  "message": "Resume analysis failed. Please try again or contact support if the issue persists.",
+  "data": null,
+  "errors": ["Analysis service is temporarily unavailable. Please try again in a few minutes."]
+}
+```
+
+### Resume Parsing Specific Errors
+
+**File Too Large (400)**:
+```json
+{
+  "success": false,
+  "message": "File size exceeds the maximum limit of 5MB. Your file is 7.23MB."
+}
+```
+
+**Invalid File Type (400)**:
+```json
+{
+  "success": false,
+  "message": "Invalid file type. Only PDF, DOC, and DOCX files are supported."
+}
+```
+
+**Parsing Failed (200 with error details)**:
+```json
+{
+  "success": false,
+  "message": "Resume parsing failed. Please try uploading your resume again.",
+  "data": {
+    "status": "failed",
+    "error": "The PDF file appears to be corrupted or password-protected"
+  }
+}
+```
+
+### Troubleshooting Guide
+
+**Analysis Stuck in "waiting_for_parsing"**:
+- Check parsing status with `/api/resume/parsing-status`
+- If parsing failed, re-upload the resume
+- If parsing is still processing, wait for completion
+
+**Analysis Stuck in "processing"**:
+- Analysis typically takes 10-15 seconds
+- If stuck for more than 2 minutes, use `/api/resume/analysis/retry`
+- Check for service status issues
+
+**Analysis Failed**:
+- Use `/api/resume/analysis/retry` to retry the analysis
+- If retry fails repeatedly, the resume may have formatting issues
+- Try uploading a different version of the resume
+
+**Parsing Failed**:
+- Check if PDF is password-protected or corrupted
+- Try converting to a different PDF format
+- Ensure file size is under 5MB
+- Use a different PDF creation tool if issues persist
 
 ---
 

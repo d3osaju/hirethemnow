@@ -107,6 +107,12 @@ export interface AnalysisStatus {
   errorMessage?: string;
 }
 
+export interface SectionFeedbackItem {
+  score: number;
+  issues: string[];
+  suggestions: string[];
+}
+
 export interface SectionFeedback {
   sectionName: string;
   score: number;
@@ -117,23 +123,26 @@ export interface SectionFeedback {
 export interface ResumeAnalysisResult {
   id: number;
   userId: string;
-  atsOverallScore: number;
-  atsFormattingScore: number;
-  atsKeywordsScore: number;
-  atsExperienceScore: number;
-  atsEducationScore: number;
-  atsSkillsScore: number;
-  atsAchievementsScore: number;
+  resumeContentId?: number;
+  atsOverallScore?: number;
+  atsFormattingScore?: number;
+  atsKeywordsScore?: number;
+  atsExperienceScore?: number;
+  atsEducationScore?: number;
+  atsSkillsScore?: number;
+  atsAchievementsScore?: number;
   strengths: string[];
   weaknesses: string[];
   recommendations: string[];
   keywordsFound: string[];
   keywordsMissing: string[];
-  keywordDensity: number;
-  readabilityScore: number;
+  keywordDensity?: number;
+  readabilityScore?: number;
   readabilityIssues: string[];
-  sectionFeedback: string; // JSON string of SectionFeedback[]
+  sectionFeedback: Record<string, SectionFeedbackItem>;
   status: string;
   processedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
