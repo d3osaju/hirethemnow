@@ -7,6 +7,158 @@ A modern job application tracking and resume analysis platform with AI-powered r
 
 ---
 
+## 🎬 How It Works
+
+Watch the magic happen behind the scenes as your resume gets processed by our AI-powered platform:
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor': '#ff9900', 'primaryTextColor': '#232f3e', 'primaryBorderColor': '#ff9900', 'lineColor': '#10b981', 'secondaryColor': '#6b46c1', 'tertiaryColor': '#f59e0b'}}}%%
+sequenceDiagram
+    participant U as 👤 User
+    participant CF as ☁️ CloudFront CDN
+    participant S3F as 📦 S3 Frontend
+    participant ELB as ⚖️ Load Balancer
+    participant API as 🚀 .NET API
+    participant S3R as 📄 S3 Resumes
+    participant BG as ⚙️ Background Service
+    participant PDF as 📖 PdfPig Parser
+    participant AI as 🤖 Bedrock Nova Pro
+    participant DB as 🗄️ PostgreSQL
+
+    Note over U,DB: 🎯 Resume Upload & AI Processing Journey
+
+    U->>+CF: 📤 Upload PDF Resume
+    CF->>+S3F: 🌐 Serve React App
+    S3F->>+ELB: 📋 POST /api/resumes
+    ELB->>+API: 🔄 Route Request
+    
+    API->>+S3R: 💾 Store PDF (status: pending)
+    S3R-->>-API: ✅ File Stored
+    API-->>-ELB: 📊 Upload Success + Job ID
+    ELB-->>-S3F: 🎉 Response
+    S3F-->>-CF: 📱 Update UI
+    CF-->>-U: ⏳ "Processing your resume..."
+
+    Note over BG,AI: 🔄 Background AI Processing
+
+    BG->>+S3R: 📥 Download PDF
+    S3R-->>-BG: 📄 PDF File
+    BG->>+PDF: 🔍 Extract Text
+    PDF-->>-BG: 📝 Raw Text
+    BG->>+AI: 🧠 Structure with AI
+    AI-->>-BG: ✨ Structured Data
+    BG->>+DB: 💾 Save Results
+    DB-->>-BG: ✅ Stored
+
+    Note over U,DB: 📊 Real-time Status Updates
+
+    U->>+CF: 🔄 Check Status
+    CF->>+S3F: 📱 Status Request
+    S3F->>+ELB: 📊 GET /api/resumes/{id}/status
+    ELB->>+API: 🔍 Query Status
+    API->>+DB: 📋 Get Resume Data
+    DB-->>-API: 📊 Structured Resume
+    API-->>-ELB: 🎯 ATS Score + Data
+    ELB-->>-S3F: 📈 Complete Results
+    S3F-->>-CF: 🎉 Display Results
+    CF-->>-U: ✅ "Resume processed! ATS Score: 85%"
+```
+
+### 🏗️ System Architecture Overview
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor': '#ff9900', 'primaryTextColor': '#232f3e', 'primaryBorderColor': '#ff9900', 'lineColor': '#10b981', 'secondaryColor': '#6b46c1', 'tertiaryColor': '#f59e0b'}}}%%
+graph TB
+    subgraph "🌐 Frontend Layer"
+        U[👤 User] --> CF[☁️ CloudFront CDN]
+        CF --> S3F[📦 S3 Static Hosting<br/>React 18 + Vite]
+    end
+
+    subgraph "⚖️ Load Balancing"
+        ELB[🔄 Classic ELB<br/>HTTPS Termination]
+    end
+
+    subgraph "🚀 Backend Services"
+        API[🎯 .NET 8 API<br/>ASP.NET Core<br/>Windows Server 2022 + IIS]
+        BG[⚙️ Background Service<br/>Resume Processing]
+    end
+
+    subgraph "🤖 AI Processing"
+        PDF[📖 PdfPig Parser<br/>Text Extraction]
+        AI[🧠 AWS Bedrock<br/>Nova Pro Model]
+    end
+
+    subgraph "💾 Data Layer"
+        DB[(🗄️ PostgreSQL 17.4<br/>RDS)]
+        S3R[📄 S3 Bucket<br/>Resume Storage]
+    end
+
+    subgraph "🔐 Authentication"
+        GOOGLE[🔑 Google OAuth]
+        JWT[🎫 JWT Tokens]
+    end
+
+    S3F -.->|HTTPS| ELB
+    ELB --> API
+    API --> DB
+    API --> S3R
+    API --> GOOGLE
+    API --> JWT
+    
+    BG -.->|Background| S3R
+    BG --> PDF
+    PDF --> AI
+    AI -.->|Structured Data| DB
+
+    classDef aws fill:#ff9900,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef custom fill:#6b46c1,stroke:#fff,stroke-width:2px,color:#fff
+    classDef ai fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
+    classDef data fill:#f59e0b,stroke:#232f3e,stroke-width:2px,color:#232f3e
+
+    class CF,ELB,S3F,S3R,DB aws
+    class API,BG,PDF custom
+    class AI ai
+    class GOOGLE,JWT data
+```
+
+### 🔄 Resume Processing Pipeline
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor': '#ff9900', 'primaryTextColor': '#232f3e', 'primaryBorderColor': '#ff9900', 'lineColor': '#10b981', 'secondaryColor': '#6b46c1', 'tertiaryColor': '#f59e0b'}}}%%
+flowchart LR
+    A[📤 PDF Upload<br/>Max 5MB] --> B{📋 Validation}
+    B -->|✅ Valid| C[💾 S3 Storage<br/>Status: Pending]
+    B -->|❌ Invalid| X[🚫 Error Response]
+    
+    C --> D[⚙️ Background Queue<br/>Processing Starts]
+    D --> E[📥 Download from S3]
+    E --> F[📖 PdfPig Extraction<br/>Raw Text]
+    F --> G[🤖 Bedrock Nova Pro<br/>AI Structuring]
+    G --> H[📊 Generate ATS Score]
+    H --> I[💾 Save to PostgreSQL<br/>Status: Complete]
+    I --> J[🎉 Ready for User<br/>~30 seconds total]
+
+    classDef process fill:#6b46c1,stroke:#fff,stroke-width:2px,color:#fff
+    classDef storage fill:#ff9900,stroke:#232f3e,stroke-width:2px,color:#fff
+    classDef ai fill:#10b981,stroke:#fff,stroke-width:2px,color:#fff
+    classDef error fill:#ef4444,stroke:#fff,stroke-width:2px,color:#fff
+
+    class A,D,F,H process
+    class C,E,I storage
+    class G ai
+    class X error
+```
+
+### The Journey
+1. **📤 Upload** - Drag & drop your PDF resume (max 5MB)
+2. **🤖 Process** - AI extracts and structures your data using AWS Bedrock Nova Pro
+3. **📊 Analyze** - Get ATS scores and professional insights
+4. **📈 Track** - Monitor your job applications and progress
+
+*⚡ Processing time: ~30 seconds for most resumes*
+
+---
+
 ## 📋 Table of Contents
 
 1. [Quick Start](#-quick-start)
