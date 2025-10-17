@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAdminErrorHandler } from '../../utils/adminErrorHandler';
 import { useAdminNotifications } from '../../utils/adminNotifications';
 import { LoadingButton } from '../../components/admin/AdminLoadingStates';
 import { DeleteConfirmationDialog } from '../../components/admin/AdminConfirmationDialog';
-import { 
-  Users, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Plus, 
-  UserCheck, 
+import {
+  Users,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  UserCheck,
   UserX,
   Calendar,
   Mail,
@@ -22,34 +22,29 @@ import AdminModal, { AdminModalBody, AdminModalFooter } from '../../components/a
 import { adminUserAPI } from '../../services/api';
 import type { AdminUser } from '../../types';
 
-interface UserFilters {
-  search: string;
-  role: string;
-  trialStatus: string;
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-}
-
 const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { handleError, handleAuthError, withErrorHandling } = useAdminErrorHandler();
+  const [retryCount, setRetryCount] = useState(0);
+  const { handleError, handleAuthError, withErrorHandling, resetAuthErrorState } = useAdminErrorHandler();
   const { operations } = useAdminNotifications();
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    pageSize: 20,
-    totalCount: 0
-  });
 
-  const [filters, setFilters] = useState<UserFilters>({
-    search: '',
-    role: '',
-    trialStatus: '',
-    sortBy: 'createdAt',
-    sortOrder: 'desc'
-  });
+  // Use ref to track request in progress to prevent race conditions
+  const requestInProgress = React.useRef(false);
+
+  // Pagination state - individual primitive values
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filter state - individual primitive values
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [trialStatusFilter, setTrialStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Modal states
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -67,76 +62,198 @@ const AdminUsers: React.FC = () => {
     password: ''
   });
 
+  // Event handlers (declared before memoized objects that use them)
+  const handlePageChange = useCallback((page: number) => {
+    // Prevent page changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Only update if page actually changed
+    if (page !== currentPage) {
+      setCurrentPage(page);
+    }
+  }, [currentPage]);
+
+  // Memoized objects for stable references
+  const requestParams = useMemo(() => ({
+    page: currentPage,
+    pageSize: pageSize,
+    search: searchTerm || undefined,
+    role: roleFilter || undefined,
+    trialStatus: trialStatusFilter || undefined,
+    sortBy: sortBy,
+    sortOrder: sortOrder
+  }), [currentPage, pageSize, searchTerm, roleFilter, trialStatusFilter, sortBy, sortOrder]);
+
+  const paginationConfig = useMemo(() => ({
+    currentPage: currentPage,
+    totalPages: totalPages,
+    pageSize: pageSize,
+    totalCount: totalCount,
+    onPageChange: handlePageChange
+  }), [currentPage, totalPages, pageSize, totalCount, handlePageChange]);
+
+  // Error recovery function that doesn't trigger infinite loops
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    // Don't call fetchUsers directly to avoid circular dependencies
+  }, []);
+
+  // Clear error function for manual error dismissal
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Enhanced auth error handler that prevents cascading failures
+  const handleAuthErrorSafely = useCallback((error: any) => {
+    // Immediately stop all ongoing operations
+    setLoading(false);
+    setModalLoading(false);
+
+    // Clear any pending state updates to prevent cascading failures
+    setError(null);
+
+    // Handle auth error without triggering additional requests
+    handleAuthError(error, {
+      context: 'Fetching users',
+      showToast: true
+    });
+
+    // Clear component state to prevent memory leaks during redirect
+    setUsers([]);
+    setSelectedUser(null);
+    setShowUserModal(false);
+    setShowCreateModal(false);
+    setShowDeleteModal(false);
+  }, [handleAuthError]);
+
+  // Isolated error handling function that doesn't trigger re-renders
+  const handleFetchError = useCallback((error: any) => {
+    // Prevent error handling from triggering additional requests
+    setLoading(false);
+
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      // Use enhanced auth error handler
+      handleAuthErrorSafely(error);
+      return;
+    } else {
+      const apiError = handleError(error, {
+        context: 'Fetching users',
+        showToast: false // Don't show toast since we're setting error state
+      });
+      setError(apiError.message);
+    }
+  }, [handleError, handleAuthErrorSafely]);
+
   const fetchUsers = useCallback(async () => {
-    const operation = async () => {
-      setLoading(true);
-      setError(null);
+    // Prevent multiple simultaneous requests
+    if (requestInProgress.current) {
+      return;
+    }
 
-      const params = {
-        page: pagination.currentPage,
-        pageSize: pagination.pageSize,
-        search: filters.search || undefined,
-        role: filters.role || undefined,
-        trialStatus: filters.trialStatus || undefined,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      };
+    requestInProgress.current = true;
+    setLoading(true);
+    setError(null);
 
-      const response = await adminUserAPI.getUsers(params);
-      
+    try {
+      const response = await adminUserAPI.getUsers(requestParams);
+
       if (response.success) {
         setUsers(response.data.items);
-        setPagination(prev => ({
-          ...prev,
-          totalPages: response.data.totalPages,
-          totalCount: response.data.totalCount
-        }));
+        setTotalPages(response.data.totalPages);
+        setTotalCount(response.data.totalCount);
+        // Clear any previous errors on successful fetch
+        setError(null);
       } else {
         const errorMessage = response.message || 'Failed to fetch users';
         setError(errorMessage);
-        throw new Error(errorMessage);
       }
-    };
-
-    try {
-      await operation();
     } catch (err: any) {
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
-        handleAuthError(err, { context: 'Fetching users' });
-      } else {
-        const apiError = handleError(err, { 
-          context: 'Fetching users',
-          showToast: false // Don't show toast since we're setting error state
-        });
-        setError(apiError.message);
-      }
+      handleFetchError(err);
     } finally {
       setLoading(false);
+      requestInProgress.current = false;
     }
-  }, [pagination.currentPage, pagination.pageSize, filters, handleError, handleAuthError]);
+  }, [requestParams, handleFetchError]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, currentPage: page }));
-  };
+  // Separate effect for retry that doesn't create circular dependencies
+  useEffect(() => {
+    if (retryCount > 0) {
+      fetchUsers();
+    }
+  }, [retryCount, fetchUsers]);
 
-  const handleSearch = (searchTerm: string) => {
-    setFilters(prev => ({ ...prev, search: searchTerm }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+  // Cleanup effect to prevent memory leaks and cascading failures
+  useEffect(() => {
+    return () => {
+      // Reset auth error state when component unmounts
+      resetAuthErrorState();
 
-  const handleSort = (sortBy: string, sortOrder: 'asc' | 'desc') => {
-    setFilters(prev => ({ ...prev, sortBy, sortOrder }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+      // Clear any pending operations
+      setLoading(false);
+      setModalLoading(false);
+      setError(null);
+    };
+  }, [resetAuthErrorState]);
 
-  const handleFilterChange = (key: keyof UserFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+  const handleSearch = useCallback((search: string) => {
+    // Prevent filter changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Only update if search term actually changed
+    if (search !== searchTerm) {
+      setSearchTerm(search);
+      setCurrentPage(1); // Reset pagination when search changes
+    }
+  }, [searchTerm]);
+
+  const handleSort = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    // Prevent sort changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Only update if sort parameters actually changed
+    if (newSortBy !== sortBy || newSortOrder !== sortOrder) {
+      setSortBy(newSortBy);
+      setSortOrder(newSortOrder);
+      setCurrentPage(1); // Reset pagination when sort changes
+    }
+  }, [sortBy, sortOrder]);
+
+  const handleRoleFilterChange = useCallback((value: string) => {
+    // Prevent filter changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Only update if role filter actually changed
+    if (value !== roleFilter) {
+      setRoleFilter(value);
+      setCurrentPage(1); // Reset pagination when filter changes
+    }
+  }, [roleFilter]);
+
+  const handleTrialStatusFilterChange = useCallback((value: string) => {
+    // Prevent filter changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Only update if trial status filter actually changed
+    if (value !== trialStatusFilter) {
+      setTrialStatusFilter(value);
+      setCurrentPage(1); // Reset pagination when filter changes
+    }
+  }, [trialStatusFilter]);
 
   const handleViewUser = (user: AdminUser) => {
     setSelectedUser(user);
@@ -170,14 +287,25 @@ const AdminUsers: React.FC = () => {
 
     const operation = async () => {
       setModalLoading(true);
-      const response = await adminUserAPI.updateUser(selectedUser.id, editingUser);
-      
-      if (response.success) {
-        operations.user.updated(selectedUser.name);
-        setShowUserModal(false);
-        fetchUsers();
-      } else {
-        throw new Error(response.message || 'Failed to update user');
+
+      try {
+        const response = await adminUserAPI.updateUser(selectedUser.id, editingUser);
+
+        if (response.success) {
+          operations.user.updated(selectedUser.name);
+          setShowUserModal(false);
+          fetchUsers();
+        } else {
+          throw new Error(response.message || 'Failed to update user');
+        }
+      } catch (error: any) {
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          handleAuthErrorSafely(error);
+          return;
+        }
+        throw error;
+      } finally {
+        setModalLoading(false);
       }
     };
 
@@ -185,8 +313,6 @@ const AdminUsers: React.FC = () => {
       context: 'Updating user',
       fallbackMessage: 'Failed to update user'
     });
-
-    setModalLoading(false);
   };
 
   const handleCreateUserSubmit = async () => {
@@ -197,14 +323,25 @@ const AdminUsers: React.FC = () => {
 
     const operation = async () => {
       setModalLoading(true);
-      const response = await adminUserAPI.createUser(newUser);
-      
-      if (response.success) {
-        operations.user.created(newUser.name);
-        setShowCreateModal(false);
-        fetchUsers();
-      } else {
-        throw new Error(response.message || 'Failed to create user');
+
+      try {
+        const response = await adminUserAPI.createUser(newUser);
+
+        if (response.success) {
+          operations.user.created(newUser.name);
+          setShowCreateModal(false);
+          fetchUsers();
+        } else {
+          throw new Error(response.message || 'Failed to create user');
+        }
+      } catch (error: any) {
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          handleAuthErrorSafely(error);
+          return;
+        }
+        throw error;
+      } finally {
+        setModalLoading(false);
       }
     };
 
@@ -212,8 +349,6 @@ const AdminUsers: React.FC = () => {
       context: 'Creating user',
       fallbackMessage: 'Failed to create user'
     });
-
-    setModalLoading(false);
   };
 
   const handleConfirmDelete = async () => {
@@ -221,14 +356,25 @@ const AdminUsers: React.FC = () => {
 
     const operation = async () => {
       setModalLoading(true);
-      const response = await adminUserAPI.deleteUser(selectedUser.id);
-      
-      if (response.success) {
-        operations.user.deleted(selectedUser.name);
-        setShowDeleteModal(false);
-        fetchUsers();
-      } else {
-        throw new Error(response.message || 'Failed to delete user');
+
+      try {
+        const response = await adminUserAPI.deleteUser(selectedUser.id);
+
+        if (response.success) {
+          operations.user.deleted(selectedUser.name);
+          setShowDeleteModal(false);
+          fetchUsers();
+        } else {
+          throw new Error(response.message || 'Failed to delete user');
+        }
+      } catch (error: any) {
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          handleAuthErrorSafely(error);
+          return;
+        }
+        throw error;
+      } finally {
+        setModalLoading(false);
       }
     };
 
@@ -236,8 +382,6 @@ const AdminUsers: React.FC = () => {
       context: 'Deleting user',
       fallbackMessage: 'Failed to delete user'
     });
-
-    setModalLoading(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -261,9 +405,8 @@ const AdminUsers: React.FC = () => {
   const getRoleBadge = (role: string) => {
     const isAdmin = role === 'admin';
     return (
-      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-        isAdmin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-      }`}>
+      <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${isAdmin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+        }`}>
         {isAdmin ? <Shield className="w-3 h-3 mr-1" /> : <User className="w-3 h-3 mr-1" />}
         {role}
       </span>
@@ -383,8 +526,8 @@ const AdminUsers: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
-              value={filters.role}
-              onChange={(e) => handleFilterChange('role', e.target.value)}
+              value={roleFilter}
+              onChange={(e) => handleRoleFilterChange(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
               <option value="">All Roles</option>
@@ -395,8 +538,8 @@ const AdminUsers: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Trial Status</label>
             <select
-              value={filters.trialStatus}
-              onChange={(e) => handleFilterChange('trialStatus', e.target.value)}
+              value={trialStatusFilter}
+              onChange={(e) => handleTrialStatusFilterChange(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
               <option value="">All Statuses</option>
@@ -408,10 +551,10 @@ const AdminUsers: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
             <select
-              value={`${filters.sortBy}-${filters.sortOrder}`}
+              value={`${sortBy}-${sortOrder}`}
               onChange={(e) => {
-                const [sortBy, sortOrder] = e.target.value.split('-');
-                setFilters(prev => ({ ...prev, sortBy, sortOrder: sortOrder as 'asc' | 'desc' }));
+                const [newSortBy, newSortOrder] = e.target.value.split('-');
+                handleSort(newSortBy, newSortOrder as 'asc' | 'desc');
               }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
@@ -436,12 +579,10 @@ const AdminUsers: React.FC = () => {
         searchPlaceholder="Search users by name or email..."
         onSearch={handleSearch}
         onSort={handleSort}
-        pagination={{
-          currentPage: pagination.currentPage,
-          totalPages: pagination.totalPages,
-          pageSize: pagination.pageSize,
-          totalCount: pagination.totalCount,
-          onPageChange: handlePageChange
+        pagination={paginationConfig}
+        errorActions={{
+          onRetry: handleRetry,
+          onDismiss: clearError
         }}
         emptyState={{
           icon: Users,

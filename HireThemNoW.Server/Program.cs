@@ -102,16 +102,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add JWT Authentication
-var jwtSecret = builder.Configuration["JWT_SECRET"];
+var jwtSecret = builder.Configuration["JWT_SECRET"] ?? builder.Configuration["Jwt:Secret"];
 if (string.IsNullOrEmpty(jwtSecret))
 {
-    Console.WriteLine("ERROR: JWT_SECRET environment variable is required");
-    throw new InvalidOperationException("JWT_SECRET environment variable is required");
+    Console.WriteLine("ERROR: JWT_SECRET environment variable or Jwt:Secret configuration is required");
+    throw new InvalidOperationException("JWT_SECRET environment variable or Jwt:Secret configuration is required");
 }
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
 // Add Webhook Secret for job webhook authentication
-var webhookSecret = builder.Configuration["WEBHOOK_SECRET"];
+var webhookSecret = builder.Configuration["WEBHOOK_SECRET"] ?? "development-webhook-secret";
 if (string.IsNullOrEmpty(webhookSecret))
 {
     Console.WriteLine("ERROR: WEBHOOK_SECRET environment variable is required");

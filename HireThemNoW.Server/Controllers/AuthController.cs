@@ -30,7 +30,7 @@ public class AuthController : ControllerBase
 
     private string GenerateJwtToken(string userId, string email, string name, string role = "candidate")
     {
-        var jwtSecret = _configuration["JWT_SECRET"] ?? "ae9d27decc25cb45671ce98206e402e2";
+        var jwtSecret = _configuration["JWT_SECRET"] ?? _configuration["Jwt:Secret"];
         var key = Encoding.ASCII.GetBytes(jwtSecret);
 
         var tokenDescriptor = new SecurityTokenDescriptor
@@ -348,6 +348,17 @@ public class AuthController : ControllerBase
     public ActionResult<object> Logout()
     {
         return Ok(new { success = true, message = "Logout successful" });
+    }
+
+    [HttpGet("test")]
+    public ActionResult<object> Test()
+    {
+        return Ok(new { 
+            message = "Auth controller is working", 
+            timestamp = DateTime.UtcNow,
+            server = "deployed",
+            version = "1.0.0"
+        });
     }
 
     [HttpPost("trial/acknowledge")]

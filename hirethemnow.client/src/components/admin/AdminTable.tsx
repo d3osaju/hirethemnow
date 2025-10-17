@@ -48,6 +48,10 @@ export interface AdminTableProps<T> {
     title: string;
     description: string;
   };
+  errorActions?: {
+    onRetry?: () => void;
+    onDismiss?: () => void;
+  };
   className?: string;
 }
 
@@ -64,6 +68,7 @@ function AdminTable<T extends Record<string, any>>({
   onSearch,
   onSort,
   emptyState,
+  errorActions,
   className = ""
 }: AdminTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,13 +143,35 @@ function AdminTable<T extends Record<string, any>>({
     return (
       <div className={`bg-white rounded-lg shadow ${className}`}>
         <div className="p-8 text-center">
-          <div className="text-red-600 mb-2">
+          <div className="text-red-600 mb-4">
             <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">Error Loading Data</h3>
-          <p className="text-gray-600">{error}</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+          <p className="text-gray-600 mb-6">{error}</p>
+          
+          {/* Error Recovery Actions */}
+          {errorActions && (
+            <div className="flex items-center justify-center space-x-3">
+              {errorActions.onRetry && (
+                <button
+                  onClick={errorActions.onRetry}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Try Again
+                </button>
+              )}
+              {errorActions.onDismiss && (
+                <button
+                  onClick={errorActions.onDismiss}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

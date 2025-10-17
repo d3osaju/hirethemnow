@@ -153,20 +153,64 @@ export class AdminErrorHandler {
       console.warn(`Admin Auth Error [${context}]:`, error);
     }
 
+    // Prevent multiple simultaneous auth error handling
+    if (this.isHandlingAuthError) {
+      return;
+    }
+    this.isHandlingAuthError = true;
+
     if (showToast) {
       const status = error?.response?.status;
       if (status === 401) {
         toast.error('Your session has expired. Please log in again.');
-        // Redirect to login after a delay
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
+        // Redirect to login after a delay, but prevent multiple redirects
+        this.scheduleAuthRedirect();
       } else if (status === 403) {
         toast.error('You do not have permission to perform this action.');
+        // Reset flag for 403 errors since they don't redirect
+        this.isHandlingAuthError = false;
       } else {
         toast.error('Authentication error. Please try logging in again.');
+        this.scheduleAuthRedirect();
       }
+    } else {
+      // Reset flag if not showing toast
+      this.isHandlingAuthError = false;
     }
+  }
+
+  private static isHandlingAuthError = false;
+  private static authRedirectScheduled = false;
+
+  /**
+   * Schedule auth redirect with protection against multiple redirects
+   */
+  private static scheduleAuthRedirect(): void {
+    if (this.authRedirectScheduled) {
+      return;
+    }
+    
+    this.authRedirectScheduled = true;
+    
+    setTimeout(() => {
+      // Clear any ongoing requests or timers before redirect
+      if (typeof window !== 'undefined') {
+        // Cancel any pending fetch requests
+        if ('AbortController' in window) {
+          // This is a general cleanup - specific implementations should handle their own AbortControllers
+        }
+        
+        // Clear storage if needed
+        try {
+          sessionStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+        } catch (e) {
+          // Ignore storage errors
+        }
+        
+        window.location.href = '/login';
+      }
+    }, 2000);
   }
 
   /**
@@ -224,6 +268,14 @@ export class AdminErrorHandler {
     }
 
     return 'An unexpected error occurred. Please try again.';
+  }
+
+  /**
+   * Reset auth error handling state (for testing or manual reset)
+   */
+  static resetAuthErrorState(): void {
+    this.isHandlingAuthError = false;
+    this.authRedirectScheduled = false;
   }
 
   /**
@@ -342,6 +394,10 @@ export const useAdminErrorHandler = () => {
     return AdminErrorHandler.createRetryHandler(operation, maxRetries, baseDelay);
   };
 
+  const resetAuthErrorState = () => {
+    return AdminErrorHandler.resetAuthErrorState();
+  };
+
   return {
     handleError,
     handleValidationError,
@@ -349,6 +405,7 @@ export const useAdminErrorHandler = () => {
     handleAuthError,
     withErrorHandling,
     createRetryHandler,
+    resetAuthErrorState,
     recovery: ErrorRecovery
   };
 };

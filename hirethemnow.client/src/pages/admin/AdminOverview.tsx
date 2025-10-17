@@ -18,12 +18,22 @@ const AdminOverview: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { handleError, handleAuthError } = useAdminErrorHandler();
   const { operations } = useAdminNotifications();
+  
+  // Use ref to track request in progress to prevent race conditions
+  const requestInProgress = React.useRef(false);
 
   // Auto-refresh interval (5 minutes)
   const REFRESH_INTERVAL = 5 * 60 * 1000;
 
   const fetchDashboardData = useCallback(async (isRefresh = false) => {
-    const operation = async () => {
+    // Prevent multiple simultaneous requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    requestInProgress.current = true;
+    
+    try {
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -53,10 +63,6 @@ const AdminOverview: React.FC = () => {
       if (isRefresh) {
         operations.data.refreshed('Dashboard data');
       }
-    };
-
-    try {
-      await operation();
     } catch (err: any) {
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         handleAuthError(err, { context: 'Loading dashboard data' });
@@ -70,6 +76,7 @@ const AdminOverview: React.FC = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      requestInProgress.current = false;
     }
   }, [handleError, handleAuthError, operations]);
 

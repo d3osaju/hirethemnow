@@ -39,6 +39,9 @@ const AdminJobs: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { handleError, handleAuthError, withErrorHandling } = useAdminErrorHandler();
   const { operations } = useAdminNotifications();
+  
+  // Use ref to track request in progress to prevent race conditions
+  const requestInProgress = React.useRef(false);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -75,22 +78,29 @@ const AdminJobs: React.FC = () => {
     status: 'active'
   });
 
+  // Memoized request parameters for stable references
+  const requestParams = React.useMemo(() => ({
+    page: pagination.currentPage,
+    pageSize: pagination.pageSize,
+    search: filters.search || undefined,
+    status: filters.status || undefined,
+    locationType: filters.locationType || undefined,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder
+  }), [pagination.currentPage, pagination.pageSize, filters.search, filters.status, filters.locationType, filters.sortBy, filters.sortOrder]);
+
   const fetchJobs = useCallback(async () => {
-    const operation = async () => {
-      setLoading(true);
-      setError(null);
+    // Prevent multiple simultaneous requests
+    if (requestInProgress.current) {
+      return;
+    }
 
-      const params = {
-        page: pagination.currentPage,
-        pageSize: pagination.pageSize,
-        search: filters.search || undefined,
-        status: filters.status || undefined,
-        locationType: filters.locationType || undefined,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
-      };
+    requestInProgress.current = true;
+    setLoading(true);
+    setError(null);
 
-      const response = await adminJobAPI.getJobs(params);
+    try {
+      const response = await adminJobAPI.getJobs(requestParams);
       
       if (response.success) {
         setJobs(response.data.items);
@@ -99,15 +109,11 @@ const AdminJobs: React.FC = () => {
           totalPages: response.data.totalPages,
           totalCount: response.data.totalCount
         }));
+        setError(null);
       } else {
         const errorMessage = response.message || 'Failed to fetch jobs';
         setError(errorMessage);
-        throw new Error(errorMessage);
       }
-    };
-
-    try {
-      await operation();
     } catch (err: any) {
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         handleAuthError(err, { context: 'Fetching jobs' });
@@ -120,31 +126,75 @@ const AdminJobs: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      requestInProgress.current = false;
     }
-  }, [pagination.currentPage, pagination.pageSize, filters, handleError, handleAuthError]);
+  }, [requestParams, handleError, handleAuthError]);
+
+  // Error recovery function that doesn't trigger infinite loops
+  const handleRetry = useCallback(() => {
+    setError(null);
+    fetchJobs();
+  }, [fetchJobs]);
+
+  // Clear error function for manual error dismissal
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
-  const handlePageChange = (page: number) => {
-    setPagination(prev => ({ ...prev, currentPage: page }));
-  };
+  const handlePageChange = useCallback((page: number) => {
+    // Prevent page changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+    
+    // Only update if page actually changed
+    if (page !== pagination.currentPage) {
+      setPagination(prev => ({ ...prev, currentPage: page }));
+    }
+  }, [pagination.currentPage]);
 
-  const handleSearch = (searchTerm: string) => {
-    setFilters(prev => ({ ...prev, search: searchTerm }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+  const handleSearch = useCallback((searchTerm: string) => {
+    // Prevent filter changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+    
+    // Only update if search term actually changed
+    if (searchTerm !== filters.search) {
+      setFilters(prev => ({ ...prev, search: searchTerm }));
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+    }
+  }, [filters.search]);
 
-  const handleSort = (sortBy: string, sortOrder: 'asc' | 'desc') => {
-    setFilters(prev => ({ ...prev, sortBy, sortOrder }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+  const handleSort = useCallback((sortBy: string, sortOrder: 'asc' | 'desc') => {
+    // Prevent sort changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+    
+    // Only update if sort parameters actually changed
+    if (sortBy !== filters.sortBy || sortOrder !== filters.sortOrder) {
+      setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+    }
+  }, [filters.sortBy, filters.sortOrder]);
 
-  const handleFilterChange = (key: keyof JobFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, currentPage: 1 }));
-  };
+  const handleFilterChange = useCallback((key: keyof JobFilters, value: string) => {
+    // Prevent filter changes during loading to avoid multiple requests
+    if (requestInProgress.current) {
+      return;
+    }
+    
+    // Only update if filter value actually changed
+    if (value !== filters[key]) {
+      setFilters(prev => ({ ...prev, [key]: value }));
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
+    }
+  }, [filters]);
 
   const handleViewJob = async (job: AdminJobOpportunity) => {
     try {
@@ -482,7 +532,7 @@ const AdminJobs: React.FC = () => {
               value={`${filters.sortBy}-${filters.sortOrder}`}
               onChange={(e) => {
                 const [sortBy, sortOrder] = e.target.value.split('-');
-                setFilters(prev => ({ ...prev, sortBy, sortOrder: sortOrder as 'asc' | 'desc' }));
+                handleSort(sortBy, sortOrder as 'asc' | 'desc');
               }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-transparent"
             >
@@ -514,6 +564,10 @@ const AdminJobs: React.FC = () => {
           pageSize: pagination.pageSize,
           totalCount: pagination.totalCount,
           onPageChange: handlePageChange
+        }}
+        errorActions={{
+          onRetry: handleRetry,
+          onDismiss: clearError
         }}
         emptyState={{
           icon: Briefcase,
