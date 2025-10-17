@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, ApiResponse, ResumeAnalysisResult } from '../types';
+import type { User, ApiResponse, ResumeAnalysisResult, JobOpportunity, UpdateContactRequest, PagedResult, AdminUser, AdminJobOpportunity, JobApplication, DashboardMetrics, ChartData, RecentActivity } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;
@@ -35,6 +35,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
+    } else if (error.response?.status === 403) {
+      // Handle forbidden access (e.g., non-admin trying to access admin endpoints)
+      if (error.config?.url?.includes('/admin/')) {
+        window.location.href = '/401'; // Redirect to unauthorized page
+      }
     }
     return Promise.reject(error);
   }
@@ -270,6 +275,200 @@ export const resumeAnalysisAPI = {
 export const releaseNotesAPI = {
   getReleaseNotes: async (): Promise<ApiResponse<Array<{ id: number; version: string; releaseDate: string; features: string[]; isPublished: boolean; createdAt: string }>>> => {
     const response = await api.get('/releasenotes');
+    return response.data;
+  },
+};
+
+// Admin Contact Management API
+/**
+ * Admin-only API endpoints for managing HR contacts and job opportunities.
+ * All endpoints require admin role authentication.
+ */
+export const adminContactAPI = {
+  /**
+   * Get paginated list of HR contacts with optional search and sorting
+   * @param page - Page number (1-based)
+   * @param pageSize - Number of items per page
+   * @param search - Search term for company name or job title
+   * @param sortBy - Sort field (createdAt, company, jobTitle)
+   */
+  getContacts: async (page: number = 1, pageSize: number = 20, search?: string, sortBy?: string): Promise<ApiResponse<PagedResult<JobOpportunity>>> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    });
+    
+    if (search) {
+      params.append('search', search);
+    }
+    
+    if (sortBy) {
+      params.append('sortBy', sortBy);
+    }
+
+    const response = await api.get(`/admin/contacts?${params.toString()}`);
+    return response.data;
+  },
+
+  /**
+   * Get detailed information for a specific HR contact
+   * @param id - Contact ID
+   */
+  getContact: async (id: number): Promise<ApiResponse<JobOpportunity>> => {
+    const response = await api.get(`/admin/contacts/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Update HR contact information
+   * @param id - Contact ID
+   * @param contactData - Updated contact data
+   */
+  updateContact: async (id: number, contactData: UpdateContactRequest): Promise<ApiResponse<JobOpportunity>> => {
+    const response = await api.put(`/admin/contacts/${id}`, contactData);
+    return response.data;
+  },
+
+  /**
+   * Delete an HR contact permanently
+   * @param id - Contact ID
+   */
+  deleteContact: async (id: number): Promise<ApiResponse<object>> => {
+    const response = await api.delete(`/admin/contacts/${id}`);
+    return response.data;
+  },
+};
+
+// Admin Analytics API
+export const adminAnalyticsAPI = {
+  /**
+   * Get dashboard metrics
+   */
+  getMetrics: async (): Promise<ApiResponse<DashboardMetrics>> => {
+    const response = await api.get('/admin/analytics/metrics');
+    return response.data;
+  },
+
+  /**
+   * Get chart data for visualizations
+   */
+  getChartData: async (timeRange: '7d' | '30d' | '90d' | '1y'): Promise<ApiResponse<ChartData>> => {
+    const response = await api.get(`/admin/analytics/charts?range=${timeRange}`);
+    return response.data;
+  },
+
+  /**
+   * Get recent activity feed
+   */
+  getRecentActivity: async (limit: number = 10): Promise<ApiResponse<RecentActivity[]>> => {
+    const response = await api.get(`/admin/analytics/activity?limit=${limit}`);
+    return response.data;
+  },
+};
+
+// Admin Job Management API
+export const adminJobAPI = {
+  /**
+   * Get paginated jobs with filtering and sorting
+   */
+  getJobs: async (params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    status?: string;
+    locationType?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PagedResult<AdminJobOpportunity>>> => {
+    const response = await api.get('/admin/jobs', { params });
+    return response.data;
+  },
+
+  /**
+   * Get single job details with applications
+   */
+  getJob: async (id: number): Promise<ApiResponse<AdminJobOpportunity & { applications: JobApplication[] }>> => {
+    const response = await api.get(`/admin/jobs/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Create new job posting
+   */
+  createJob: async (jobData: Omit<AdminJobOpportunity, 'id' | 'createdBy' | 'postedAt' | 'updatedAt' | 'applicationCount' | 'viewCount'>): Promise<ApiResponse<AdminJobOpportunity>> => {
+    const response = await api.post('/admin/jobs', jobData);
+    return response.data;
+  },
+
+  /**
+   * Update job posting
+   */
+  updateJob: async (id: number, jobData: Partial<AdminJobOpportunity>): Promise<ApiResponse<AdminJobOpportunity>> => {
+    const response = await api.put(`/admin/jobs/${id}`, jobData);
+    return response.data;
+  },
+
+  /**
+   * Delete job posting
+   */
+  deleteJob: async (id: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete(`/admin/jobs/${id}`);
+    return response.data;
+  },
+};
+
+// Admin User Management API
+export const adminUserAPI = {
+  /**
+   * Get paginated users with filtering and sorting
+   */
+  getUsers: async (params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    role?: string;
+    trialStatus?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PagedResult<AdminUser>>> => {
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+  },
+
+  /**
+   * Get single user details
+   */
+  getUser: async (id: string): Promise<ApiResponse<AdminUser>> => {
+    const response = await api.get(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Update user (admin can modify any field)
+   */
+  updateUser: async (id: string, userData: Partial<AdminUser>): Promise<ApiResponse<AdminUser>> => {
+    const response = await api.put(`/admin/users/${id}`, userData);
+    return response.data;
+  },
+
+  /**
+   * Delete user account
+   */
+  deleteUser: async (id: string): Promise<ApiResponse<void>> => {
+    const response = await api.delete(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Create new user (admin creation)
+   */
+  createUser: async (userData: {
+    name: string;
+    email: string;
+    role: 'candidate' | 'admin';
+    password?: string;
+  }): Promise<ApiResponse<AdminUser>> => {
+    const response = await api.post('/admin/users', userData);
     return response.data;
   },
 };

@@ -19,6 +19,12 @@ import SubscriptionExpired from './pages/SubscriptionExpired';
 import NotFound from './pages/NotFound';
 import ServerError from './pages/ServerError';
 import Unauthorized from './pages/Unauthorized';
+import AdminRoute from './components/admin/AdminRoute';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminContacts from './pages/admin/AdminContacts';
+import AdminOverview from './pages/admin/AdminOverview';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminJobs from './pages/admin/AdminJobs';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -143,6 +149,23 @@ function App() {
             <Route path="parsed-resume" element={<ParsedResume />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
+          </Route>
+
+          {/* Admin routes with admin protection */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminOverview />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="jobs" element={<AdminJobs />} />
+            <Route path="contacts" element={<AdminContacts />} />
+            <Route path="settings" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
 
           {/* Error routes */}

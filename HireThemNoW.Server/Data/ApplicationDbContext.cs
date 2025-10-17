@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ReleaseNote> ReleaseNotes { get; set; }
     public DbSet<ResumeAnalysis> ResumeAnalyses { get; set; }
     public DbSet<ResumeContent> ResumeContents { get; set; }
+    public DbSet<JobOpportunity> JobOpportunities { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,6 +118,21 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // JobOpportunity configuration
+        modelBuilder.Entity<JobOpportunity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.JobTitle).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Company).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Location).HasMaxLength(200);
+            entity.Property(e => e.EmailType).HasMaxLength(50).HasDefaultValue("summary");
+            entity.Property(e => e.IsRemote).HasDefaultValue(false);
+            entity.Property(e => e.Salary).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.Company);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         // Seed data

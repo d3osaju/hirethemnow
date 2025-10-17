@@ -1,0 +1,36 @@
+# Exclude build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# Exclude IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Exclude logs and temporary files
+logs/
+*.log
+*.tmp
+
+# Exclude git and deployment files
+.git/
+.gitignore
+deployment.zip
+publish/
+
+# Exclude environment files
+.env*
+!.env.example
+
+# Exclude documentation
+README.md
+*.md
+
+# Exclude node modules if any
+node_modules/
+
+# Exclude OS files
+.DS_Store
+Thumbs.db

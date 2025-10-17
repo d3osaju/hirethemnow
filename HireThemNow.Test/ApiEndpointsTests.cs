@@ -251,4 +251,51 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
         var result = await response.Content.ReadFromJsonAsync<JsonElement>();
         result.GetProperty("success").GetBoolean().Should().BeTrue();
     }
+
+    [Fact]
+    public async Task JobWebhook_WithWrongSecretToken_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        var jobData = new
+        {
+            jobTitle = "Software Engineer",
+            company = "Test Company",
+            location = "Remote",
+            isRemote = true,
+            link = "https://example.com/job/123",
+            secretToken = "wrong-token-value"
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/jobwebhook", jobData);
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        result.GetProperty("success").GetBoolean().Should().BeFalse();
+        result.GetProperty("message").GetString().Should().Contain("authentication");
+    }
+
+    [Fact]
+    public async Task JobWebhook_WithMissingSecretToken_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var jobData = new
+        {
+            jobTitle = "Software Engineer",
+            company = "Test Company",
+            location = "Remote",
+            isRemote = true,
+            link = "https://example.com/job/456"
+            // Missing secretToken - should fail model validation
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/jobwebhook", jobData);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        // This should fail at model validation level due to [Required] attribute
+    }
 }

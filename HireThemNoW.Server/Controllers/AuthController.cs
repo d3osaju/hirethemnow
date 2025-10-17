@@ -453,6 +453,56 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { success = false, message = "Profile retrieval failed" });
         }
     }
+
+    [HttpPost("create-admin")]
+    public async Task<ActionResult<object>> CreateAdmin([FromBody] CreateAdminRequest request)
+    {
+        try
+        {
+            // Simple security check - require a secret key for admin creation
+            var adminSecret = _configuration["ADMIN_CREATION_SECRET"];
+            if (string.IsNullOrEmpty(adminSecret) || request.Secret != adminSecret)
+            {
+                return Unauthorized(new { success = false, message = "Invalid admin creation secret" });
+            }
+
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Name))
+            {
+                return BadRequest(new { success = false, message = "Email and name are required" });
+            }
+
+            var adminUser = await _dataService.CreateAdminUserAsync(request.Email, request.Name);
+
+            var token = GenerateJwtToken(adminUser.Id, adminUser.Email, adminUser.Name, adminUser.Role);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Admin user created successfully",
+                data = new
+                {
+                    user = new
+                    {
+                        id = adminUser.Id,
+                        name = adminUser.Name,
+                        email = adminUser.Email,
+                        role = adminUser.Role,
+                        isCompleted = adminUser.IsCompleted
+                    },
+                    token = token
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating admin user");
+            return StatusCode(500, new { success = false, message = "Admin user creation failed" });
+        }
+    }
 }
 
 public class LoginRequest
@@ -472,4 +522,11 @@ public class RegisterRequest
 public class GoogleAuthRequest
 {
     public string Token { get; set; } = string.Empty;
+}
+
+public class CreateAdminRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Secret { get; set; } = string.Empty;
 }

@@ -29,6 +29,17 @@ namespace HireThemNoW.Server.Controllers
             _logger = logger;
         }
 
+        [HttpGet]
+        public ActionResult<object> GetHealth()
+        {
+            return Ok(new
+            {
+                status = "healthy",
+                timestamp = DateTime.UtcNow,
+                message = "API is running and CORS is configured"
+            });
+        }
+
         [HttpGet("aws-services")]
         public async Task<ActionResult<AwsServicesHealthResponse>> GetAwsServicesHealth()
         {

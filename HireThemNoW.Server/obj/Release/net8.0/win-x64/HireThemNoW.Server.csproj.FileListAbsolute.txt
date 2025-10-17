@@ -171,3 +171,9 @@ F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToa
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Tokenization.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.Tokens.dll
 F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\UglyToad.PdfPig.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\Microsoft.Data.Sqlite.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\Microsoft.EntityFrameworkCore.Sqlite.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\SQLitePCLRaw.batteries_v2.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\SQLitePCLRaw.core.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\SQLitePCLRaw.provider.e_sqlite3.dll
+F:\DevProjects\hirethemnow\HireThemNoW.Server\bin\Release\net8.0\win-x64\e_sqlite3.dll

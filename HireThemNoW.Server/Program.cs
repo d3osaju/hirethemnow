@@ -60,6 +60,11 @@ if (!string.IsNullOrEmpty(awsServiceUrl))
         };
         return new Amazon.S3.AmazonS3Client(config);
     });
+    
+    // Add other AWS services for LocalStack if needed
+    builder.Services.AddAWSService<Amazon.Textract.IAmazonTextract>();
+    builder.Services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
+    builder.Services.AddAWSService<IAmazonSimpleEmailService>();
 }
 else
 {
@@ -67,6 +72,7 @@ else
     builder.Services.AddAWSService<IAmazonS3>();
     builder.Services.AddAWSService<IAmazonSimpleEmailService>();
     builder.Services.AddAWSService<Amazon.BedrockRuntime.IAmazonBedrockRuntime>();
+    builder.Services.AddAWSService<Amazon.Textract.IAmazonTextract>();
 }
 builder.Services.AddScoped<IS3Service, S3Service>();
 
@@ -85,13 +91,33 @@ builder.Services.AddHostedService<ResumeParsingBackgroundService>();
 // Add Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// Add Job Webhook Service
+builder.Services.AddScoped<IJobWebhookService, JobWebhookService>();
+
+// Add Admin Contact Service
+builder.Services.AddScoped<IAdminContactService, AdminContactService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add JWT Authentication
-var jwtSecret = builder.Configuration["JWT_SECRET"] ?? throw new InvalidOperationException("JWT_SECRET environment variable is required");
+var jwtSecret = builder.Configuration["JWT_SECRET"];
+if (string.IsNullOrEmpty(jwtSecret))
+{
+    Console.WriteLine("ERROR: JWT_SECRET environment variable is required");
+    throw new InvalidOperationException("JWT_SECRET environment variable is required");
+}
 var key = Encoding.ASCII.GetBytes(jwtSecret);
+
+// Add Webhook Secret for job webhook authentication
+var webhookSecret = builder.Configuration["WEBHOOK_SECRET"];
+if (string.IsNullOrEmpty(webhookSecret))
+{
+    Console.WriteLine("ERROR: WEBHOOK_SECRET environment variable is required");
+    throw new InvalidOperationException("WEBHOOK_SECRET environment variable is required");
+}
+builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -111,22 +137,42 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins(
-                "https://www.hirethemnow.xyz",
-                "https://hirethemnow.xyz",
-                "http://localhost:8080",
-                "http://hirethemnow-frontend.s3-website-us-east-1.amazonaws.com"
-              )
+        // Get allowed origins from configuration
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new string[]
+        {
+            "https://www.hirethemnow.xyz",
+            "https://hirethemnow.xyz",
+            "http://localhost:8080",
+            "http://hirethemnow-frontend.s3-website-us-east-1.amazonaws.com"
+        };
+
+        Console.WriteLine($"CORS: Configuring allowed origins: {string.Join(", ", allowedOrigins)}");
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight for 10 minutes
     });
 });
 
 // Validate configuration at startup
 ValidateConfiguration(builder.Configuration);
 
+Console.WriteLine("Building application...");
+Console.WriteLine("Environment: " + builder.Environment.EnvironmentName);
+Console.WriteLine("Checking required environment variables...");
+
+// Log which environment variables are set (without showing values for security)
+var requiredEnvVars = new[] { "JWT_SECRET", "WEBHOOK_SECRET", "DATABASE_HOST", "DATABASE_NAME", "DATABASE_USER", "DATABASE_PASSWORD" };
+foreach (var envVar in requiredEnvVars)
+{
+    var value = builder.Configuration[envVar];
+    Console.WriteLine($"{envVar}: {(string.IsNullOrEmpty(value) ? "NOT SET" : "SET")}");
+}
+
 var app = builder.Build();
+Console.WriteLine("Application built successfully.");
 
 // Run database migrations on startup
 using (var scope = app.Services.CreateScope())
@@ -135,12 +181,14 @@ using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         Console.WriteLine("Running database migrations...");
+        
         context.Database.Migrate();
         Console.WriteLine("Database migrations completed successfully.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database migration failed: {ex.Message}");
+        Console.WriteLine($"Database migration failed (non-fatal): {ex.Message}");
+        Console.WriteLine("Application will continue to start without database migrations");
         // Don't stop the application, continue to serve requests
         // This allows the app to start even if migrations fail
     }
@@ -163,9 +211,23 @@ if (app.Environment.IsDevelopment())
 // Enable CORS - MUST be before Authentication
 app.UseCors("AllowReactApp");
 
+// Add middleware to log CORS requests for debugging
+app.Use(async (context, next) =>
+{
+    var origin = context.Request.Headers["Origin"].FirstOrDefault();
+    if (!string.IsNullOrEmpty(origin))
+    {
+        Console.WriteLine($"CORS: Request from origin: {origin}");
+        Console.WriteLine($"CORS: Method: {context.Request.Method}");
+        Console.WriteLine($"CORS: Path: {context.Request.Path}");
+    }
+    await next();
+});
+
 // Add exception handler that preserves CORS headers
 app.UseExceptionHandler(errorApp =>
 {
+    errorApp.UseCors("AllowReactApp"); // Ensure CORS is applied to error responses
     errorApp.Run(async context =>
     {
         context.Response.StatusCode = 500;
@@ -180,9 +242,17 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Add a simple startup health check
+app.MapGet("/startup-health", () => new { 
+    status = "healthy", 
+    timestamp = DateTime.UtcNow,
+    message = "Application started successfully"
+});
+
 // Fallback to index.html for SPA routing
 app.MapFallbackToFile("/index.html");
 
+Console.WriteLine("Starting application...");
 app.Run();
 
 // Configuration validation method
@@ -190,29 +260,39 @@ static void ValidateConfiguration(IConfiguration configuration)
 {
     Console.WriteLine("Validating configuration...");
     
-    // Validate ResumeParsing configuration
-    var supportedFormats = configuration.GetSection("ResumeParsing:SupportedFormats").Get<string[]>();
-    if (supportedFormats == null || supportedFormats.Length == 0)
+    try
     {
-        throw new InvalidOperationException("ResumeParsing:SupportedFormats must be configured with at least one format");
+        // Validate ResumeParsing configuration
+        var supportedFormats = configuration.GetSection("ResumeParsing:SupportedFormats").Get<string[]>();
+        if (supportedFormats == null || supportedFormats.Length == 0)
+        {
+            Console.WriteLine("WARNING: ResumeParsing:SupportedFormats not configured, using default");
+            return;
+        }
+        
+        var bedrockModelId = configuration["ResumeParsing:BedrockModelId"];
+        if (string.IsNullOrEmpty(bedrockModelId))
+        {
+            Console.WriteLine("WARNING: ResumeParsing:BedrockModelId not configured");
+            return;
+        }
+        
+        var maxFileSizeBytes = configuration.GetValue<int>("ResumeParsing:MaxFileSizeBytes");
+        if (maxFileSizeBytes <= 0)
+        {
+            Console.WriteLine("WARNING: ResumeParsing:MaxFileSizeBytes not configured properly");
+            return;
+        }
+        
+        Console.WriteLine($"Configuration validated successfully:");
+        Console.WriteLine($"  - Supported formats: {string.Join(", ", supportedFormats)}");
+        Console.WriteLine($"  - Bedrock model: {bedrockModelId}");
+        Console.WriteLine($"  - Max file size: {maxFileSizeBytes / 1024 / 1024}MB");
     }
-    
-    var bedrockModelId = configuration["ResumeParsing:BedrockModelId"];
-    if (string.IsNullOrEmpty(bedrockModelId))
+    catch (Exception ex)
     {
-        throw new InvalidOperationException("ResumeParsing:BedrockModelId must be configured");
+        Console.WriteLine($"Configuration validation failed (non-fatal): {ex.Message}");
     }
-    
-    var maxFileSizeBytes = configuration.GetValue<int>("ResumeParsing:MaxFileSizeBytes");
-    if (maxFileSizeBytes <= 0)
-    {
-        throw new InvalidOperationException("ResumeParsing:MaxFileSizeBytes must be greater than 0");
-    }
-    
-    Console.WriteLine($"Configuration validated successfully:");
-    Console.WriteLine($"  - Supported formats: {string.Join(", ", supportedFormats)}");
-    Console.WriteLine($"  - Bedrock model: {bedrockModelId}");
-    Console.WriteLine($"  - Max file size: {maxFileSizeBytes / 1024 / 1024}MB");
 }
 
 // Make Program class accessible for integration tests

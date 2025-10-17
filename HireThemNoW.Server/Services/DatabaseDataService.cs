@@ -59,6 +59,36 @@ public class DatabaseDataService : IDataService
         return true;
     }
 
+    public async Task<User> CreateAdminUserAsync(string email, string name)
+    {
+        // Check if admin user already exists
+        var existingUser = await GetUserByEmailAsync(email);
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException($"User with email {email} already exists");
+        }
+
+        var adminUser = new User
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            Email = email,
+            Role = "admin",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            IsCompleted = true, // Admin users don't need onboarding
+            // Admin users don't need trial limitations
+            TrialStartDate = DateTime.UtcNow,
+            TrialEndDate = DateTime.UtcNow.AddYears(10), // Effectively unlimited
+            IsTrialActive = true,
+            HasActiveSubscription = true // Admin users have full access
+        };
+
+        _context.Users.Add(adminUser);
+        await _context.SaveChangesAsync();
+        return adminUser;
+    }
+
     // Email Preferences
     public async Task<EmailPreference?> GetEmailPreferencesAsync(string userId)
     {

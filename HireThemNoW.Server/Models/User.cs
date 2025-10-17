@@ -5,7 +5,7 @@ public class User
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public string Role { get; set; } = "candidate"; // "candidate" or "employer"
+    public string Role { get; set; } = "candidate"; // "candidate", "employer", or "admin"
     public string? Picture { get; set; }
     public string? Phone { get; set; }
     public string? Location { get; set; }
@@ -44,7 +44,7 @@ public class CreateUserRequest
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string Role { get; set; } = "candidate";
+    public string Role { get; set; } = "candidate"; // "candidate", "employer", or "admin"
 }
 
 public class UpdateUserRequest
