@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, UserPlus, FileText, AlertCircle } from 'lucide-react';
 import AdminStats from '../../components/admin/AdminStats';
 import type { StatItem } from '../../components/admin/AdminStats';
@@ -25,7 +25,8 @@ const AdminOverview: React.FC = () => {
   // Auto-refresh interval (5 minutes)
   const REFRESH_INTERVAL = 5 * 60 * 1000;
 
-  const fetchDashboardData = useCallback(async (isRefresh = false) => {
+  // Simple fetch function without complex dependencies
+  const fetchDashboardData = async (isRefresh = false) => {
     // Prevent multiple simultaneous requests
     if (requestInProgress.current) {
       return;
@@ -78,12 +79,12 @@ const AdminOverview: React.FC = () => {
       setRefreshing(false);
       requestInProgress.current = false;
     }
-  }, [handleError, handleAuthError, operations]);
+  };
 
   // Initial data fetch
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, []);
 
   // Auto-refresh setup
   useEffect(() => {
@@ -92,7 +93,7 @@ const AdminOverview: React.FC = () => {
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [fetchDashboardData]);
+  }, []);
 
   // Manual refresh handler
   const handleRefresh = () => {

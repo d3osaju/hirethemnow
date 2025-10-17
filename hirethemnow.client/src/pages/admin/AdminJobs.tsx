@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAdminErrorHandler } from '../../utils/adminErrorHandler';
 import { useAdminNotifications } from '../../utils/adminNotifications';
@@ -78,18 +78,10 @@ const AdminJobs: React.FC = () => {
     status: 'active'
   });
 
-  // Memoized request parameters for stable references
-  const requestParams = React.useMemo(() => ({
-    page: pagination.currentPage,
-    pageSize: pagination.pageSize,
-    search: filters.search || undefined,
-    status: filters.status || undefined,
-    locationType: filters.locationType || undefined,
-    sortBy: filters.sortBy,
-    sortOrder: filters.sortOrder
-  }), [pagination.currentPage, pagination.pageSize, filters.search, filters.status, filters.locationType, filters.sortBy, filters.sortOrder]);
 
-  const fetchJobs = useCallback(async () => {
+
+  // Simple fetch function without complex dependencies
+  const fetchJobs = async () => {
     // Prevent multiple simultaneous requests
     if (requestInProgress.current) {
       return;
@@ -100,7 +92,17 @@ const AdminJobs: React.FC = () => {
     setError(null);
 
     try {
-      const response = await adminJobAPI.getJobs(requestParams);
+      const params = {
+        page: pagination.currentPage,
+        pageSize: pagination.pageSize,
+        search: filters.search || undefined,
+        status: filters.status || undefined,
+        locationType: filters.locationType || undefined,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      };
+
+      const response = await adminJobAPI.getJobs(params);
       
       if (response.success) {
         setJobs(response.data.items);
@@ -128,73 +130,55 @@ const AdminJobs: React.FC = () => {
       setLoading(false);
       requestInProgress.current = false;
     }
-  }, [requestParams, handleError, handleAuthError]);
+  };
 
-  // Error recovery function that doesn't trigger infinite loops
-  const handleRetry = useCallback(() => {
+  // Simple retry function
+  const handleRetry = () => {
     setError(null);
     fetchJobs();
-  }, [fetchJobs]);
+  };
 
-  // Clear error function for manual error dismissal
-  const clearError = useCallback(() => {
+  // Clear error function
+  const clearError = () => {
     setError(null);
-  }, []);
+  };
 
+  // Effect to fetch data when parameters change
   useEffect(() => {
     fetchJobs();
-  }, [fetchJobs]);
+  }, [pagination.currentPage, pagination.pageSize, filters.search, filters.status, filters.locationType, filters.sortBy, filters.sortOrder]);
 
-  const handlePageChange = useCallback((page: number) => {
-    // Prevent page changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  // Simple event handlers
+  const handlePageChange = (page: number) => {
+    if (requestInProgress.current || page === pagination.currentPage) {
       return;
     }
-    
-    // Only update if page actually changed
-    if (page !== pagination.currentPage) {
-      setPagination(prev => ({ ...prev, currentPage: page }));
-    }
-  }, [pagination.currentPage]);
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  };
 
-  const handleSearch = useCallback((searchTerm: string) => {
-    // Prevent filter changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleSearch = (searchTerm: string) => {
+    if (requestInProgress.current || searchTerm === filters.search) {
       return;
     }
-    
-    // Only update if search term actually changed
-    if (searchTerm !== filters.search) {
-      setFilters(prev => ({ ...prev, search: searchTerm }));
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
-    }
-  }, [filters.search]);
+    setFilters(prev => ({ ...prev, search: searchTerm }));
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
 
-  const handleSort = useCallback((sortBy: string, sortOrder: 'asc' | 'desc') => {
-    // Prevent sort changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleSort = (sortBy: string, sortOrder: 'asc' | 'desc') => {
+    if (requestInProgress.current || (sortBy === filters.sortBy && sortOrder === filters.sortOrder)) {
       return;
     }
-    
-    // Only update if sort parameters actually changed
-    if (sortBy !== filters.sortBy || sortOrder !== filters.sortOrder) {
-      setFilters(prev => ({ ...prev, sortBy, sortOrder }));
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
-    }
-  }, [filters.sortBy, filters.sortOrder]);
+    setFilters(prev => ({ ...prev, sortBy, sortOrder }));
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
 
-  const handleFilterChange = useCallback((key: keyof JobFilters, value: string) => {
-    // Prevent filter changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleFilterChange = (key: keyof JobFilters, value: string) => {
+    if (requestInProgress.current || value === filters[key]) {
       return;
     }
-    
-    // Only update if filter value actually changed
-    if (value !== filters[key]) {
-      setFilters(prev => ({ ...prev, [key]: value }));
-      setPagination(prev => ({ ...prev, currentPage: 1 }));
-    }
-  }, [filters]);
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
 
   const handleViewJob = async (job: AdminJobOpportunity) => {
     try {

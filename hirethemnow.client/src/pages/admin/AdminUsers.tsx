@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAdminErrorHandler } from '../../utils/adminErrorHandler';
 import { useAdminNotifications } from '../../utils/adminNotifications';
@@ -26,7 +26,6 @@ const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const { handleError, handleAuthError, withErrorHandling, resetAuthErrorState } = useAdminErrorHandler();
   const { operations } = useAdminNotifications();
 
@@ -63,91 +62,25 @@ const AdminUsers: React.FC = () => {
   });
 
   // Event handlers (declared before memoized objects that use them)
-  const handlePageChange = useCallback((page: number) => {
-    // Prevent page changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  // Simple event handlers without useCallback
+  const handlePageChange = (page: number) => {
+    if (requestInProgress.current || page === currentPage) {
       return;
     }
+    setCurrentPage(page);
+  };
 
-    // Only update if page actually changed
-    if (page !== currentPage) {
-      setCurrentPage(page);
-    }
-  }, [currentPage]);
-
-  // Memoized objects for stable references
-  const requestParams = useMemo(() => ({
-    page: currentPage,
-    pageSize: pageSize,
-    search: searchTerm || undefined,
-    role: roleFilter || undefined,
-    trialStatus: trialStatusFilter || undefined,
-    sortBy: sortBy,
-    sortOrder: sortOrder
-  }), [currentPage, pageSize, searchTerm, roleFilter, trialStatusFilter, sortBy, sortOrder]);
-
-  const paginationConfig = useMemo(() => ({
+  // Simple pagination config
+  const paginationConfig = {
     currentPage: currentPage,
     totalPages: totalPages,
     pageSize: pageSize,
     totalCount: totalCount,
     onPageChange: handlePageChange
-  }), [currentPage, totalPages, pageSize, totalCount, handlePageChange]);
+  };
 
-  // Error recovery function that doesn't trigger infinite loops
-  const handleRetry = useCallback(() => {
-    setError(null);
-    setRetryCount(prev => prev + 1);
-    // Don't call fetchUsers directly to avoid circular dependencies
-  }, []);
-
-  // Clear error function for manual error dismissal
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  // Enhanced auth error handler that prevents cascading failures
-  const handleAuthErrorSafely = useCallback((error: any) => {
-    // Immediately stop all ongoing operations
-    setLoading(false);
-    setModalLoading(false);
-
-    // Clear any pending state updates to prevent cascading failures
-    setError(null);
-
-    // Handle auth error without triggering additional requests
-    handleAuthError(error, {
-      context: 'Fetching users',
-      showToast: true
-    });
-
-    // Clear component state to prevent memory leaks during redirect
-    setUsers([]);
-    setSelectedUser(null);
-    setShowUserModal(false);
-    setShowCreateModal(false);
-    setShowDeleteModal(false);
-  }, [handleAuthError]);
-
-  // Isolated error handling function that doesn't trigger re-renders
-  const handleFetchError = useCallback((error: any) => {
-    // Prevent error handling from triggering additional requests
-    setLoading(false);
-
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
-      // Use enhanced auth error handler
-      handleAuthErrorSafely(error);
-      return;
-    } else {
-      const apiError = handleError(error, {
-        context: 'Fetching users',
-        showToast: false // Don't show toast since we're setting error state
-      });
-      setError(apiError.message);
-    }
-  }, [handleError, handleAuthErrorSafely]);
-
-  const fetchUsers = useCallback(async () => {
+  // Simple fetch function without complex dependencies
+  const fetchUsers = async () => {
     // Prevent multiple simultaneous requests
     if (requestInProgress.current) {
       return;
@@ -158,36 +91,58 @@ const AdminUsers: React.FC = () => {
     setError(null);
 
     try {
-      const response = await adminUserAPI.getUsers(requestParams);
+      const params = {
+        page: currentPage,
+        pageSize: pageSize,
+        search: searchTerm || undefined,
+        role: roleFilter || undefined,
+        trialStatus: trialStatusFilter || undefined,
+        sortBy: sortBy,
+        sortOrder: sortOrder
+      };
+
+      const response = await adminUserAPI.getUsers(params);
 
       if (response.success) {
         setUsers(response.data.items);
         setTotalPages(response.data.totalPages);
         setTotalCount(response.data.totalCount);
-        // Clear any previous errors on successful fetch
         setError(null);
       } else {
         const errorMessage = response.message || 'Failed to fetch users';
         setError(errorMessage);
       }
     } catch (err: any) {
-      handleFetchError(err);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        handleAuthError(err, { context: 'Fetching users' });
+      } else {
+        const apiError = handleError(err, {
+          context: 'Fetching users',
+          showToast: false
+        });
+        setError(apiError.message);
+      }
     } finally {
       setLoading(false);
       requestInProgress.current = false;
     }
-  }, [requestParams, handleFetchError]);
+  };
 
+  // Simple retry function
+  const handleRetry = () => {
+    setError(null);
+    fetchUsers();
+  };
+
+  // Clear error function
+  const clearError = () => {
+    setError(null);
+  };
+
+  // Effect to fetch data when parameters change
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
-
-  // Separate effect for retry that doesn't create circular dependencies
-  useEffect(() => {
-    if (retryCount > 0) {
-      fetchUsers();
-    }
-  }, [retryCount, fetchUsers]);
+  }, [currentPage, pageSize, searchTerm, roleFilter, trialStatusFilter, sortBy, sortOrder]);
 
   // Cleanup effect to prevent memory leaks and cascading failures
   useEffect(() => {
@@ -202,58 +157,39 @@ const AdminUsers: React.FC = () => {
     };
   }, [resetAuthErrorState]);
 
-  const handleSearch = useCallback((search: string) => {
-    // Prevent filter changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  // Simple event handlers
+  const handleSearch = (search: string) => {
+    if (requestInProgress.current || search === searchTerm) {
       return;
     }
+    setSearchTerm(search);
+    setCurrentPage(1);
+  };
 
-    // Only update if search term actually changed
-    if (search !== searchTerm) {
-      setSearchTerm(search);
-      setCurrentPage(1); // Reset pagination when search changes
-    }
-  }, [searchTerm]);
-
-  const handleSort = useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
-    // Prevent sort changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleSort = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+    if (requestInProgress.current || (newSortBy === sortBy && newSortOrder === sortOrder)) {
       return;
     }
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setCurrentPage(1);
+  };
 
-    // Only update if sort parameters actually changed
-    if (newSortBy !== sortBy || newSortOrder !== sortOrder) {
-      setSortBy(newSortBy);
-      setSortOrder(newSortOrder);
-      setCurrentPage(1); // Reset pagination when sort changes
-    }
-  }, [sortBy, sortOrder]);
-
-  const handleRoleFilterChange = useCallback((value: string) => {
-    // Prevent filter changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleRoleFilterChange = (value: string) => {
+    if (requestInProgress.current || value === roleFilter) {
       return;
     }
+    setRoleFilter(value);
+    setCurrentPage(1);
+  };
 
-    // Only update if role filter actually changed
-    if (value !== roleFilter) {
-      setRoleFilter(value);
-      setCurrentPage(1); // Reset pagination when filter changes
-    }
-  }, [roleFilter]);
-
-  const handleTrialStatusFilterChange = useCallback((value: string) => {
-    // Prevent filter changes during loading to avoid multiple requests
-    if (requestInProgress.current) {
+  const handleTrialStatusFilterChange = (value: string) => {
+    if (requestInProgress.current || value === trialStatusFilter) {
       return;
     }
-
-    // Only update if trial status filter actually changed
-    if (value !== trialStatusFilter) {
-      setTrialStatusFilter(value);
-      setCurrentPage(1); // Reset pagination when filter changes
-    }
-  }, [trialStatusFilter]);
+    setTrialStatusFilter(value);
+    setCurrentPage(1);
+  };
 
   const handleViewUser = (user: AdminUser) => {
     setSelectedUser(user);
@@ -300,7 +236,7 @@ const AdminUsers: React.FC = () => {
         }
       } catch (error: any) {
         if (error?.response?.status === 401 || error?.response?.status === 403) {
-          handleAuthErrorSafely(error);
+          handleAuthError(error, { context: 'Updating user' });
           return;
         }
         throw error;
@@ -336,7 +272,7 @@ const AdminUsers: React.FC = () => {
         }
       } catch (error: any) {
         if (error?.response?.status === 401 || error?.response?.status === 403) {
-          handleAuthErrorSafely(error);
+          handleAuthError(error, { context: 'Creating user' });
           return;
         }
         throw error;
@@ -369,7 +305,7 @@ const AdminUsers: React.FC = () => {
         }
       } catch (error: any) {
         if (error?.response?.status === 401 || error?.response?.status === 403) {
-          handleAuthErrorSafely(error);
+          handleAuthError(error, { context: 'Deleting user' });
           return;
         }
         throw error;
