@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: hirethemnow-postgres
+    environment:
+      POSTGRES_DB: hirethemnow_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hirethemnow-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - JWT_SECRET=development-jwt-secret-key-at-least-32-characters-long-for-local-testing
+      - WEBHOOK_SECRET=dev-webhook-secret-for-local-testing-only
+      - ADMIN_CREATION_SECRET=admin-secret-key-for-development-only
+      - GOOGLE_CLIENT_ID=your-google-client-id-here
+      - GOOGLE_CLIENT_SECRET=your-google-client-secret-here
+      - DATABASE_HOST=postgres
+      - DATABASE_NAME=hirethemnow_dev
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=postgres
+      - AWS_SERVICE_URL=http://localstack:4566
+    ports:
+      - "5219:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: hirethemnow-localstack
+    environment:
+      - SERVICES=s3,bedrock,textract,ses
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  postgres_data:
+  localstack_data:

@@ -366,6 +366,16 @@ if ($envExists -and $envExists -ne "None") {
   },
   {
     "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "WEBHOOK_SECRET",
+    "Value": "$env:WEBHOOK_SECRET"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
+    "OptionName": "ADMIN_CREATION_SECRET",
+    "Value": "$env:ADMIN_CREATION_SECRET"
+  },
+  {
+    "Namespace": "aws:elasticbeanstalk:application:environment",
     "OptionName": "GOOGLE_CLIENT_ID",
     "Value": "$env:GOOGLE_CLIENT_ID"
   },

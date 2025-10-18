@@ -1,18 +1,28 @@
 import React from 'react';
 import { Target, FileText, Hash, Briefcase, GraduationCap, Zap, Award } from 'lucide-react';
+import { ensureNumber } from '../../utils/dataHelpers';
 
 interface ScoreBreakdownProps {
   scores: {
-    formatting: number;
-    keywords: number;
-    experience: number;
-    education: number;
-    skills: number;
-    achievements: number;
+    formatting: number | string | null | undefined;
+    keywords: number | string | null | undefined;
+    experience: number | string | null | undefined;
+    education: number | string | null | undefined;
+    skills: number | string | null | undefined;
+    achievements: number | string | null | undefined;
   };
 }
 
 const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
+  // Ensure all scores are numbers, even if backend returns strings or null
+  const safeScores = {
+    formatting: ensureNumber(scores.formatting, 0),
+    keywords: ensureNumber(scores.keywords, 0),
+    experience: ensureNumber(scores.experience, 0),
+    education: ensureNumber(scores.education, 0),
+    skills: ensureNumber(scores.skills, 0),
+    achievements: ensureNumber(scores.achievements, 0)
+  };
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
@@ -35,7 +45,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'formatting',
       label: 'Formatting',
-      score: scores.formatting,
+      score: safeScores.formatting,
       icon: FileText,
       description: 'ATS-friendly structure and layout',
       weight: '20%'
@@ -43,7 +53,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'keywords',
       label: 'Keywords',
-      score: scores.keywords,
+      score: safeScores.keywords,
       icon: Hash,
       description: 'Industry-relevant keywords and phrases',
       weight: '25%'
@@ -51,7 +61,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'experience',
       label: 'Experience',
-      score: scores.experience,
+      score: safeScores.experience,
       icon: Briefcase,
       description: 'Work history presentation and impact',
       weight: '25%'
@@ -59,7 +69,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'education',
       label: 'Education',
-      score: scores.education,
+      score: safeScores.education,
       icon: GraduationCap,
       description: 'Educational background completeness',
       weight: '10%'
@@ -67,7 +77,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'skills',
       label: 'Skills',
-      score: scores.skills,
+      score: safeScores.skills,
       icon: Zap,
       description: 'Technical and soft skills presentation',
       weight: '15%'
@@ -75,7 +85,7 @@ const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ scores }) => {
     {
       key: 'achievements',
       label: 'Achievements',
-      score: scores.achievements,
+      score: safeScores.achievements,
       icon: Award,
       description: 'Quantifiable results and accomplishments',
       weight: '5%'

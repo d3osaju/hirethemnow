@@ -1,11 +1,14 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ensureNumber } from '../../utils/dataHelpers';
 
 interface OverallScoreCardProps {
-  score: number;
+  score: number | string | null | undefined;
 }
 
 const OverallScoreCard: React.FC<OverallScoreCardProps> = ({ score }) => {
+  // Ensure score is always a number, even if backend returns string or null
+  const safeScore = ensureNumber(score, 0);
 
 
   const getScoreBgColor = (score: number) => {
@@ -47,16 +50,16 @@ const OverallScoreCard: React.FC<OverallScoreCardProps> = ({ score }) => {
     };
   };
 
-  const interpretation = getScoreInterpretation(score);
+  const interpretation = getScoreInterpretation(safeScore);
   const IconComponent = interpretation.icon;
 
   // Calculate the stroke dash array for the circular progress
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
-  const strokeDasharray = `${(score / 100) * circumference} ${circumference}`;
+  const strokeDasharray = `${(safeScore / 100) * circumference} ${circumference}`;
 
   return (
-    <div className={`bg-gradient-to-br ${getScoreBgColor(score)} rounded-lg shadow-lg p-8 mb-8`}>
+    <div className={`bg-gradient-to-br ${getScoreBgColor(safeScore)} rounded-lg shadow-lg p-8 mb-8`}>
       <div className="text-center text-white">
         <h2 className="text-2xl font-bold mb-6">Overall ATS Score</h2>
         
@@ -91,7 +94,7 @@ const OverallScoreCard: React.FC<OverallScoreCardProps> = ({ score }) => {
           {/* Score display */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div>
-              <div className="text-5xl font-bold mb-1">{score}</div>
+              <div className="text-5xl font-bold mb-1">{safeScore}</div>
               <div className="text-sm opacity-90">out of 100</div>
             </div>
           </div>
@@ -134,11 +137,11 @@ const OverallScoreCard: React.FC<OverallScoreCardProps> = ({ score }) => {
             <div className="h-2 bg-white bg-opacity-30 rounded-full"></div>
             <div 
               className="absolute top-0 h-2 bg-white rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${score}%` }}
+              style={{ width: `${safeScore}%` }}
             ></div>
             <div 
               className="absolute top-0 w-3 h-3 bg-white rounded-full transform -translate-y-0.5 transition-all duration-1000 ease-out"
-              style={{ left: `calc(${score}% - 6px)` }}
+              style={{ left: `calc(${safeScore}% - 6px)` }}
             ></div>
           </div>
         </div>

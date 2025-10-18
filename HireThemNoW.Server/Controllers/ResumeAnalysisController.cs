@@ -110,7 +110,7 @@ public class ResumeAnalysisController : ControllerBase
     /// </summary>
     /// <returns>Complete analysis results if available</returns>
     [HttpGet("results")]
-    public async Task<ActionResult<ApiResponse<ResumeAnalysis>>> GetAnalysisResults()
+    public async Task<ActionResult<ApiResponse<ResumeAnalysisResultDto>>> GetAnalysisResults()
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -119,7 +119,7 @@ public class ResumeAnalysisController : ControllerBase
             if (string.IsNullOrEmpty(userId))
             {
                 _logger.LogWarning("Unauthorized access attempt to analysis results endpoint");
-                return Unauthorized(new ApiResponse<ResumeAnalysis>
+                return Unauthorized(new ApiResponse<ResumeAnalysisResultDto>
                 {
                     Success = false,
                     Message = "Authentication required. Please log in."
@@ -133,7 +133,7 @@ public class ResumeAnalysisController : ControllerBase
             if (analysis == null)
             {
                 _logger.LogInformation("No analysis found for user {UserId}", userId);
-                return NotFound(new ApiResponse<ResumeAnalysis>
+                return NotFound(new ApiResponse<ResumeAnalysisResultDto>
                 {
                     Success = false,
                     Message = "No resume analysis found. Please upload a resume first."
@@ -149,7 +149,7 @@ public class ResumeAnalysisController : ControllerBase
 
                 _logger.LogInformation("Analysis still processing for user {UserId}, status: {Status}", userId, analysis.Status);
 
-                return StatusCode(202, new ApiResponse<ResumeAnalysis>
+                return StatusCode(202, new ApiResponse<ResumeAnalysisResultDto>
                 {
                     Success = true,
                     Message = statusMessage,
@@ -161,7 +161,7 @@ public class ResumeAnalysisController : ControllerBase
             if (analysis.Status == "failed")
             {
                 _logger.LogWarning("Analysis failed for user {UserId}: {Error}", userId, analysis.AnalysisError);
-                return Ok(new ApiResponse<ResumeAnalysis>
+                return Ok(new ApiResponse<ResumeAnalysisResultDto>
                 {
                     Success = false,
                     Message = "Resume analysis failed. Please try again or contact support if the issue persists.",
@@ -170,21 +170,23 @@ public class ResumeAnalysisController : ControllerBase
                 });
             }
 
-            // Analysis completed successfully - return full results
+            // Analysis completed successfully - convert to DTO with parsed JSON fields
+            var resultDto = ResumeAnalysisMapper.ToResultDto(analysis);
+
             _logger.LogInformation("Returning completed analysis results for user {UserId}, score: {Score}", 
                 userId, analysis.AtsOverallScore);
 
-            return Ok(new ApiResponse<ResumeAnalysis>
+            return Ok(new ApiResponse<ResumeAnalysisResultDto>
             {
                 Success = true,
                 Message = $"Analysis completed successfully! Your ATS score is {analysis.AtsOverallScore}/100.",
-                Data = analysis
+                Data = resultDto
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving analysis results for user {UserId}", userId);
-            return StatusCode(500, new ApiResponse<ResumeAnalysis>
+            return StatusCode(500, new ApiResponse<ResumeAnalysisResultDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving analysis results. Please try again.",

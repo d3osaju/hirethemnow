@@ -1,13 +1,13 @@
 import React from 'react';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Linkedin, 
-  Globe, 
-  Briefcase, 
-  GraduationCap, 
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Linkedin,
+  Globe,
+  Briefcase,
+  GraduationCap,
   Award,
   Code,
   Wrench,
@@ -15,6 +15,7 @@ import {
   Languages,
   FolderGit2
 } from 'lucide-react';
+import { ensureArray, ensureArrayOfAny } from '../utils/dataHelpers';
 import type { ParsedResumeContent } from '../types';
 
 interface ParsedResumeViewerProps {
@@ -104,14 +105,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
       )}
 
       {/* Experience */}
-      {content.experience && content.experience.length > 0 && (
+      {content.experience && ensureArrayOfAny(content.experience).length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Briefcase className="w-5 h-5 mr-2 text-blue-600" />
             Work Experience
           </h3>
           <div className="space-y-6">
-            {content.experience.map((exp, index) => (
+            {ensureArrayOfAny(content.experience).map((exp, index) => (
               <div key={index} className="border-l-4 border-blue-500 pl-4">
                 <h4 className="font-semibold text-gray-900">{exp.title}</h4>
                 <p className="text-sm text-gray-600 mb-2">
@@ -123,9 +124,9 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
                 {exp.description && (
                   <p className="text-sm text-gray-700 mb-2">{exp.description}</p>
                 )}
-                {exp.achievements && exp.achievements.length > 0 && (
+                {exp.achievements && ensureArray(exp.achievements).length > 0 && (
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    {exp.achievements.map((achievement, i) => (
+                    {ensureArray(exp.achievements).map((achievement, i) => (
                       <li key={i}>{achievement}</li>
                     ))}
                   </ul>
@@ -137,14 +138,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
       )}
 
       {/* Education */}
-      {content.education && content.education.length > 0 && (
+      {content.education && ensureArrayOfAny(content.education).length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <GraduationCap className="w-5 h-5 mr-2 text-blue-600" />
             Education
           </h3>
           <div className="space-y-4">
-            {content.education.map((edu, index) => (
+            {ensureArrayOfAny(content.education).map((edu, index) => (
               <div key={index} className="border-l-4 border-green-500 pl-4">
                 <h4 className="font-semibold text-gray-900">{edu.degree}</h4>
                 <p className="text-sm text-gray-600">{edu.institution}</p>
@@ -164,14 +165,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Skills</h3>
           <div className="space-y-4">
-            {content.skills.technical && content.skills.technical.length > 0 && (
+            {content.skills.technical && ensureArray(content.skills.technical).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                   <Code className="w-4 h-4 mr-2 text-blue-600" />
                   Technical Skills
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {content.skills.technical.map((skill, index) => (
+                  {ensureArray(content.skills.technical).map((skill, index) => (
                     <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
                       {skill}
                     </span>
@@ -179,14 +180,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
                 </div>
               </div>
             )}
-            {content.skills.soft && content.skills.soft.length > 0 && (
+            {content.skills.soft && ensureArray(content.skills.soft).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                   <MessageSquare className="w-4 h-4 mr-2 text-green-600" />
                   Soft Skills
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {content.skills.soft.map((skill, index) => (
+                  {ensureArray(content.skills.soft).map((skill, index) => (
                     <span key={index} className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
                       {skill}
                     </span>
@@ -194,14 +195,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
                 </div>
               </div>
             )}
-            {content.skills.languages && content.skills.languages.length > 0 && (
+            {content.skills.languages && ensureArray(content.skills.languages).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                   <Languages className="w-4 h-4 mr-2 text-purple-600" />
                   Programming Languages
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {content.skills.languages.map((lang, index) => (
+                  {ensureArray(content.skills.languages).map((lang, index) => (
                     <span key={index} className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
                       {lang}
                     </span>
@@ -209,14 +210,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
                 </div>
               </div>
             )}
-            {content.skills.tools && content.skills.tools.length > 0 && (
+            {content.skills.tools && ensureArray(content.skills.tools).length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                   <Wrench className="w-4 h-4 mr-2 text-orange-600" />
                   Tools & Technologies
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {content.skills.tools.map((tool, index) => (
+                  {ensureArray(content.skills.tools).map((tool, index) => (
                     <span key={index} className="px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">
                       {tool}
                     </span>
@@ -229,14 +230,14 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
       )}
 
       {/* Certifications */}
-      {content.certifications && content.certifications.length > 0 && (
+      {content.certifications && ensureArray(content.certifications).length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Award className="w-5 h-5 mr-2 text-blue-600" />
             Certifications
           </h3>
           <ul className="space-y-2">
-            {content.certifications.map((cert, index) => (
+            {ensureArray(content.certifications).map((cert, index) => (
               <li key={index} className="flex items-start">
                 <Award className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                 <span className="text-sm text-gray-700">{cert}</span>
@@ -247,21 +248,21 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
       )}
 
       {/* Projects */}
-      {content.projects && content.projects.length > 0 && (
+      {content.projects && ensureArrayOfAny(content.projects).length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <FolderGit2 className="w-5 h-5 mr-2 text-blue-600" />
             Projects
           </h3>
           <div className="space-y-4">
-            {content.projects.map((project, index) => (
+            {ensureArrayOfAny(content.projects).map((project, index) => (
               <div key={index} className="border-l-4 border-purple-500 pl-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold text-gray-900">{project.name}</h4>
                   {project.url && (
-                    <a 
-                      href={project.url} 
-                      target="_blank" 
+                    <a
+                      href={project.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:underline"
                     >
@@ -272,9 +273,9 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
                 {project.description && (
                   <p className="text-sm text-gray-700 mt-1">{project.description}</p>
                 )}
-                {project.technologies && project.technologies.length > 0 && (
+                {project.technologies && ensureArray(project.technologies).length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {project.technologies.map((tech, i) => (
+                    {ensureArray(project.technologies).map((tech, i) => (
                       <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
                         {tech}
                       </span>

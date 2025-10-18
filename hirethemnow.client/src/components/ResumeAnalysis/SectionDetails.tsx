@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, FileText, AlertTriangle, Lightbulb, Target } from 'lucide-react';
+import { ensureArray, ensureNumber } from '../../utils/dataHelpers';
 import type { SectionFeedback } from '../../types';
 
 interface SectionDetailsProps {
@@ -8,6 +9,14 @@ interface SectionDetailsProps {
 
 const SectionDetails: React.FC<SectionDetailsProps> = ({ sections }) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  
+  // Ensure sections is always an array with proper structure
+  const safeSections = Array.isArray(sections) ? sections.map(section => ({
+    sectionName: section.sectionName || 'Unknown Section',
+    score: ensureNumber(section.score, 0),
+    issues: ensureArray(section.issues),
+    suggestions: ensureArray(section.suggestions)
+  })) : [];
 
   const toggleSection = (sectionName: string) => {
     const newExpanded = new Set(expandedSections);
@@ -44,7 +53,7 @@ const SectionDetails: React.FC<SectionDetailsProps> = ({ sections }) => {
     return '📋';
   };
 
-  if (sections.length === 0) {
+  if (safeSections.length === 0) {
     return null;
   }
 
@@ -56,7 +65,7 @@ const SectionDetails: React.FC<SectionDetailsProps> = ({ sections }) => {
       </h3>
       
       <div className="space-y-4">
-        {sections.map((section, index) => {
+        {safeSections.map((section, index) => {
           const isExpanded = expandedSections.has(section.sectionName);
           
           return (

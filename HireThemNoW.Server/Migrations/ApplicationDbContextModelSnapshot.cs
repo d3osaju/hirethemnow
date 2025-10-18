@@ -124,6 +124,87 @@ namespace HireThemNoW.Server.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HireThemNoW.Server.Models.JobOpportunity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Company")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("company");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("EmailType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("summary")
+                        .HasColumnName("email_type");
+
+                    b.Property<string>("Emails")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("emails");
+
+                    b.Property<bool>("IsRemote")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_remote");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("job_title");
+
+                    b.Property<string>("Link")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("link");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("Salary")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("salary");
+
+                    b.Property<DateTime?>("ScrapedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scraped_date");
+
+                    b.Property<string>("Snippet")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("snippet");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Company");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("job_opportunities");
+                });
+
             modelBuilder.Entity("HireThemNoW.Server.Models.ReleaseNote", b =>
                 {
                     b.Property<int>("Id")

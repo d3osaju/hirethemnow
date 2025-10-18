@@ -1,11 +1,15 @@
 import React from 'react';
 import { CheckCircle, TrendingUp, Star } from 'lucide-react';
+import { ensureArray } from '../../utils/dataHelpers';
 
 interface StrengthsSectionProps {
-  strengths: string[];
+  strengths: string[] | string | null | undefined;
 }
 
 const StrengthsSection: React.FC<StrengthsSectionProps> = ({ strengths }) => {
+  // Ensure strengths is always an array, even if backend returns JSON string
+  const safeStrengths = ensureArray(strengths);
+  
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
@@ -13,9 +17,9 @@ const StrengthsSection: React.FC<StrengthsSectionProps> = ({ strengths }) => {
         Strengths
       </h3>
       
-      {strengths.length > 0 ? (
+      {safeStrengths.length > 0 ? (
         <div className="space-y-4">
-          {strengths.map((strength, index) => (
+          {safeStrengths.map((strength, index) => (
             <div 
               key={index} 
               className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors duration-200 group"
@@ -41,7 +45,7 @@ const StrengthsSection: React.FC<StrengthsSectionProps> = ({ strengths }) => {
               <div>
                 <h4 className="font-semibold">Great Job!</h4>
                 <p className="text-sm opacity-90">
-                  You have {strengths.length} strong {strengths.length === 1 ? 'area' : 'areas'} that will help your resume stand out to ATS systems.
+                  You have {safeStrengths.length} strong {safeStrengths.length === 1 ? 'area' : 'areas'} that will help your resume stand out to ATS systems.
                 </p>
               </div>
             </div>
@@ -60,7 +64,7 @@ const StrengthsSection: React.FC<StrengthsSectionProps> = ({ strengths }) => {
       )}
 
       {/* Tips section */}
-      {strengths.length > 0 && (
+      {safeStrengths.length > 0 && (
         <div className="mt-6 pt-6 border-t border-gray-200">
           <div className="bg-blue-50 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center">

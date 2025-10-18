@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { resumeAnalysisAPI, resumeAPI } from '../services/api';
+import { ensureSectionFeedback, ensureNumber } from '../utils/dataHelpers';
 import type { AnalysisStatus, ResumeAnalysisResult, SectionFeedback } from '../types';
 import toast from 'react-hot-toast';
 import {
@@ -37,7 +38,7 @@ const ResumeAnalysisPage: React.FC = () => {
   const [retryLoading, setRetryLoading] = useState(false);
 
   // Polling interval reference
-  const [pollingInterval, setPollingInterval] = useState<number | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -52,8 +53,9 @@ const ResumeAnalysisPage: React.FC = () => {
         setError(null);
         return null;
       }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } };
+      if (error.response?.status === 404) {
         // No analysis found - this is not an error
         setStatus(null);
         setError(null);
@@ -77,11 +79,12 @@ const ResumeAnalysisPage: React.FC = () => {
         setAnalysis(null);
         return null;
       }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number } };
+      if (error.response?.status === 404) {
         setAnalysis(null);
         return null;
-      } else if (err.response?.status === 202) {
+      } else if (error.response?.status === 202) {
         // Still processing - this is expected
         setAnalysis(null);
         return null;
@@ -420,12 +423,14 @@ const ResumeAnalysisPage: React.FC = () => {
 
   // Show completed analysis results
   if (status?.status === 'completed' && analysis) {
-    let sectionFeedback: SectionFeedback[] = [];
-    try {
-      sectionFeedback = analysis.sectionFeedback ? JSON.parse(analysis.sectionFeedback) : [];
-    } catch (e) {
-      console.error('Failed to parse section feedback:', e);
-    }
+    // Ensure sectionFeedback is properly formatted and convert to array
+    const safeSectionFeedback = ensureSectionFeedback(analysis.sectionFeedback);
+    const sectionFeedback: SectionFeedback[] = Object.entries(safeSectionFeedback).map(([sectionName, feedback]) => ({
+      sectionName,
+      score: feedback.score,
+      issues: feedback.issues,
+      suggestions: feedback.suggestions
+    }));
 
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -488,18 +493,18 @@ const ResumeAnalysisPage: React.FC = () => {
           </div>
 
           {/* Overall Score */}
-          <OverallScoreCard score={analysis.atsOverallScore} />
+          <OverallScoreCard score={ensureNumber(analysis.atsOverallScore, 0)} />
 
           {/* Score Breakdown and Strengths */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <ScoreBreakdown 
               scores={{
-                formatting: analysis.atsFormattingScore,
-                keywords: analysis.atsKeywordsScore,
-                experience: analysis.atsExperienceScore,
-                education: analysis.atsEducationScore,
-                skills: analysis.atsSkillsScore,
-                achievements: analysis.atsAchievementsScore
+                formatting: ensureNumber(analysis.atsFormattingScore, 0),
+                keywords: ensureNumber(analysis.atsKeywordsScore, 0),
+                experience: ensureNumber(analysis.atsExperienceScore, 0),
+                education: ensureNumber(analysis.atsEducationScore, 0),
+                skills: ensureNumber(analysis.atsSkillsScore, 0),
+                achievements: ensureNumber(analysis.atsAchievementsScore, 0)
               }}
             />
             <StrengthsSection strengths={analysis.strengths} />
