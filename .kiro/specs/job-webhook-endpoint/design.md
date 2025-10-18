@@ -250,7 +250,7 @@ All fields except JobTitle and Company are optional:
     "company": "string (required, max 200 chars)", 
     "location": "string (optional, max 200 chars)",
     "emails": "string (optional)",
-    "emailType": "string (optional, default: 'summary')",
+    "emailType": "string (optional, default: 'summary', allowed: summary|detailed|instant|none|company|hr|recruiter|personal)",
     "isRemote": "boolean (optional, default: false)",
     "salary": "string (optional, max 100 chars)",
     "link": "string (optional)",

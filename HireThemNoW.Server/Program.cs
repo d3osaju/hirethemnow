@@ -94,8 +94,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // Add Job Webhook Service
 builder.Services.AddScoped<IJobWebhookService, JobWebhookService>();
 
-// Add Admin Contact Service
-builder.Services.AddScoped<IAdminContactService, AdminContactService>();
+
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

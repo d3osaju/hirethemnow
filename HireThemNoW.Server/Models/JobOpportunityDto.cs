@@ -35,7 +35,8 @@ namespace HireThemNoW.Server.Models
         public string Emails { get; set; } = string.Empty;
 
         /// <summary>
-        /// Type of email notification - defaults to "summary"
+        /// Type of email contact - defaults to "summary"
+        /// Allowed values: summary, detailed, instant, none, company, hr, recruiter, personal
         /// </summary>
         [StringLength(50, ErrorMessage = "Email type cannot exceed 50 characters")]
         public string EmailType { get; set; } = "summary";
@@ -100,11 +101,11 @@ namespace HireThemNoW.Server.Models
             }
 
             // Validate EmailType is from allowed values
-            var allowedEmailTypes = new[] { "summary", "detailed", "instant", "none" };
+            var allowedEmailTypes = new[] { "summary", "detailed", "instant", "none", "company", "hr", "recruiter", "personal" };
             if (!string.IsNullOrEmpty(EmailType) && !allowedEmailTypes.Contains(EmailType.ToLower()))
             {
                 results.Add(new ValidationResult(
-                    "Email type must be one of: summary, detailed, instant, none",
+                    "Email type must be one of: summary, detailed, instant, none, company, hr, recruiter, personal",
                     new[] { nameof(EmailType) }));
             }
 

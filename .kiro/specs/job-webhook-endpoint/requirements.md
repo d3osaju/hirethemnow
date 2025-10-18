@@ -2,14 +2,17 @@
 
 ## Introduction
 
-This feature provides a webhook endpoint that accepts job opportunity data from external sources and saves it to the system. The endpoint will receive job postings with details like title, company, location, salary, and other metadata, then store them for further processing or display.
+This feature provides a webhook endpoint that accepts job opportunity data from external sources, specifically n8n automation workflows, and saves it to the system. The endpoint will receive job postings scraped from LinkedIn with details like title, company, location, emails, salary, and other metadata, then store them for further processing or display. The system supports both single job submissions and bulk operations for processing multiple jobs from automated scraping workflows.
 
 ## Glossary
 
 - **Job_Webhook_System**: The webhook endpoint and associated processing logic for receiving and storing job opportunities
-- **Job_Opportunity**: A data structure containing job posting information with fields: jobTitle, company, location, emails, emailType, isRemote, salary, link, snippet, and scrapedDate
-- **External_Source**: Third-party systems or scrapers that send job data to the webhook
+- **Job_Opportunity**: A data structure containing job posting information with fields: jobTitle, company, location, emails, emailType, isRemote, salary, link, snippet, scrapedDate, and secretToken
+- **External_Source**: Third-party systems or scrapers that send job data to the webhook, primarily n8n automation workflows
 - **Webhook_Endpoint**: HTTP endpoint that receives POST requests with job opportunity data
+- **N8n_Workflow**: Automated workflow that scrapes LinkedIn job postings every 3 hours and sends formatted data to the webhook
+- **Bulk_Operation**: Processing multiple job opportunities in a single request to handle batch data from automated workflows
+- **Secret_Token**: Authentication mechanism to ensure only authorized sources can submit job data
 
 ## Requirements
 

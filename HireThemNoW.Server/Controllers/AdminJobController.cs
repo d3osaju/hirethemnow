@@ -22,7 +22,7 @@ public class AdminJobController : ControllerBase
     }
 
     [HttpGet]
-    public Task<ActionResult<ApiResponse<PagedResult<AdminJobOpportunityDto>>>> GetJobs(
+    public async Task<ActionResult<ApiResponse<PagedResult<AdminJobOpportunityDto>>>> GetJobs(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
@@ -37,58 +37,189 @@ public class AdminJobController : ControllerBase
             _logger.LogInformation("Admin user {UserId} requesting jobs - Page: {Page}, Size: {PageSize}, Search: '{Search}', Status: {Status}, LocationType: {LocationType}, Sort: {SortBy} {SortOrder}",
                 adminUserId, page, pageSize, search, status, locationType, sortBy, sortOrder);
 
-            // For now, return empty results since we don't have a jobs table yet
-            // TODO: Implement when job posting functionality is added
-            var result = new PagedResult<AdminJobOpportunityDto>
+            // Query the JobOpportunities table created by the webhook
+            var query = _context.JobOpportunities.AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(search))
             {
-                Items = new List<AdminJobOpportunityDto>(),
-                TotalCount = 0,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = 0
+                query = query.Where(j => j.JobTitle.Contains(search) || 
+                                       j.Company.Contains(search) || 
+                                       j.Location.Contains(search));
+            }
+
+            // Apply status filter (map to isRemote for now)
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (status.ToLower() == "remote")
+                {
+                    query = query.Where(j => j.IsRemote);
+                }
+                else if (status.ToLower() == "onsite")
+                {
+                    query = query.Where(j => !j.IsRemote);
+                }
+            }
+
+            // Apply location type filter
+            if (!string.IsNullOrEmpty(locationType))
+            {
+                if (locationType.ToLower() == "remote")
+                {
+                    query = query.Where(j => j.IsRemote);
+                }
+                else if (locationType.ToLower() == "onsite")
+                {
+                    query = query.Where(j => !j.IsRemote);
+                }
+            }
+
+            // Apply sorting
+            query = sortBy?.ToLower() switch
+            {
+                "title" => sortOrder?.ToLower() == "desc" 
+                    ? query.OrderByDescending(j => j.JobTitle)
+                    : query.OrderBy(j => j.JobTitle),
+                "company" => sortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(j => j.Company)
+                    : query.OrderBy(j => j.Company),
+                "location" => sortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(j => j.Location)
+                    : query.OrderBy(j => j.Location),
+                "createdat" or "postedat" or _ => sortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(j => j.CreatedAt)
+                    : query.OrderBy(j => j.CreatedAt)
             };
 
-            return Task.FromResult<ActionResult<ApiResponse<PagedResult<AdminJobOpportunityDto>>>>(Ok(new ApiResponse<PagedResult<AdminJobOpportunityDto>>
+            // Get total count
+            var totalCount = await query.CountAsync();
+
+            // Apply pagination
+            var jobs = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Map to AdminJobOpportunityDto with consistent field mapping
+            var adminJobs = jobs.Select(j => new AdminJobOpportunityDto
+            {
+                Id = j.Id,
+                Title = j.JobTitle,
+                Company = j.Company,
+                Location = j.Location,
+                LocationType = j.IsRemote ? "remote" : "onsite",
+                SalaryMin = ParseSalaryMin(j.Salary),
+                SalaryMax = ParseSalaryMax(j.Salary),
+                Description = j.Snippet ?? string.Empty,
+                Requirements = new List<string>(), // Not available in webhook data
+                Benefits = new List<string>(), // Not available in webhook data
+                Status = "active", // Default status
+                PostedAt = j.ScrapedDate ?? j.CreatedAt,
+                ExpiresAt = null, // Not available in webhook data
+                ApplicationCount = 0, // Not tracked yet
+                ViewCount = 0, // Not tracked yet
+                CreatedBy = "Webhook", // Indicate source
+                UpdatedAt = j.CreatedAt
+            }).ToList();
+
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+            var result = new PagedResult<AdminJobOpportunityDto>
+            {
+                Items = adminJobs,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages
+            };
+
+            return Ok(new ApiResponse<PagedResult<AdminJobOpportunityDto>>
             {
                 Success = true,
                 Message = "Jobs retrieved successfully",
                 Data = result
-            }));
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving jobs");
-            return Task.FromResult<ActionResult<ApiResponse<PagedResult<AdminJobOpportunityDto>>>>(StatusCode(500, new ApiResponse<PagedResult<AdminJobOpportunityDto>>
+            return StatusCode(500, new ApiResponse<PagedResult<AdminJobOpportunityDto>>
             {
                 Success = false,
                 Message = "Failed to retrieve jobs"
-            }));
+            });
         }
     }
 
     [HttpGet("{id}")]
-    public Task<ActionResult<ApiResponse<AdminJobOpportunityWithApplicationsDto>>> GetJob(int id)
+    public async Task<ActionResult<ApiResponse<AdminJobOpportunityWithApplicationsDto>>> GetJob(int id)
     {
         try
         {
             var adminUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             _logger.LogInformation("Admin user {UserId} requesting job details for ID {JobId}", adminUserId, id);
 
-            // TODO: Implement when job posting functionality is added
-            return Task.FromResult<ActionResult<ApiResponse<AdminJobOpportunityWithApplicationsDto>>>(NotFound(new ApiResponse<AdminJobOpportunityWithApplicationsDto>
+            // Query database for job opportunity by ID
+            var job = await _context.JobOpportunities
+                .FirstOrDefaultAsync(j => j.Id == id);
+
+            if (job == null)
             {
-                Success = false,
-                Message = "Job not found"
-            }));
+                _logger.LogWarning("Job {JobId} not found for admin user {UserId}", id, adminUserId);
+                return NotFound(new ApiResponse<AdminJobOpportunityWithApplicationsDto>
+                {
+                    Success = false,
+                    Message = "Job not found"
+                });
+            }
+
+            // Parse recruiter emails from the Emails field
+            var recruiterEmails = ParseRecruiterEmails(job.Emails);
+
+            // Map JobOpportunity entity to response DTO including all available fields
+            var jobDto = new AdminJobOpportunityWithApplicationsDto
+            {
+                Id = job.Id,
+                Title = job.JobTitle,
+                Company = job.Company,
+                Location = job.Location,
+                LocationType = job.IsRemote ? "remote" : "onsite",
+                SalaryMin = ParseSalaryMin(job.Salary),
+                SalaryMax = ParseSalaryMax(job.Salary),
+                Description = job.Snippet ?? string.Empty,
+                Requirements = new List<string>(), // Not available in webhook data
+                Benefits = new List<string>(), // Not available in webhook data
+                Status = "active", // Default status
+                PostedAt = job.ScrapedDate ?? job.CreatedAt,
+                ExpiresAt = null, // Not available in webhook data
+                ApplicationCount = 0, // Not tracked yet - will be updated when applications are implemented
+                ViewCount = 0, // Not tracked yet
+                CreatedBy = "Webhook", // Indicate source
+                UpdatedAt = job.CreatedAt,
+                RecruiterEmails = recruiterEmails,
+                EmailType = job.EmailType ?? string.Empty,
+                OriginalJobLink = job.Link ?? string.Empty,
+                ScrapedDate = job.ScrapedDate,
+                Applications = new List<JobApplicationDto>() // Empty for now - will be populated when applications are implemented
+            };
+
+            _logger.LogInformation("Successfully retrieved job {JobId} for admin user {UserId}", id, adminUserId);
+
+            return Ok(new ApiResponse<AdminJobOpportunityWithApplicationsDto>
+            {
+                Success = true,
+                Message = "Job retrieved successfully",
+                Data = jobDto
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving job {JobId}", id);
-            return Task.FromResult<ActionResult<ApiResponse<AdminJobOpportunityWithApplicationsDto>>>(StatusCode(500, new ApiResponse<AdminJobOpportunityWithApplicationsDto>
+            _logger.LogError(ex, "Error retrieving job {JobId} for admin user {UserId}", id, User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            return StatusCode(500, new ApiResponse<AdminJobOpportunityWithApplicationsDto>
             {
                 Success = false,
                 Message = "Failed to retrieve job"
-            }));
+            });
         }
     }
 
@@ -169,6 +300,107 @@ public class AdminJobController : ControllerBase
             }));
         }
     }
+
+    private static int? ParseSalaryMin(string? salary)
+    {
+        if (string.IsNullOrWhiteSpace(salary)) return null;
+        
+        try
+        {
+            // Try to extract minimum salary from formats like "$50,000-$60,000" or "$50K-$60K"
+            var match = System.Text.RegularExpressions.Regex.Match(salary, @"\$?(\d+(?:,\d{3})*(?:\.\d{2})?)[kK]?");
+            if (match.Success)
+            {
+                var value = match.Groups[1].Value.Replace(",", "").Replace(".", "");
+                if (int.TryParse(value, out var result))
+                {
+                    // If it ends with K, multiply by 1000
+                    if (salary.ToUpper().Contains("K"))
+                        result *= 1000;
+                    return result;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Return null if parsing fails
+        }
+        return null;
+    }
+
+    private static int? ParseSalaryMax(string? salary)
+    {
+        if (string.IsNullOrWhiteSpace(salary)) return null;
+        
+        try
+        {
+            // Try to extract maximum salary from formats like "$50,000-$60,000" or "$50K-$60K"
+            var matches = System.Text.RegularExpressions.Regex.Matches(salary, @"\$?(\d+(?:,\d{3})*(?:\.\d{2})?)[kK]?");
+            if (matches.Count >= 2)
+            {
+                var value = matches[1].Groups[1].Value.Replace(",", "").Replace(".", "");
+                if (int.TryParse(value, out var result))
+                {
+                    // If it ends with K, multiply by 1000
+                    if (salary.ToUpper().Contains("K"))
+                        result *= 1000;
+                    return result;
+                }
+            }
+            return ParseSalaryMin(salary); // If no range, return the single value
+        }
+        catch (Exception)
+        {
+            // Return null if parsing fails
+            return null;
+        }
+    }
+
+    private static List<string> ParseRecruiterEmails(string emails)
+    {
+        var emailList = new List<string>();
+        
+        if (string.IsNullOrWhiteSpace(emails))
+        {
+            return emailList;
+        }
+
+        try
+        {
+            // Handle various email formats and separators
+            var separators = new[] { ',', ';', '\n', '\r', '|', ' ' };
+            var emailCandidates = emails.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var emailCandidate in emailCandidates)
+            {
+                var trimmedEmail = emailCandidate.Trim();
+                
+                // Remove common prefixes and suffixes that might be included
+                trimmedEmail = trimmedEmail.Trim('"', '\'', '<', '>', '(', ')', '[', ']');
+                
+                // Basic email validation using regex
+                if (!string.IsNullOrWhiteSpace(trimmedEmail) && 
+                    System.Text.RegularExpressions.Regex.IsMatch(trimmedEmail, 
+                    @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"))
+                {
+                    // Convert to lowercase for consistency and avoid duplicates
+                    var normalizedEmail = trimmedEmail.ToLowerInvariant();
+                    if (!emailList.Contains(normalizedEmail))
+                    {
+                        emailList.Add(normalizedEmail);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // If parsing fails, return empty list rather than throwing
+            // This ensures the job details are still displayed even if email parsing fails
+            return new List<string>();
+        }
+
+        return emailList;
+    }
 }
 
 // DTOs for job management
@@ -195,6 +427,10 @@ public class AdminJobOpportunityDto
 
 public class AdminJobOpportunityWithApplicationsDto : AdminJobOpportunityDto
 {
+    public List<string> RecruiterEmails { get; set; } = new();
+    public string EmailType { get; set; } = string.Empty;
+    public string OriginalJobLink { get; set; } = string.Empty;
+    public DateTime? ScrapedDate { get; set; }
     public List<JobApplicationDto> Applications { get; set; } = new();
 }
 

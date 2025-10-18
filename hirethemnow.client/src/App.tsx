@@ -21,7 +21,7 @@ import ServerError from './pages/ServerError';
 import Unauthorized from './pages/Unauthorized';
 import AdminRoute from './components/admin/AdminRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminContacts from './pages/admin/AdminContacts';
+
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminJobs from './pages/admin/AdminJobs';
@@ -164,7 +164,7 @@ function App() {
             <Route path="dashboard" element={<AdminOverview />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="jobs" element={<AdminJobs />} />
-            <Route path="contacts" element={<AdminContacts />} />
+
             <Route path="settings" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
 

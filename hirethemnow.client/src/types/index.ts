@@ -146,7 +146,6 @@ export interface ResumeAnalysisResult {
   updatedAt: string;
 }
 
-// Admin Contact Management Types
 export interface JobOpportunity {
   id: number;
   jobTitle: string;
@@ -162,17 +161,7 @@ export interface JobOpportunity {
   createdAt: string;
 }
 
-export interface UpdateContactRequest {
-  jobTitle: string;
-  company: string;
-  location?: string;
-  emails?: string;
-  emailType?: string;
-  isRemote: boolean;
-  salary?: string;
-  link?: string;
-  snippet?: string;
-}
+
 
 export interface PagedResult<T> {
   items: T[];

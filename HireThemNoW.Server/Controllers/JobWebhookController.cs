@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using HireThemNoW.Server.Services;
 using HireThemNoW.Server.Models;
+using System.Text.Json;
 
 namespace HireThemNoW.Server.Controllers;
 
@@ -154,6 +155,171 @@ public class JobWebhookController : ControllerBase
             {
                 Success = false,
                 Message = "An unexpected error occurred while processing the request",
+                Errors = new List<string> { "Internal server error" }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Creates multiple job opportunities from webhook data in bulk
+    /// Accepts POST requests with an array of job opportunity data and stores them in the database
+    /// Requires valid secret token for authentication in each job object
+    /// </summary>
+    /// <param name="jobDtos">Array of job opportunity data from external source including secret tokens</param>
+    /// <returns>Bulk creation result with success and failure details</returns>
+    /// <response code="200">Bulk operation completed (may include partial failures)</response>
+    /// <response code="400">Invalid request data or validation errors</response>
+    /// <response code="401">Invalid or missing authentication token</response>
+    /// <response code="500">Internal server error during processing</response>
+    [HttpPost("bulk")]
+    public async Task<ActionResult<ApiResponse<BulkJobCreationResult>>> CreateJobOpportunitiesBulk(
+        [FromBody] object requestBody)
+    {
+        try
+        {
+            // Handle both array and object wrapper formats
+            List<JobOpportunityDto> jobDtos;
+            
+            if (requestBody is JsonElement jsonElement)
+            {
+                // Configure JSON options for camelCase property names
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                if (jsonElement.ValueKind == JsonValueKind.Array)
+                {
+                    // Direct array format
+                    jobDtos = JsonSerializer.Deserialize<List<JobOpportunityDto>>(jsonElement.GetRawText(), jsonOptions) ?? new List<JobOpportunityDto>();
+                }
+                else if (jsonElement.ValueKind == JsonValueKind.Object)
+                {
+                    // Check for different wrapper formats
+                    if (jsonElement.TryGetProperty("jobs", out var jobsProperty))
+                    {
+                        // n8n format with "jobs" property
+                        jobDtos = JsonSerializer.Deserialize<List<JobOpportunityDto>>(jobsProperty.GetRawText(), jsonOptions) ?? new List<JobOpportunityDto>();
+                    }
+                    else if (jsonElement.TryGetProperty("jobDtos", out var jobDtosProperty))
+                    {
+                        // Alternative wrapper format
+                        jobDtos = JsonSerializer.Deserialize<List<JobOpportunityDto>>(jobDtosProperty.GetRawText(), jsonOptions) ?? new List<JobOpportunityDto>();
+                    }
+                    else
+                    {
+                        jobDtos = new List<JobOpportunityDto>();
+                    }
+                }
+                else
+                {
+                    jobDtos = new List<JobOpportunityDto>();
+                }
+            }
+            else
+            {
+                // Try to deserialize as array directly
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+                var jsonString = JsonSerializer.Serialize(requestBody);
+                jobDtos = JsonSerializer.Deserialize<List<JobOpportunityDto>>(jsonString, jsonOptions) ?? new List<JobOpportunityDto>();
+            }
+            
+            _logger.LogInformation("Received bulk job webhook request with {Count} jobs", jobDtos?.Count ?? 0);
+
+            // Validate request body
+            if (jobDtos == null || !jobDtos.Any())
+            {
+                _logger.LogWarning("Bulk job webhook request received with null or empty body");
+                return BadRequest(new ApiResponse<BulkJobCreationResult>
+                {
+                    Success = false,
+                    Message = "Request body is required and must contain at least one job",
+                    Errors = new List<string> { "Job opportunity data list cannot be null or empty" }
+                });
+            }
+
+            // Validate secret token configuration
+            var expectedSecret = _configuration["WEBHOOK_SECRET"];
+            if (string.IsNullOrEmpty(expectedSecret))
+            {
+                _logger.LogError("WEBHOOK_SECRET configuration is missing");
+                return StatusCode(500, new ApiResponse<BulkJobCreationResult>
+                {
+                    Success = false,
+                    Message = "Server configuration error",
+                    Errors = new List<string> { "Webhook authentication not configured" }
+                });
+            }
+
+            // Validate secret tokens for all jobs
+            var authErrors = new List<string>();
+            for (int i = 0; i < jobDtos.Count; i++)
+            {
+                var jobDto = jobDtos[i];
+                if (jobDto == null)
+                {
+                    authErrors.Add($"Job at index {i} is null");
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(jobDto.SecretToken) || jobDto.SecretToken != expectedSecret)
+                {
+                    authErrors.Add($"Job at index {i} has invalid or missing secret token (Company: {jobDto.Company ?? "Unknown"})");
+                }
+            }
+
+            if (authErrors.Any())
+            {
+                _logger.LogWarning("Bulk job webhook authentication failed: {Errors}", string.Join("; ", authErrors));
+                return Unauthorized(new ApiResponse<BulkJobCreationResult>
+                {
+                    Success = false,
+                    Message = "Authentication failed for one or more jobs",
+                    Errors = authErrors
+                });
+            }
+
+            // Process bulk job creation
+            var result = await _jobWebhookService.CreateJobOpportunitiesBulkAsync(jobDtos);
+
+            // Determine response status based on results
+            var responseMessage = result.IsCompleteSuccess 
+                ? "All job opportunities created successfully"
+                : result.IsPartialSuccess 
+                    ? $"Partial success: {result.SuccessCount} created, {result.FailureCount} failed"
+                    : "All job opportunities failed to be created";
+
+            _logger.LogInformation("Bulk job webhook completed: {Message}", responseMessage);
+
+            return Ok(new ApiResponse<BulkJobCreationResult>
+            {
+                Success = result.SuccessCount > 0, // Consider it successful if at least one job was created
+                Message = responseMessage,
+                Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogError(ex, "Null argument error in bulk job webhook: {Message}", ex.Message);
+            return BadRequest(new ApiResponse<BulkJobCreationResult>
+            {
+                Success = false,
+                Message = "Invalid request data",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in bulk job webhook: {Message}", ex.Message);
+            return StatusCode(500, new ApiResponse<BulkJobCreationResult>
+            {
+                Success = false,
+                Message = "An unexpected error occurred while processing the bulk request",
                 Errors = new List<string> { "Internal server error" }
             });
         }

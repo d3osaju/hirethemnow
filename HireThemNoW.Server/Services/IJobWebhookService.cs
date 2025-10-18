@@ -28,5 +28,14 @@ namespace HireThemNoW.Server.Services
         /// <exception cref="ArgumentNullException">Thrown when jobDto is null</exception>
         /// <exception cref="ArgumentException">Thrown when validation fails</exception>
         JobOpportunityDto ValidateAndSanitize(JobOpportunityDto jobDto);
+
+        /// <summary>
+        /// Creates multiple job opportunities from webhook data in bulk
+        /// Validates, sanitizes, and stores multiple job opportunities in the database
+        /// </summary>
+        /// <param name="jobDtos">The list of job opportunity data transfer objects</param>
+        /// <returns>A bulk result containing successful and failed job creations</returns>
+        /// <exception cref="ArgumentNullException">Thrown when jobDtos is null</exception>
+        Task<BulkJobCreationResult> CreateJobOpportunitiesBulkAsync(IEnumerable<JobOpportunityDto> jobDtos);
     }
 }

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, ApiResponse, ResumeAnalysisResult, JobOpportunity, UpdateContactRequest, PagedResult, AdminUser, AdminJobOpportunity, JobApplication, DashboardMetrics, ChartData, RecentActivity } from '../types';
+import type { User, ApiResponse, ResumeAnalysisResult, PagedResult, AdminUser, AdminJobOpportunity, JobApplication, DashboardMetrics, ChartData, RecentActivity } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;
@@ -279,65 +279,7 @@ export const releaseNotesAPI = {
   },
 };
 
-// Admin Contact Management API
-/**
- * Admin-only API endpoints for managing HR contacts and job opportunities.
- * All endpoints require admin role authentication.
- */
-export const adminContactAPI = {
-  /**
-   * Get paginated list of HR contacts with optional search and sorting
-   * @param page - Page number (1-based)
-   * @param pageSize - Number of items per page
-   * @param search - Search term for company name or job title
-   * @param sortBy - Sort field (createdAt, company, jobTitle)
-   */
-  getContacts: async (page: number = 1, pageSize: number = 20, search?: string, sortBy?: string): Promise<ApiResponse<PagedResult<JobOpportunity>>> => {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    });
-    
-    if (search) {
-      params.append('search', search);
-    }
-    
-    if (sortBy) {
-      params.append('sortBy', sortBy);
-    }
 
-    const response = await api.get(`/admin/contacts?${params.toString()}`);
-    return response.data;
-  },
-
-  /**
-   * Get detailed information for a specific HR contact
-   * @param id - Contact ID
-   */
-  getContact: async (id: number): Promise<ApiResponse<JobOpportunity>> => {
-    const response = await api.get(`/admin/contacts/${id}`);
-    return response.data;
-  },
-
-  /**
-   * Update HR contact information
-   * @param id - Contact ID
-   * @param contactData - Updated contact data
-   */
-  updateContact: async (id: number, contactData: UpdateContactRequest): Promise<ApiResponse<JobOpportunity>> => {
-    const response = await api.put(`/admin/contacts/${id}`, contactData);
-    return response.data;
-  },
-
-  /**
-   * Delete an HR contact permanently
-   * @param id - Contact ID
-   */
-  deleteContact: async (id: number): Promise<ApiResponse<object>> => {
-    const response = await api.delete(`/admin/contacts/${id}`);
-    return response.data;
-  },
-};
 
 // Admin Analytics API
 export const adminAnalyticsAPI = {

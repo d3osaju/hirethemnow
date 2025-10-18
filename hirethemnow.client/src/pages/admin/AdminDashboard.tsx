@@ -41,12 +41,6 @@ const AdminDashboard: React.FC = () => {
       current: location.pathname === '/admin/jobs'
     },
     { 
-      name: 'Contact Management', 
-      href: '/admin/contacts', 
-      icon: User, 
-      current: location.pathname === '/admin/contacts'
-    },
-    { 
       name: 'Settings', 
       href: '/admin/settings', 
       icon: Settings, 

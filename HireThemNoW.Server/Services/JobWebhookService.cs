@@ -109,35 +109,135 @@ namespace HireThemNoW.Server.Services
             _logger.LogDebug("Validating job opportunity data for company: {Company}", jobDto.Company);
 
             // Note: SecretToken validation is handled at the controller level for security
-            // Validate required fields first
-            var validationErrors = JobOpportunityValidationHelper.ValidateRequiredFields(jobDto);
-            if (validationErrors.Any())
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(jobDto.JobTitle))
             {
-                var errorMessage = string.Join("; ", validationErrors);
-                _logger.LogWarning("Validation failed for job opportunity: {Errors}", errorMessage);
-                throw new ArgumentException($"Validation failed: {errorMessage}");
+                _logger.LogWarning("Job title is required");
+                throw new ArgumentException("Job title is required");
             }
 
-            try
+            if (string.IsNullOrWhiteSpace(jobDto.Company))
             {
-                // Sanitize and set default values
-                var sanitizedDto = JobOpportunityValidationHelper.SanitizeAndValidate(jobDto);
-                sanitizedDto = JobOpportunityValidationHelper.SetDefaultValues(sanitizedDto);
-
-                // Additional business rule validations
-                ValidateBusinessRules(sanitizedDto);
-
-                _logger.LogDebug("Successfully validated and sanitized job opportunity for company: {Company}", 
-                    sanitizedDto.Company);
-
-                return sanitizedDto;
+                _logger.LogWarning("Company name is required");
+                throw new ArgumentException("Company name is required");
             }
-            catch (Exception ex) when (!(ex is ArgumentException))
+
+            // Create a sanitized copy
+            var sanitizedDto = new JobOpportunityDto
             {
-                _logger.LogError(ex, "Error during validation and sanitization for company: {Company}", 
-                    jobDto.Company);
-                throw new ArgumentException($"Validation error: {ex.Message}", ex);
+                JobTitle = jobDto.JobTitle.Trim(),
+                Company = jobDto.Company.Trim(),
+                Location = jobDto.Location?.Trim() ?? string.Empty,
+                Emails = jobDto.Emails?.Trim() ?? string.Empty,
+                EmailType = string.IsNullOrEmpty(jobDto.EmailType) ? "summary" : jobDto.EmailType.Trim().ToLower(),
+                IsRemote = jobDto.IsRemote,
+                Salary = jobDto.Salary?.Trim() ?? string.Empty,
+                Link = jobDto.Link?.Trim() ?? string.Empty,
+                Snippet = jobDto.Snippet?.Trim() ?? string.Empty,
+                ScrapedDate = jobDto.ScrapedDate ?? DateTime.UtcNow,
+                SecretToken = jobDto.SecretToken // Keep for validation but won't be stored
+            };
+
+            // Additional business rule validations
+            ValidateBusinessRules(sanitizedDto);
+
+            _logger.LogDebug("Successfully validated and sanitized job opportunity for company: {Company}", 
+                sanitizedDto.Company);
+
+            return sanitizedDto;
+        }
+
+        /// <summary>
+        /// Creates multiple job opportunities from webhook data in bulk
+        /// Validates, sanitizes, and stores multiple job opportunities in the database
+        /// </summary>
+        /// <param name="jobDtos">The list of job opportunity data transfer objects</param>
+        /// <returns>A bulk result containing successful and failed job creations</returns>
+        /// <exception cref="ArgumentNullException">Thrown when jobDtos is null</exception>
+        public async Task<BulkJobCreationResult> CreateJobOpportunitiesBulkAsync(IEnumerable<JobOpportunityDto> jobDtos)
+        {
+            if (jobDtos == null)
+            {
+                _logger.LogError("JobOpportunityDto list is null");
+                throw new ArgumentNullException(nameof(jobDtos), "Job opportunity data list is required");
             }
+
+            var jobList = jobDtos.ToList();
+            var result = new BulkJobCreationResult
+            {
+                TotalProcessed = jobList.Count
+            };
+
+            _logger.LogInformation("Starting bulk job creation for {Count} jobs", jobList.Count);
+
+            for (int i = 0; i < jobList.Count; i++)
+            {
+                var jobDto = jobList[i];
+                try
+                {
+                    // Create individual job opportunity
+                    var createdJob = await CreateJobOpportunityAsync(jobDto);
+                    result.SuccessfulJobs.Add(createdJob);
+                    result.SuccessCount++;
+
+                    _logger.LogDebug("Successfully created job {Index}/{Total} for company: {Company}", 
+                        i + 1, jobList.Count, createdJob.Company);
+                }
+                catch (ArgumentNullException ex)
+                {
+                    _logger.LogWarning("Null argument error for job {Index}: {Message}", i, ex.Message);
+                    result.FailedJobs.Add(new BulkJobCreationError
+                    {
+                        Index = i,
+                        JobData = jobDto ?? new JobOpportunityDto(),
+                        ErrorMessage = ex.Message,
+                        ErrorType = BulkJobErrorType.Validation
+                    });
+                    result.FailureCount++;
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogWarning("Validation error for job {Index}: {Message}", i, ex.Message);
+                    result.FailedJobs.Add(new BulkJobCreationError
+                    {
+                        Index = i,
+                        JobData = jobDto ?? new JobOpportunityDto(),
+                        ErrorMessage = ex.Message,
+                        ValidationErrors = new List<string> { ex.Message },
+                        ErrorType = BulkJobErrorType.Validation
+                    });
+                    result.FailureCount++;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogError("Database error for job {Index}: {Message}", i, ex.Message);
+                    result.FailedJobs.Add(new BulkJobCreationError
+                    {
+                        Index = i,
+                        JobData = jobDto ?? new JobOpportunityDto(),
+                        ErrorMessage = "Database operation failed",
+                        ErrorType = BulkJobErrorType.Database
+                    });
+                    result.FailureCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error for job {Index}: {Message}", i, ex.Message);
+                    result.FailedJobs.Add(new BulkJobCreationError
+                    {
+                        Index = i,
+                        JobData = jobDto ?? new JobOpportunityDto(),
+                        ErrorMessage = "An unexpected error occurred",
+                        ErrorType = BulkJobErrorType.Unexpected
+                    });
+                    result.FailureCount++;
+                }
+            }
+
+            _logger.LogInformation("Bulk job creation completed. Success: {Success}, Failed: {Failed}, Total: {Total}", 
+                result.SuccessCount, result.FailureCount, result.TotalProcessed);
+
+            return result;
         }
 
         /// <summary>
