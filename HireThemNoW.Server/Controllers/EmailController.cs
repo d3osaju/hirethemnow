@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
 using HireThemNoW.Server.Services;
 using HireThemNoW.Server.Models;
 
@@ -24,6 +26,26 @@ public class EmailController : ControllerBase
         _emailCenterService = emailCenterService ?? throw new ArgumentNullException(nameof(emailCenterService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    }
+
+    /// <summary>
+    /// Performs constant-time string comparison to prevent timing attacks
+    /// </summary>
+    /// <param name="expected">Expected string value</param>
+    /// <param name="actual">Actual string value to compare</param>
+    /// <returns>True if strings are equal, false otherwise</returns>
+    private static bool ConstantTimeEquals(string expected, string actual)
+    {
+        if (expected == null || actual == null)
+            return expected == actual;
+
+        if (expected.Length != actual.Length)
+            return false;
+
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var actualBytes = Encoding.UTF8.GetBytes(actual);
+
+        return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
 
     /// <summary>
@@ -180,7 +202,7 @@ public class EmailController : ControllerBase
             var expectedSecret = _configuration["WEBHOOK_SECRET"];
             if (string.IsNullOrEmpty(expectedSecret))
             {
-                _logger.LogError("WEBHOOK_SECRET configuration is missing");
+                _logger.LogError("WEBHOOK_SECRET configuration is missing - webhook authentication cannot proceed");
                 return StatusCode(500, new ApiResponse<EmailDto>
                 {
                     Success = false,
@@ -189,32 +211,83 @@ public class EmailController : ControllerBase
                 });
             }
 
-            if (string.IsNullOrEmpty(request.SecretToken) || request.SecretToken != expectedSecret)
+            // Log authentication attempt (before validation for security monitoring)
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            var userAgent = Request.Headers.UserAgent.ToString();
+            
+            _logger.LogInformation("Webhook authentication attempt from IP {ClientIp} with User-Agent {UserAgent} for user {UserId}", 
+                clientIp, userAgent, request.UserId ?? "Unknown");
+
+            // Use constant-time comparison to prevent timing attacks
+            var isSecretValid = !string.IsNullOrEmpty(request.SecretToken) && 
+                               ConstantTimeEquals(expectedSecret, request.SecretToken);
+
+            if (!isSecretValid)
             {
-                _logger.LogWarning("Email webhook request received with invalid or missing secret token for user {UserId}", 
-                    request.UserId ?? "Unknown");
+                // Log security event with details but don't reveal why authentication failed
+                _logger.LogWarning("Webhook authentication failed from IP {ClientIp} for user {UserId} - " +
+                                 "Secret token: {HasToken}, Token length: {TokenLength}", 
+                    clientIp, 
+                    request.UserId ?? "Unknown",
+                    !string.IsNullOrEmpty(request.SecretToken) ? "Present" : "Missing",
+                    request.SecretToken?.Length ?? 0);
+
                 return Unauthorized(new ApiResponse<EmailDto>
                 {
                     Success = false,
-                    Message = "Invalid or missing authentication token",
-                    Errors = new List<string> { "Authentication failed" }
+                    Message = "Authentication failed. Invalid or missing webhook secret token.",
+                    Errors = new List<string> { "Webhook authentication required" }
                 });
             }
+
+            // Log successful authentication
+            _logger.LogInformation("Webhook authentication successful from IP {ClientIp} for user {UserId}", 
+                clientIp, request.UserId ?? "Unknown");
 
             // Validate model state (data annotations)
             if (!ModelState.IsValid)
             {
-                var errors = ModelState
-                    .SelectMany(x => x.Value?.Errors ?? new Microsoft.AspNetCore.Mvc.ModelBinding.ModelErrorCollection())
-                    .Select(x => x.ErrorMessage)
-                    .ToList();
+                var errors = new List<string>();
+                
+                foreach (var modelError in ModelState)
+                {
+                    var fieldName = modelError.Key;
+                    var fieldErrors = modelError.Value?.Errors;
+                    
+                    if (fieldErrors != null && fieldErrors.Count > 0)
+                    {
+                        foreach (var error in fieldErrors)
+                        {
+                            var errorMessage = !string.IsNullOrEmpty(error.ErrorMessage) 
+                                ? error.ErrorMessage 
+                                : error.Exception?.Message ?? "Invalid value";
+                            
+                            // Create more descriptive error messages
+                            var descriptiveError = fieldName switch
+                            {
+                                nameof(WebhookEmailRequestWithSecret.UserId) => $"UserId is required and cannot be empty",
+                                nameof(WebhookEmailRequestWithSecret.ToEmail) => 
+                                    errorMessage.Contains("email", StringComparison.OrdinalIgnoreCase) 
+                                        ? $"ToEmail must be a valid email address format (e.g., user@example.com)"
+                                        : $"ToEmail is required and cannot be empty",
+                                nameof(WebhookEmailRequestWithSecret.Subject) => $"Subject is required and cannot be empty",
+                                nameof(WebhookEmailRequestWithSecret.Body) => $"Body is required and cannot be empty",
+                                nameof(WebhookEmailRequestWithSecret.SecretToken) => $"SecretToken is required for authentication",
+                                _ => $"{fieldName}: {errorMessage}"
+                            };
+                            
+                            errors.Add(descriptiveError);
+                        }
+                    }
+                }
 
-                _logger.LogWarning("Email webhook validation failed: {Errors}", string.Join("; ", errors));
+                _logger.LogWarning("Email webhook validation failed for user {UserId}: {Errors}", 
+                    request.UserId ?? "Unknown", string.Join("; ", errors));
                 
                 return BadRequest(new ApiResponse<EmailDto>
                 {
                     Success = false,
-                    Message = "Validation failed",
+                    Message = "Request validation failed. Please check the required fields and their formats.",
                     Errors = errors
                 });
             }

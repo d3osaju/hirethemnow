@@ -85,16 +85,67 @@ namespace HireThemNoW.Server.Services
         {
             try
             {
-                if (!await ValidateWebhookRequestAsync(request))
+                if (request == null)
                 {
-                    throw new ArgumentException("Invalid webhook request data");
+                    throw new ArgumentNullException(nameof(request), "Webhook request cannot be null");
                 }
 
-                // Check if user exists
-                var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-                if (!userExists)
+                if (!await ValidateWebhookRequestAsync(request))
                 {
-                    throw new ArgumentException($"User with ID {request.UserId} does not exist");
+                    // The validation method already logs specific validation failures
+                    // Check specific validation failures to provide detailed error messages
+                    if (string.IsNullOrWhiteSpace(request.UserId))
+                    {
+                        throw new ArgumentException("UserId is required and cannot be empty");
+                    }
+
+                    var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
+                    if (!userExists)
+                    {
+                        throw new ArgumentException($"User with ID '{request.UserId}' does not exist in the system");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(request.ToEmail))
+                    {
+                        throw new ArgumentException("ToEmail is required and cannot be empty");
+                    }
+
+                    var emailAttribute = new EmailAddressAttribute();
+                    if (!emailAttribute.IsValid(request.ToEmail))
+                    {
+                        throw new ArgumentException($"ToEmail '{request.ToEmail}' is not a valid email address format");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(request.Subject))
+                    {
+                        throw new ArgumentException("Subject is required and cannot be empty");
+                    }
+
+                    if (request.Subject.Length > 500)
+                    {
+                        throw new ArgumentException("Subject cannot exceed 500 characters");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(request.Body))
+                    {
+                        throw new ArgumentException("Body is required and cannot be empty");
+                    }
+
+                    if (!string.IsNullOrEmpty(request.ResumeUrl))
+                    {
+                        if (request.ResumeUrl.Length > 500)
+                        {
+                            throw new ArgumentException("ResumeUrl cannot exceed 500 characters");
+                        }
+
+                        if (!Uri.TryCreate(request.ResumeUrl, UriKind.Absolute, out var uri) || 
+                            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                        {
+                            throw new ArgumentException($"ResumeUrl '{request.ResumeUrl}' is not a valid HTTP or HTTPS URL");
+                        }
+                    }
+
+                    throw new ArgumentException("Webhook request validation failed");
                 }
 
                 var email = new Email
@@ -115,10 +166,15 @@ namespace HireThemNoW.Server.Services
                 _logger.LogInformation("Created new email with ID {EmailId} for user {UserId} via webhook", email.Id, request.UserId);
                 return email;
             }
+            catch (ArgumentException)
+            {
+                // Re-throw argument exceptions as they contain user-friendly validation messages
+                throw;
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating email via webhook for user {UserId}", request?.UserId);
-                throw;
+                _logger.LogError(ex, "Unexpected error creating email via webhook for user {UserId}", request?.UserId);
+                throw new InvalidOperationException("An error occurred while creating the email. Please try again.", ex);
             }
         }
 
@@ -157,6 +213,14 @@ namespace HireThemNoW.Server.Services
                     return false;
                 }
 
+                // Validate user existence
+                var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
+                if (!userExists)
+                {
+                    _logger.LogWarning("Webhook request references non-existent user: {UserId}", request.UserId);
+                    return false;
+                }
+
                 // Validate email format
                 var emailAttribute = new EmailAddressAttribute();
                 if (!emailAttribute.IsValid(request.ToEmail))
@@ -189,11 +253,12 @@ namespace HireThemNoW.Server.Services
                     }
                 }
 
+                _logger.LogInformation("Webhook request validation successful for user {UserId}", request.UserId);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error validating webhook request");
+                _logger.LogError(ex, "Error validating webhook request for user {UserId}", request?.UserId);
                 return false;
             }
         }
