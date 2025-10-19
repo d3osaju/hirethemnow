@@ -267,3 +267,13 @@ export interface RecentActivity {
   jobId?: number;
 }
 
+// Email Center Types
+export interface EmailRecord {
+  id: number;
+  toEmail: string;
+  subject: string;
+  body: string;
+  resumeUrl: string;
+  createdAt: string;
+}
+

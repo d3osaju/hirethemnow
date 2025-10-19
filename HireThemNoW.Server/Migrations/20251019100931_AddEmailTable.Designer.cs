@@ -3,6 +3,7 @@ using System;
 using HireThemNoW.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,13 +12,14 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HireThemNoW.Server.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251019100931_AddEmailTable")]
+    partial class AddEmailTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasDefaultSchema("public")
                 .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -76,7 +78,57 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("UserId", "IsSent");
 
-                    b.ToTable("Emails", "public");
+                    b.ToTable("Emails");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Body = "Dear Hiring Manager,\n\nI am writing to express my interest in the Software Developer position at TechCorp. With my background in full-stack development and experience with React and .NET, I believe I would be a great fit for your team.\n\nPlease find my resume attached for your review.\n\nBest regards,\nJohn Doe",
+                            CreatedAt = new DateTime(2025, 10, 15, 10, 0, 0, 0, DateTimeKind.Utc),
+                            IsSent = false,
+                            ResumeUrl = "https://example.com/resume/john-doe.pdf",
+                            Subject = "Software Developer Position - John Doe",
+                            ToEmail = "hiring@techcorp.com",
+                            UpdatedAt = new DateTime(2025, 10, 15, 10, 0, 0, 0, DateTimeKind.Utc),
+                            UserId = "test-user-1"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Body = "Hello,\n\nI came across your Frontend Developer opening and I'm very interested in the role. My expertise in React, TypeScript, and modern web technologies aligns well with your requirements.\n\nI would love to discuss how I can contribute to your team.\n\nSincerely,\nJohn Doe",
+                            CreatedAt = new DateTime(2025, 10, 16, 14, 30, 0, 0, DateTimeKind.Utc),
+                            IsSent = false,
+                            ResumeUrl = "https://example.com/resume/john-doe.pdf",
+                            Subject = "Frontend Developer Opportunity - John Doe",
+                            ToEmail = "careers@innovate.io",
+                            UpdatedAt = new DateTime(2025, 10, 16, 14, 30, 0, 0, DateTimeKind.Utc),
+                            UserId = "test-user-1"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Body = "Dear Hiring Team,\n\nI am excited to apply for the Data Analyst position at DataTech. My background in data science and proficiency with Python and SQL make me an ideal candidate.\n\nI have attached my resume for your consideration.\n\nThank you for your time,\nJane Smith",
+                            CreatedAt = new DateTime(2025, 10, 17, 9, 15, 0, 0, DateTimeKind.Utc),
+                            IsSent = false,
+                            ResumeUrl = "https://example.com/resume/jane-smith.pdf",
+                            Subject = "Data Analyst Position - Jane Smith",
+                            ToEmail = "hr@datatech.com",
+                            UpdatedAt = new DateTime(2025, 10, 17, 9, 15, 0, 0, DateTimeKind.Utc),
+                            UserId = "test-user-2"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Body = "Hi there,\n\nI'm reaching out regarding the Full Stack Developer position at your startup. I'm passionate about building scalable web applications and would love to contribute to your growing team.\n\nLooking forward to hearing from you!\n\nBest,\nJohn Doe",
+                            CreatedAt = new DateTime(2025, 10, 14, 16, 45, 0, 0, DateTimeKind.Utc),
+                            IsSent = true,
+                            ResumeUrl = "https://example.com/resume/john-doe.pdf",
+                            Subject = "Full Stack Developer Role - John Doe",
+                            ToEmail = "jobs@startup.co",
+                            UpdatedAt = new DateTime(2025, 10, 14, 17, 0, 0, 0, DateTimeKind.Utc),
+                            UserId = "test-user-1"
+                        });
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.EmailPreference", b =>
@@ -105,7 +157,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("EmailPreferences", "public");
+                    b.ToTable("EmailPreferences");
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.Industry", b =>
@@ -126,7 +178,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Industries", "public");
+                    b.ToTable("Industries");
 
                     b.HasData(
                         new
@@ -259,7 +311,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("CreatedAt");
 
-                    b.ToTable("job_opportunities", "public");
+                    b.ToTable("job_opportunities");
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.ReleaseNote", b =>
@@ -290,7 +342,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ReleaseNotes", "public");
+                    b.ToTable("ReleaseNotes");
 
                     b.HasData(
                         new
@@ -474,7 +526,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("resume_analyses", "public");
+                    b.ToTable("resume_analyses");
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.ResumeContent", b =>
@@ -550,7 +602,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("UserId", "UploadedAt");
 
-                    b.ToTable("resume_contents", "public");
+                    b.ToTable("resume_contents");
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.SkillExpertise", b =>
@@ -573,7 +625,7 @@ namespace HireThemNoW.Server.Migrations
 
                     b.HasIndex("IndustryId");
 
-                    b.ToTable("SkillExpertises", "public");
+                    b.ToTable("SkillExpertises");
 
                     b.HasData(
                         new
@@ -1289,7 +1341,7 @@ namespace HireThemNoW.Server.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", "public");
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("HireThemNoW.Server.Models.Email", b =>

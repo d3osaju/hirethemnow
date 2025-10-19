@@ -25,6 +25,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminJobs from './pages/admin/AdminJobs';
+import EmailCenterPage from './pages/EmailCenter';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -145,6 +146,7 @@ function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="email-center" element={<EmailCenterPage />} />
             <Route path="resume-analysis" element={<ResumeAnalysis />} />
             <Route path="parsed-resume" element={<ParsedResume />} />
             <Route path="profile" element={<Profile />} />

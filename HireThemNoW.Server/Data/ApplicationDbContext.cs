@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<Email> Emails { get; set; }
     public DbSet<EmailPreference> EmailPreferences { get; set; }
     public DbSet<Industry> Industries { get; set; }
     public DbSet<SkillExpertise> SkillExpertises { get; set; }
@@ -23,6 +24,9 @@ public class ApplicationDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        // Configure default schema
+        modelBuilder.HasDefaultSchema("public");
 
         // User configuration
         modelBuilder.Entity<User>(entity =>
@@ -39,6 +43,31 @@ public class ApplicationDbContext : DbContext
                     (c1, c2) => c1!.SequenceEqual(c2!),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                     c => c.ToList()));
+        });
+
+        // Email configuration
+        modelBuilder.Entity<Email>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.ToEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Body).IsRequired();
+            entity.Property(e => e.ResumeUrl).HasMaxLength(500);
+            entity.Property(e => e.IsSent).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            
+            // Indexes for efficient querying
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.IsSent);
+            entity.HasIndex(e => new { e.UserId, e.IsSent });
+            
+            // Foreign key relationship
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // EmailPreference configuration

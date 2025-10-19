@@ -77,3 +77,6 @@ bucket-policy.json
 
 test-token.txt
 .vercel
+
+
+connect-to-prod-db.gitignore.ps1

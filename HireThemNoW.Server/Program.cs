@@ -91,9 +91,11 @@ builder.Services.AddHostedService<ResumeParsingBackgroundService>();
 // Add Email Service
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// Add Email Center Service
+builder.Services.AddScoped<IEmailCenterService, EmailCenterService>();
+
 // Add Job Webhook Service
 builder.Services.AddScoped<IJobWebhookService, JobWebhookService>();
-
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

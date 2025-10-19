@@ -9,8 +9,8 @@ namespace HireThemNoW.Server.Data
         {
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             
-            // Use the development connection string for migrations
-            optionsBuilder.UseNpgsql("Host=localhost;Database=hirethemnow_dev;Username=postgres;Password=postgres;");
+            // Use the production connection string for migrations
+            optionsBuilder.UseNpgsql("Host=hirethemnow-db.ca5kaqqsyk65.us-east-1.rds.amazonaws.com;Database=postgres;Username=postgres;Password=hirethem4us;SearchPath=public;");
             
             return new ApplicationDbContext(optionsBuilder.Options);
         }

@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Sparkles,
-  FileText
+  FileText,
+  LayoutDashboard
 } from 'lucide-react';
 
 const DashboardLayout: React.FC = () => {
@@ -21,7 +22,8 @@ const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
 
   const navigation = [
-    { name: 'Email Center', href: '/dashboard', icon: Mail, current: location.pathname === '/dashboard' },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: location.pathname === '/dashboard' },
+    { name: 'Email Center', href: '/dashboard/email-center', icon: Mail, current: location.pathname === '/dashboard/email-center' },
     { name: 'Resume Analysis', href: '/dashboard/resume-analysis', icon: Sparkles, current: location.pathname === '/dashboard/resume-analysis' },
     { name: 'Parsed Resume', href: '/dashboard/parsed-resume', icon: FileText, current: location.pathname === '/dashboard/parsed-resume' },
     { name: 'Profile', href: '/dashboard/profile', icon: User, current: location.pathname === '/dashboard/profile' },

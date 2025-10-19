@@ -96,30 +96,6 @@
     },
     {
       "parameters": {
-        "model": {
-          "__rl": true,
-          "mode": "list",
-          "value": "gpt-4.1-mini"
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
-      "position": [
-        -272,
-        192
-      ],
-      "id": "bab1a1a5-a6c6-4359-a549-f7fedee6964b",
-      "name": "OpenAI Chat Model",
-      "credentials": {
-        "openAiApi": {
-          "id": "NJpBSeyvriig4Dzu",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "jsCode": "// Parse the OpenAI response\nconst input = $input.first().json;\nlet parsedData;\n\ntry {\n  // The response from OpenAI node in n8n typically comes as a text field\n  if (typeof input.text === 'string') {\n    parsedData = JSON.parse(input.text);\n  } else if (typeof input.response === 'string') {\n    parsedData = JSON.parse(input.response);\n  } else if (typeof input === 'string') {\n    parsedData = JSON.parse(input);\n  } else if (input.message?.content) {\n    // Sometimes it's in message.content\n    parsedData = typeof input.message.content === 'string' \n      ? JSON.parse(input.message.content) \n      : input.message.content;\n  } else if (input.jobs) {\n    // It might already be parsed\n    parsedData = input;\n  } else {\n    // Try to find any string field that looks like JSON\n    const jsonString = Object.values(input).find(val => \n      typeof val === 'string' && val.includes('\"jobs\"')\n    );\n    if (jsonString) {\n      parsedData = JSON.parse(jsonString);\n    } else {\n      throw new Error('Could not find JSON data in response');\n    }\n  }\n  \n  console.log('Successfully parsed data with', parsedData.jobs?.length, 'jobs');\n  \n} catch (error) {\n  console.error('Error parsing OpenAI response:', error);\n  console.log('Raw input:', JSON.stringify(input, null, 2));\n  \n  // Return error with debug info\n  return [{\n    json: {\n      error: 'Failed to parse OpenAI response',\n      errorMessage: error.message,\n      rawResponse: input,\n      debugInfo: 'Check the console logs for the raw response structure'\n    }\n  }];\n}\n\n// Extract jobs and pagination info\nconst jobs = parsedData.jobs || [];\nconst pagination = parsedData.pagination || { hasMore: false, nextStartIndex: 1 };\n\n// Filter for jobs with emails only\nconst jobsWithEmails = jobs.filter(job => job.hasEmail === true);\n\nconsole.log(`Found ${jobsWithEmails.length} jobs with emails out of ${jobs.length} total`);\n\n// Prepare bulk array for webhook\nconst bulkJobsArray = jobsWithEmails.map(job => ({\n  jobTitle: job.jobTitle || 'N/A',\n  company: job.company || 'N/A',\n  location: job.location || 'N/A',\n  emails: Array.isArray(job.emails) ? job.emails.join(', ') : (job.emails || 'No email'),\n  emailType: job.emailType || 'recruiter',\n  isRemote: job.isRemote || false,\n  salary: job.salary || 'Not specified',\n  link: job.link || '',\n  snippet: (job.snippet || '').substring(0, 200),\n  scrapedDate: job.scrapedDate || new Date().toISOString(),\n  secretToken: '046801ecc26b566bb35515f48bfb775ef2d909ca2e78e667613b4cdcf65fc831'\n}));\n\n// If no results with emails, return a message\nif (bulkJobsArray.length === 0) {\n  console.log('No jobs with emails found in this batch');\n  return [{\n    json: {\n      message: 'No jobs with emails found in this batch',\n      totalJobs: jobs.length,\n      jobsWithEmails: 0,\n      pagination: pagination\n    }\n  }];\n}\n\nconsole.log(`Prepared ${bulkJobsArray.length} jobs for bulk webhook submission`);\n\n// Return the bulk jobs wrapped in an object for n8n compatibility\n// The HTTP Request node will then send this as the request body\nreturn [{\n  json: {\n    jobs: bulkJobsArray,\n    metadata: {\n      totalProcessed: jobs.length,\n      jobsWithEmails: bulkJobsArray.length,\n      processedAt: new Date().toISOString(),\n      pagination: pagination\n    }\n  }\n}];\n"
       },
       "type": "n8n-nodes-base.code",
@@ -296,6 +272,26 @@
           "name": "Google Sheets account"
         }
       }
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        -336,
+        192
+      ],
+      "id": "cf2c92d2-eded-4767-87f2-7c485a3731bb",
+      "name": "AWS Bedrock Chat Model",
+      "credentials": {
+        "aws": {
+          "id": "fAG0lSzOuveaETrz",
+          "name": "AWS account"
+        }
+      }
     }
   ],
   "connections": {
@@ -327,17 +323,6 @@
           {
             "node": "Result Parser",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Result Parser",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -398,6 +383,17 @@
           {
             "node": "Message a model",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Result Parser",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]

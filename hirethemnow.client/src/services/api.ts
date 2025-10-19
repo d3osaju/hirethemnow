@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { User, ApiResponse, ResumeAnalysisResult, PagedResult, AdminUser, AdminJobOpportunity, JobApplication, DashboardMetrics, ChartData, RecentActivity } from '../types';
+import type { User, ApiResponse, ResumeAnalysisResult, PagedResult, AdminUser, AdminJobOpportunity, JobApplication, DashboardMetrics, ChartData, RecentActivity, EmailRecord } from '../types';
 import { config, logger } from '../config/environment';
 
 const API_BASE_URL = config.apiUrl;
@@ -275,6 +275,19 @@ export const resumeAnalysisAPI = {
 export const releaseNotesAPI = {
   getReleaseNotes: async (): Promise<ApiResponse<Array<{ id: number; version: string; releaseDate: string; features: string[]; isPublished: boolean; createdAt: string }>>> => {
     const response = await api.get('/releasenotes');
+    return response.data;
+  },
+};
+
+// Email Center API
+export const emailAPI = {
+  getUserEmails: async (): Promise<ApiResponse<EmailRecord[]>> => {
+    const response = await api.get('/email');
+    return response.data;
+  },
+
+  markEmailAsSent: async (emailId: number): Promise<ApiResponse<void>> => {
+    const response = await api.post(`/email/mark-sent/${emailId}`);
     return response.data;
   },
 };
