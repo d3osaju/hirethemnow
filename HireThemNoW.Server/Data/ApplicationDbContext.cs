@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ResumeAnalysis> ResumeAnalyses { get; set; }
     public DbSet<ResumeContent> ResumeContents { get; set; }
     public DbSet<JobOpportunity> JobOpportunities { get; set; }
+    public DbSet<ColdMailGenerationHistory> ColdMailGenerationHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -162,6 +163,32 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.Company);
             entity.HasIndex(e => e.CreatedAt);
+        });
+
+        // ColdMailGenerationHistory configuration
+        modelBuilder.Entity<ColdMailGenerationHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.JobId).IsRequired();
+            entity.Property(e => e.IsSent).HasDefaultValue(false);
+
+            // Indexes for efficient querying
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.JobId);
+            entity.HasIndex(e => new { e.UserId, e.JobId });
+            entity.HasIndex(e => e.IsSent);
+
+            // Foreign key relationships
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.JobOpportunity)
+                .WithMany()
+                .HasForeignKey(e => e.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed data
