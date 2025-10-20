@@ -11,8 +11,7 @@ import {
   Menu,
   X,
   Sparkles,
-  FileText,
-  LayoutDashboard
+  FileText
 } from 'lucide-react';
 
 const DashboardLayout: React.FC = () => {
@@ -22,7 +21,6 @@ const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, current: location.pathname === '/dashboard' },
     { name: 'Email Center', href: '/dashboard/email-center', icon: Mail, current: location.pathname === '/dashboard/email-center' },
     { name: 'Resume Analysis', href: '/dashboard/resume-analysis', icon: Sparkles, current: location.pathname === '/dashboard/resume-analysis' },
     { name: 'Parsed Resume', href: '/dashboard/parsed-resume', icon: FileText, current: location.pathname === '/dashboard/parsed-resume' },
@@ -42,7 +40,7 @@ const DashboardLayout: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-2xl">
           <div className="flex items-center justify-between p-4 border-b border-neutral-200">
-            <Logo size="large" linkTo="/dashboard" />
+            <Logo size="large" linkTo="/dashboard/email-center" />
             <button
               onClick={() => setSidebarOpen(false)}
               className="p-1 text-neutral-400 hover:text-neutral-600"
@@ -106,7 +104,7 @@ const DashboardLayout: React.FC = () => {
         <div className="flex flex-col flex-grow bg-white border-r border-neutral-200">
           {/* Logo */}
           <div className="flex items-center px-6 py-6 border-b border-neutral-200">
-            <Logo size="large" linkTo="/dashboard" />
+            <Logo size="large" linkTo="/dashboard/email-center" />
           </div>
 
           {/* Navigation */}

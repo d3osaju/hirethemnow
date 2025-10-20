@@ -1,0 +1,400 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1232,
+        112
+      ],
+      "id": "209c2f20-9037-483f-a926-fcbf9d064b73",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cc27b2d9-8de7-43ca-a741-2d150084f78e",
+              "name": "currentStartIndex",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "fc552c57-4510-4f04-aa09-2294306d0d9f",
+              "name": "maxPages",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "search-query",
+              "name": "searchQuery",
+              "value": "={{ $json.message.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        112
+      ],
+      "id": "f0b635e1-e950-4ac2-a88c-8d3d8d4c4138",
+      "name": "Set Initial Parameters"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyCjxeBjBqTM0uWGFJWGWinQsezsUwCNcik"
+            },
+            {
+              "name": "cx",
+              "value": "046d2d81437e54f14"
+            },
+            {
+              "name": "q",
+              "value": "={{ $node[\"Set Initial Parameters\"].json.searchQuery }}"
+            },
+            {
+              "name": "start",
+              "value": "={{ $runIndex == 0 ? $node[\"Set Initial Parameters\"].json.currentStartIndex : $node[\"Pagination Check\"].json.nextStartIndex }}"
+            },
+            {
+              "name": "num",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        112
+      ],
+      "id": "a91c4158-780c-4f30-bde8-ae10a22aa3b0",
+      "name": "Search Google"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the input from the previous node\nconst input = $input.all();\n\nlet allJobs = [];\n\n// Process each item in the input array\nfor (const item of input) {\n  try {\n    let parsedData = null;\n    const jsonData = item.json;\n    \n    // Handle different response structures\n    if (Array.isArray(jsonData)) {\n      // If it's an array, process each element\n      for (const element of jsonData) {\n        if (element.text) {\n          const trimmedText = element.text.trim();\n          \n          // Skip empty responses\n          if (trimmedText === '[]' || trimmedText === '') {\n            continue;\n          }\n          \n          // Remove markdown code blocks if present\n          let cleanText = trimmedText;\n          if (cleanText.startsWith('```json')) {\n            cleanText = cleanText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n          } else if (cleanText.startsWith('```')) {\n            cleanText = cleanText.replace(/```\\n?/g, '');\n          }\n          \n          cleanText = cleanText.trim();\n          \n          // Skip if still empty\n          if (cleanText === '[]' || cleanText === '') {\n            continue;\n          }\n          \n          try {\n            parsedData = JSON.parse(cleanText);\n            \n            // If it's an array, add all jobs\n            if (Array.isArray(parsedData)) {\n              allJobs.push(...parsedData);\n            }\n          } catch (parseError) {\n            console.error('Failed to parse text:', cleanText.substring(0, 100));\n            console.error('Parse error:', parseError.message);\n          }\n        }\n      }\n    } else if (jsonData.text) {\n      // Handle single text response\n      const trimmedText = jsonData.text.trim();\n      \n      if (trimmedText !== '[]' && trimmedText !== '') {\n        let cleanText = trimmedText;\n        if (cleanText.startsWith('```json')) {\n          cleanText = cleanText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n        } else if (cleanText.startsWith('```')) {\n          cleanText = cleanText.replace(/```\\n?/g, '');\n        }\n        \n        cleanText = cleanText.trim();\n        \n        if (cleanText !== '[]' && cleanText !== '') {\n          try {\n            parsedData = JSON.parse(cleanText);\n            if (Array.isArray(parsedData)) {\n              allJobs.push(...parsedData);\n            }\n          } catch (parseError) {\n            console.error('Failed to parse text:', cleanText.substring(0, 100));\n          }\n        }\n      }\n    }\n  } catch (error) {\n    console.error('Error processing item:', error.message);\n  }\n}\n\nconsole.log(`Total jobs collected: ${allJobs.length}`);\n\n// If no jobs found, return empty result\nif (allJobs.length === 0) {\n  console.log('No jobs found in any of the responses');\n  return [{\n    json: {\n      message: 'No jobs found in the responses',\n      totalJobs: 0,\n      jobsWithEmails: 0\n    }\n  }];\n}\n\n// Filter for jobs with emails\nconst jobsWithEmails = allJobs.filter(job => \n  job.Emails && job.Emails.trim() !== ''\n);\n\nconsole.log(`Found ${jobsWithEmails.length} jobs with emails out of ${allJobs.length} total`);\n\n// Prepare bulk array for webhook according to your DTO\nconst bulkJobsArray = jobsWithEmails.map(job => ({\n  jobTitle: job.JobTitle || 'N/A',\n  company: job.Company || 'N/A',\n  location: job.Location || '',\n  emails: job.Emails || '',\n  emailType: job.EmailType || 'summary',\n  isRemote: job.IsRemote || false,\n  salary: job.Salary || '',\n  link: job.Link || '',\n  snippet: (job.Snippet || '').substring(0, 500), // Match DTO max length\n  scrapedDate: job.ScrapedDate || null,\n  secretToken: '046801ecc26b566bb35515f48bfb775ef2d909ca2e78e667613b4cdcf65fc831'\n}));\n\n// Return results\nif (bulkJobsArray.length === 0) {\n  console.log('No jobs with emails found');\n  return [{\n    json: {\n      message: 'No jobs with emails found',\n      totalJobs: allJobs.length,\n      jobsWithEmails: 0\n    }\n  }];\n}\n\nconsole.log(`Prepared ${bulkJobsArray.length} jobs for webhook submission`);\n\n// Return the bulk jobs array\nreturn [{\n  json: {\n    jobs: bulkJobsArray,\n    metadata: {\n      totalProcessed: allJobs.length,\n      jobsWithEmails: bulkJobsArray.length,\n      processedAt: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        112
+      ],
+      "id": "f0372fac-c83a-4fe0-b3b4-5156ae6bb04e",
+      "name": "Format Results"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Parse the provided LinkedIn job search results JSON and extract job opportunities into an array of objects matching this exact structure:\n\n{\n  \"JobTitle\": string (required, max 500 chars),\n  \"Company\": string (required, max 200 chars),\n  \"Location\": string (optional, max 200 chars),\n  \"Emails\": string (comma-separated email addresses),\n  \"EmailType\": string (default \"summary\", allowed: summary/detailed/instant/none/company/hr/recruiter/personal),\n  \"IsRemote\": boolean (default false),\n  \"Salary\": string (optional, max 100 chars),\n  \"Link\": string (valid URL),\n  \"Snippet\": string (job description),\n  \"ScrapedDate\": string (ISO date format, nullable),\n  \"SecretToken\": string (required, max 500 chars - use \"PLACEHOLDER_TOKEN\" as default)\n}\n\nCRITICAL RULES:\n1. ONLY process search result objects that contain an \"items\" array with at least one item\n2. SKIP completely any search result objects where \"items\" is missing, empty, or where totalResults is \"0\"\n3. DO NOT create empty objects or null entries\n4. Start processing only from the first search result that has valid job items\n\nExtraction Rules:\n1. For each item in the \"items\" array of valid search result objects, create one job opportunity object\n2. Extract JobTitle from the \"title\" field (remove \"hiring\" and company name, keep only the job title)\n3. Extract Company from the \"title\" field (the company name appears before \"hiring\")\n4. Extract Location from \"title\" or \"htmlTitle\" (usually appears as \"in [City, State]\")\n5. Extract Emails from \"snippet\" or \"htmlSnippet\" - look for email addresses (format: text@domain.com)\n6. Determine EmailType based on email domain or context:\n   - careers@company.com or jobs@company.com = \"company\"\n   - firstname.lastname@company.com or personal names = \"personal\"\n   - recruiter@, recruiting@, talent@ = \"recruiter\"\n   - hr@, humanresources@ = \"hr\"\n   - default = \"summary\"\n7. Set IsRemote to true if \"remote\" appears in title, location, or snippet\n8. Extract Salary if mentioned in snippet (look for $, salary ranges, or compensation info)\n9. Use \"link\" field for Link\n10. Use \"snippet\" field for Snippet (clean HTML entities, remove extra formatting)\n11. Extract ScrapedDate from snippet if date is mentioned (format as ISO 8601: YYYY-MM-DDTHH:mm:ss.sssZ), otherwise null\n12. Use \"PLACEHOLDER_TOKEN\" for SecretToken\n\nIMPORTANT: Return ONLY a valid JSON array containing job objects. Do NOT include:\n- Empty arrays at the beginning\n- Null or undefined entries\n- Wrapper objects\n- Markdown code blocks\n- Any explanatory text\n\nIf no valid jobs are found in any search results, return an empty array: []"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -64,
+        -48
+      ],
+      "id": "9145ffbe-270c-4e16-b1bb-73772dd8a77c",
+      "name": "Result Parser"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hirethemnow.xyz/api/jobwebhook/bulk",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.jobs }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        112
+      ],
+      "id": "f9ac9bc5-46e7-4558-b375-efcfe1af5ae4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM",
+          "mode": "list",
+          "cachedResultName": "Search Queries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "searchQuery": "={{ $item(\"0\").$node[\"Set Initial Parameters\"].json[\"searchQuery\"] }}"
+          },
+          "matchingColumns": [
+            "searchQuery"
+          ],
+          "schema": [
+            {
+              "id": "searchQuery",
+              "displayName": "searchQuery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        112
+      ],
+      "id": "2d55a374-950b-4139-9ba1-190f6a39321a",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K7xit9HT1QQpA3RC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "GPT-3.5-TURBO"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You will receive a list of existing LinkedIn search queries\n{{ $json.searchQuery }}. Generate ONE new LinkedIn search query that is DIFFERENT from all the existing queries provided.\n\ngo through each row and understand what all are search query already there, and create new one only, one needed. Dont need indivudual search query for each rows.\n\nExisting queries to avoid duplicating:\nRules:\n- Do NOT change the \"site:\" portion of the query\n- Keep the pattern and structure consistent (site:linkedin.com/jobs/view/ \"send your resume to\" \"@\")\n- The new query MUST use a job title that is NOT already present in any of the existing queries above\n- Choose a job role from a different industry or sector (e.g., healthcare, education, finance, tech, manufacturing, hospitality, construction, legal, etc.)\n- Optionally add a location or industry keyword\n- Output ONLY the complete query as plain text with no explanations, no formatting, no extra text\n- Generate exactly ONE unique query that doesn't duplicate any job titles from the input list\n",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -688,
+        112
+      ],
+      "id": "5b9dcb07-d53d-436b-b2e7-a92b90bbc818",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "SZWir3Ls4YxcGfTb",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM",
+          "mode": "list",
+          "cachedResultName": "Search Queries",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GYf6HmdJVRBeo5ell9c_fHFcZJiBZby8OtwXfPtpDSM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -912,
+        112
+      ],
+      "id": "028c69d6-3016-41a8-b611-7e96dd915004",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "K7xit9HT1QQpA3RC",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        128
+      ],
+      "id": "0cc1c1d4-3ea9-4b6b-a900-9fc030022d3a",
+      "name": "AWS Bedrock Chat Model",
+      "credentials": {
+        "aws": {
+          "id": "gemiM044YdUG25uz",
+          "name": "AWS account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Initial Parameters": {
+      "main": [
+        [
+          {
+            "node": "Search Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Google": {
+      "main": [
+        [
+          {
+            "node": "Result Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Results": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Result Parser": {
+      "main": [
+        [
+          {
+            "node": "Format Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Set Initial Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Result Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5c476dec66441b5a414c43c14db3088d292ae400f642ec51c3c6d4cfc7815d7"
+  }
+}

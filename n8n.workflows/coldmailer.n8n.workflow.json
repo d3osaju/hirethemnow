@@ -1,0 +1,1002 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "job_opportunities",
+          "mode": "list",
+          "cachedResultName": "job_opportunities"
+        },
+        "returnAll": true,
+        "options": {
+          "outputColumns": [
+            "id",
+            "job_title"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -480,
+        -64
+      ],
+      "id": "769dc83f-3f14-4431-863c-7e382cc0e8a3",
+      "name": "Job Oppurtunities",
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "resume_contents",
+          "mode": "list",
+          "cachedResultName": "resume_contents"
+        },
+        "returnAll": true,
+        "options": {
+          "outputColumns": [
+            "user_id",
+            "parsed_content"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -256,
+        352
+      ],
+      "id": "84c5b809-0262-44c6-b76c-a36a3f23bbbf",
+      "name": "Resume Content",
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        48,
+        576
+      ],
+      "id": "45498fcb-244f-4f2f-97e1-41ba205f24d8",
+      "name": "AWS Bedrock Chat Model",
+      "credentials": {
+        "aws": {
+          "id": "gemiM044YdUG25uz",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        48,
+        64
+      ],
+      "id": "f0f5b6c5-3f8d-4186-8e7b-cd63fd488686",
+      "name": "AWS Bedrock Chat Model1",
+      "credentials": {
+        "aws": {
+          "id": "gemiM044YdUG25uz",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Analyze the following job titles and extract the primary area or industry for each. Return ONLY a valid JSON array.\n\nJob titles:\n{{$json.jobs}}\n\nReturn format (valid JSON array only, no markdown, no explanation):\n[\n  {\"id\": 1, \"area_industry\": \"Sales\"},\n  {\"id\": 2, \"area_industry\": \"Sales\"},\n  {\"id\": 3, \"area_industry\": \"Sales\"}\n]\n\nGuidelines:\n- Be concise (1-3 words per industry)\n- Common industries: Sales, Healthcare/Nursing, Data Science, Software Engineering, Finance, Marketing, Pharmacy, etc.\n- Return ONLY the JSON array, nothing else"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -32,
+        -160
+      ],
+      "id": "0dd0e51e-fe44-4982-9418-b7d5f7d03074",
+      "name": "Job with Resume Matcher1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "={{ $json }}\n\n\nBased on the parsed content {{ $json.parsed_content }} analysize , what are fields the person can apply for a job\n\nResult should be array of\n[{\n  id: user_id,\n  Areas of intrest: Areas_of_Intrest\n},\n{\n  id: user_id,\n  Areas of intrest: Areas_of_Intrest\n}]\n\n\nnothing else no summary\n\nThe result should only contain array with areas of intrest seperated by commas nothing else"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -32,
+        352
+      ],
+      "id": "eb561658-937c-4c30-b768-3e001f9eedc9",
+      "name": "User Skills Extraction"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    jobs: $input.all().map(item => ({\n      id: item.json.id,\n      job_title: item.json.job_title\n    }))\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -64
+      ],
+      "id": "2357256a-df25-4ea2-bd56-26a964084e2f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine jobs and users into single input\nconst jobs = $('Get_Jobs').all();\nconst users = $('Get_Users').all();\n\nreturn [{\n  json: {\n    jobs: jobs.map(j => j.json),\n    users: users.map(u => u.json)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        144
+      ],
+      "id": "6dbe6bc9-ba6f-407e-be3c-8e56479531db",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input items\nconst items = $input.all();\n\n// Extract JSON function\nfunction extractJSON(text) {\n  if (!text || typeof text !== 'string') {\n    throw new Error('Invalid input: text must be a non-empty string');\n  }\n  \n  try {\n    // Remove markdown code blocks\n    let cleaned = text\n      .replace(/```json\\s*/gi, '')\n      .replace(/```\\s*/g, '')\n      .trim();\n    \n    // Find JSON pattern (array or object)\n    const arrayMatch = cleaned.match(/\\[[\\s\\S]*\\]/);\n    const objectMatch = cleaned.match(/\\{[\\s\\S]*\\}/);\n    \n    let jsonStr;\n    if (arrayMatch) {\n      jsonStr = arrayMatch[0];\n    } else if (objectMatch) {\n      jsonStr = objectMatch[0];\n    } else {\n      jsonStr = cleaned;\n    }\n    \n    // Parse JSON\n    return JSON.parse(jsonStr);\n    \n  } catch (error) {\n    throw new Error(`JSON extraction failed: ${error.message}`);\n  }\n}\n\n// Process all items\nconst results = items.map((item, index) => {\n  try {\n    const inputText = item.json.text || item.json.body || item.json.content;\n    const extracted = extractJSON(inputText);\n    \n    // If extracted is an array, flatten it\n    if (Array.isArray(extracted)) {\n      return extracted.map(obj => ({ json: obj }));\n    } else {\n      return { json: extracted };\n    }\n  } catch (error) {\n    // Return error info for this item\n    return { \n      json: { \n        error: error.message, \n        original_text: item.json.text?.substring(0, 100) \n      } \n    };\n  }\n});\n\n// Flatten results if they contain nested arrays\nconst flatResults = results.flat();\n\nreturn flatResults;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        352
+      ],
+      "id": "a5075f92-ed4c-4d4b-a441-bc1ce7c9039e",
+      "name": "Get_Users"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle truncated JSON response\nconst input = $input.item.json.text || $input.item.json.output;\n\ntry {\n  let cleanText = input.trim()\n    .replace(/```json\\n?/g, '')\n    .replace(/```\\n?/g, '');\n  \n  // Try to fix truncated JSON by closing it properly\n  if (!cleanText.endsWith(']')) {\n    // Find the last complete entry\n    const lastCompleteComma = cleanText.lastIndexOf('},');\n    if (lastCompleteComma > 0) {\n      cleanText = cleanText.substring(0, lastCompleteComma + 1) + '\\n]';\n    }\n  }\n  \n  let results = JSON.parse(cleanText);\n  \n  const validResults = results\n    .filter(item => item.id && item.area_industry)\n    .map(item => ({\n      json: {\n        id: item.id,\n        area_industry: item.area_industry.trim()\n      }\n    }));\n  \n  return validResults;\n  \n} catch (error) {\n  return [{\n    json: {\n      error: 'Parse failed',\n      message: error.message,\n      suggestion: 'Increase max_tokens in AI node or reduce batch size'\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -64
+      ],
+      "id": "0c5f1718-c3da-4b79-bf74-a766d1d77e45",
+      "name": "Get_Jobs"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a job matching system. Match users to jobs based on their skills and areas of interest.\n\nJOBS DATA:\n{{$json.jobs}}\n\nUSERS DATA:\n{{$json.users}}\n\nINSTRUCTIONS:\n1. Analyze each user's \"Areas of interest\" and skills\n2. Match them to relevant jobs based on the job's \"area_industry\"\n3. Consider skill relevance and industry alignment\n4. ONLY return matches with confidence score ABOVE 0.6\n5. Be selective - only strong matches\n\nMATCHING RULES:\n- Software skills (.NET, React, Azure, Docker) → Software Engineering, Data Science\n- Healthcare/Medical interests → Healthcare/Nursing, Pharmacy\n- Business/Sales skills → Sales, Marketing, Finance\n- MINIMUM confidence threshold: 0.6 (only return matches above this)\n- One user can match multiple jobs\n- Confidence levels: high (0.8-1.0), medium-high (0.6-0.8)\n\nOUTPUT FORMAT (JSON array only, no explanation):\n[\n  {\"job_id\": 1, \"user_id\": \"383dc8d9-...\", \"confidence\": 0.9, \"reason\": \"Strong match\"},\n  {\"job_id\": 89, \"user_id\": \"383dc8d9-...\", \"confidence\": 0.95, \"reason\": \"Excellent fit\"}\n]\n\nIMPORTANT: Only include matches with confidence > 0.6. Return ONLY valid JSON array."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        992,
+        144
+      ],
+      "id": "9ffb9622-e727-4d53-9a5c-8d16cfcb1591",
+      "name": "Job with Resume Matcher"
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        1072,
+        368
+      ],
+      "id": "307c9ea8-0c49-482a-939a-31519b3d20be",
+      "name": "AWS Bedrock Chat Model2",
+      "credentials": {
+        "aws": {
+          "id": "gemiM044YdUG25uz",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract unique job IDs from matches\nconst matches = $input.all();\n\nconst jobIds = matches.map(item => item.json.job_id);\n\n// Remove duplicates (if any)\nconst uniqueJobIds = [...new Set(jobIds)];\n\nreturn [{\n  json: {\n    job_ids: uniqueJobIds\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        272
+      ],
+      "id": "ec77432b-17df-4db1-b5bd-b97cc1f5863b",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, emails, job_title, snippet FROM public.job_opportunities WHERE id = ANY(ARRAY[{{ $json.job_ids.join(',') }}])",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2240,
+        272
+      ],
+      "id": "f08ebd2d-7b81-4074-b78d-085120f3969c",
+      "name": "Resume Content1",
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "amazon.nova-pro-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        2544,
+        496
+      ],
+      "id": "6fbeed00-7bd2-4b9d-8878-ca32e1c0f014",
+      "name": "AWS Bedrock Chat Model3",
+      "credentials": {
+        "aws": {
+          "id": "gemiM044YdUG25uz",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are writing a cold email to apply for a job opportunity.\n\nJob Details:\n- Job ID: {{ $json.id }}\n- Position: {{ $json.job_title }}\n- Company Info: {{ $json.snippet }}\n- Contact Email: {{ $json.emails }}\n\nCandidate Profile:\n- 5+ years of software engineering experience\n- Expertise in backend development, cloud infrastructure, and scalable systems\n- Currently seeking new opportunities in the San Francisco Bay Area\n- Strong background in Python, Go, and distributed systems\n\nWrite a compelling cold email that:\n1. Is concise (100-150 words max)\n2. Demonstrates genuine interest in this specific role\n3. Highlights 1-2 most relevant qualifications\n4. Includes a clear call-to-action (resume attached or available upon request)\n5. Uses a professional yet warm tone\n\nOutput format (valid JSON only):\n{\n  \"job_id\": <job_id_number>,\n  \"to\": \"<email address>\",\n  \"subject\": \"<subject line>\",\n  \"body\": \"<email body text>\"\n}\n\nGenerate ONLY the JSON output, no other text."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2464,
+        272
+      ],
+      "id": "3251c1d9-9120-4c2f-aa91-93e532b6ed97",
+      "name": "Cold Mail Generator"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.item.json.text || $input.item.json.output;\n\ntry {\n  let cleanText = input.trim()\n    .replace(/```json\\n?/g, '')\n    .replace(/```\\n?/g, '');\n  \n  // Try to fix truncated JSON by finding the last complete entry\n  let matches;\n  try {\n    matches = JSON.parse(cleanText);\n  } catch (parseError) {\n    // If parsing fails, try to salvage what we can\n    // Find the last complete object by removing incomplete trailing data\n    const lastCompleteObject = cleanText.lastIndexOf('},');\n    if (lastCompleteObject !== -1) {\n      // Trim to last complete object and close the array\n      cleanText = cleanText.substring(0, lastCompleteObject + 1) + '\\n]';\n      matches = JSON.parse(cleanText);\n    } else {\n      throw parseError;\n    }\n  }\n  \n  // Validate and filter - only confidence > 0.6\n  const validMatches = matches\n    .filter(m => {\n      // Must have required fields\n      if (!m.job_id || !m.user_id) return false;\n      \n      // Must have confidence > 0.6\n      const confidence = m.confidence || 0;\n      if (confidence <= 0.6) return false;\n      \n      return true;\n    })\n    .map(match => ({\n      json: {\n        job_id: match.job_id,\n        user_id: match.user_id,\n        confidence: match.confidence,\n        reason: match.reason || 'Match found'\n      }\n    }));\n  \n  return validMatches;\n  \n} catch (error) {\n  return [{\n    json: {\n      error: 'Parse failed',\n      message: error.message,\n      receivedDataLength: input.length\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        144
+      ],
+      "id": "0e849777-8e54-4b8b-a4da-f30ce48c8131",
+      "name": "match"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assuming your input has both job_id and text fields\nconst results = [];\n\nfor (const item of items) {\n  try {\n    // Parse the JSON string from the text field\n    const emailData = JSON.parse(item.json.text);\n    \n    results.push({\n      json: {\n        job_id: emailData.job_id, // Use whichever field name you have\n        to: emailData.to,\n        subject: emailData.subject,\n        body: emailData.body\n      }\n    });\n  } catch (error) {\n    console.error('Error parsing email data:', error);\n    // Skip invalid items\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        272
+      ],
+      "id": "8ad26f32-4429-44e8-ae70-5cce746eeda3",
+      "name": "Cold Mail Template"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine jobs and users into single input\nconst template = $('Cold Mail Template').all();\nconst match = $('match').all();\n\nreturn [{\n  json: {\n    jobs: template.map(j => j.json),\n    match: match.map(u => u.json)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        144
+      ],
+      "id": "70071de7-2b7f-4192-bc97-f07bae50f2f7",
+      "name": "Combine",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input data\nconst inputData = items[0].json;\n// Check if inputData is an array and get the first element\nconst data = Array.isArray(inputData) ? inputData[0] : inputData;\n\n// Email validation function\nfunction isValidEmail(email) {\n  if (!email || typeof email !== 'string') return false;\n  \n  // Basic email regex pattern\n  const emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  return emailPattern.test(email.trim());\n}\n\n// Create a map of matches by job_id for quick lookup\nconst matchMap = {};\nif (data.match && Array.isArray(data.match)) {\n  data.match.forEach(match => {\n    matchMap[match.job_id] = match;\n  });\n}\n\n// Merge jobs with their corresponding match data\nconst mergedData = data.jobs\n  .filter(job => isValidEmail(job.to)) // Filter out invalid emails\n  .map(job => {\n    const match = matchMap[job.job_id];\n    \n    return {\n      UserId: match ? match.user_id : null,\n      job_id: match ? match.job_id : null,\n      toEmail: job.to,\n      subject: job.subject,\n      body: job.body,\n      resumeUrl: \"https://example.com/resumes/johndoe.pdf\",\n      secretToken: '046801ecc26b566bb35515f48bfb775ef2d909ca2e78e667613b4cdcf65fc831'\n    };\n  });\n\n// Return the merged array\nreturn mergedData.map(item => ({\n  json: item\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3488,
+        144
+      ],
+      "id": "288a90f2-ebb4-4d01-b2c6-1f2e3f94ac43",
+      "name": "Combine1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "content": "## Job Matching ",
+        "height": 800,
+        "width": 1744
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -160
+      ],
+      "id": "9ffe7453-92de-4330-8f4a-736ed2241548",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Content Extractor",
+        "height": 944,
+        "width": 1584
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        -240
+      ],
+      "id": "f5b85080-e77f-4ede-8ea0-95372341fb15",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -704,
+        144
+      ],
+      "id": "e1bf6a0a-2e1d-441a-9526-eb8836dbfff5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hirethemnow.xyz/api/email/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        144
+      ],
+      "id": "22e8d18c-e569-433c-b064-07b63b7779f5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        544,
+        144
+      ],
+      "id": "7743903b-9ac4-4dcc-b7b8-1e7af098d534",
+      "name": "Merge"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3040,
+        144
+      ],
+      "id": "19efe08d-2ac6-4a01-9c5e-da9d5e94cb84",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get ALL existing records from database\nconst existingRecords = $('Existing_Templates').all();\n\n// Get the input items\nconst inputItems = $('match').all();\n\n// Create a Set of existing combinations\nconst existingCombos = new Set(\n  existingRecords.map(record => \n    `${record.json.UserId}_${record.json.JobId}`\n  )\n);\n\n// Filter out items that already exist\nconst filteredItems = inputItems.filter(item => {\n  const combo = `${item.json.user_id}_${item.json.job_id}`;\n  return !existingCombos.has(combo);\n});\n\nreturn filteredItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        144
+      ],
+      "id": "5d96d359-cff6-4f3c-85be-e39fce713c60",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \"UserId\", \"JobId\" \nFROM \"ColdMailGenerationHistories\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1568,
+        144
+      ],
+      "id": "896c8d90-42b4-469f-82a4-161ef6422e2f",
+      "name": "Existing_Templates",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ColdMailGenerationHistories",
+          "mode": "list",
+          "cachedResultName": "ColdMailGenerationHistories"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "IsSent": true,
+            "JobId": "={{ $json.job_id }}",
+            "UserId": "={{ $json.UserId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Id",
+              "displayName": "Id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "UserId",
+              "displayName": "UserId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "JobId",
+              "displayName": "JobId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IsSent",
+              "displayName": "IsSent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4160,
+        336
+      ],
+      "id": "324f764c-beb5-4177-923f-91c399470be3",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "Users",
+          "mode": "list",
+          "cachedResultName": "Users"
+        },
+        "returnAll": true,
+        "where": {
+          "values": [
+            {
+              "column": "Id",
+              "condition": "!=",
+              "value": "2de6c33a-37ea-42da-8271-1e5864695392"
+            },
+            {
+              "column": "ResumeUrl",
+              "condition": "IS NOT NULL"
+            }
+          ]
+        },
+        "options": {
+          "outputColumns": [
+            "Id",
+            "ResumeUrl"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3488,
+        336
+      ],
+      "id": "79266c70-3363-47bc-b3b6-de0886a3bdd6",
+      "name": "Select rows from a table",
+      "credentials": {
+        "postgres": {
+          "id": "vlchJR35gcJXbWqc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3712,
+        240
+      ],
+      "id": "c6547fb8-5221-44b6-8052-2f986efa65ea",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code Node - Update Resume URLs\n// This code works with the Merge node output\n\n// Get all input items from the Merge node\nconst allItems = $input.all();\n\n// Separate the data based on which input they came from\n// Input 0: User resumes (from Postgres)\n// Input 1: Job applications (from Combine1)\n\nconst userResumes = [];\nconst jobApplications = [];\n\n// The Merge node passes through all items\n// We need to identify which items are resumes and which are applications\nallItems.forEach(item => {\n  const data = item.json;\n  \n  // If it has 'Id' and 'ResumeUrl' properties, it's from the Users table\n  if (data.Id && data.ResumeUrl && !data.job_id) {\n    userResumes.push(data);\n  }\n  // If it has job_id and UserId, it's a job application\n  else if (data.job_id && data.UserId !== undefined) {\n    jobApplications.push(data);\n  }\n});\n\n// Create a lookup map for quick access: UserId -> ResumeUrl\nconst resumeMap = {};\nuserResumes.forEach(user => {\n  resumeMap[user.Id] = user.ResumeUrl;\n});\n\n// S3 bucket base URL\nconst baseUrl = 'https://hirethemnow-files.s3.us-east-1.amazonaws.com/';\n\n// Update the resumeUrl in job applications\nconst updatedApplications = jobApplications.map(app => {\n  // Check if we have a matching resume for this UserId\n  if (resumeMap[app.UserId]) {\n    return {\n      ...app,\n      resumeUrl: baseUrl + resumeMap[app.UserId]\n    };\n  }\n  // If no match found, keep original\n  return app;\n});\n\n// Return the updated applications\nreturn updatedApplications.map(app => ({ json: app }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3936,
+        240
+      ],
+      "id": "3d96c203-2a49-453e-866c-b5b8ec335ca4",
+      "name": "Code in JavaScript4"
+    }
+  ],
+  "connections": {
+    "Job Oppurtunities": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Content": {
+      "main": [
+        [
+          {
+            "node": "User Skills Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "User Skills Extraction",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Job with Resume Matcher1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job with Resume Matcher1": {
+      "main": [
+        [
+          {
+            "node": "Get_Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Skills Extraction": {
+      "main": [
+        [
+          {
+            "node": "Get_Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Job with Resume Matcher1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Job with Resume Matcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_Users": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get_Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job with Resume Matcher": {
+      "main": [
+        [
+          {
+            "node": "match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Job with Resume Matcher",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Resume Content1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Content1": {
+      "main": [
+        [
+          {
+            "node": "Cold Mail Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS Bedrock Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Cold Mail Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cold Mail Generator": {
+      "main": [
+        [
+          {
+            "node": "Cold Mail Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "match": {
+      "main": [
+        [
+          {
+            "node": "Existing_Templates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cold Mail Template": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine": {
+      "main": [
+        [
+          {
+            "node": "Combine1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select rows from a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine1": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Resume Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Job Oppurtunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Existing_Templates": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select rows from a table": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5c476dec66441b5a414c43c14db3088d292ae400f642ec51c3c6d4cfc7815d7"
+  }
+}

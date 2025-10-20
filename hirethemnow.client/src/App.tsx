@@ -52,7 +52,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  return user ? <Navigate to="/dashboard" /> : <>{children}</>;
+  return user ? <Navigate to="/dashboard/email-center" /> : <>{children}</>;
 };
 
 function App() {
