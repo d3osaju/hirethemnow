@@ -69,7 +69,13 @@ export interface ParsedResumeContent {
     languages?: string[];
     tools?: string[];
   };
-  certifications?: string[];
+  certifications?: Array<{
+    name?: string;
+    issuer?: string;
+    date?: string;
+    expirationDate?: string;
+    credentialId?: string;
+  }>;
   projects?: Array<{
     name?: string;
     description?: string;

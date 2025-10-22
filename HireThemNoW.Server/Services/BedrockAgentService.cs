@@ -652,7 +652,15 @@ Please extract and return ONLY a valid JSON object with the following structure 
     ""languages"": [""string""],
     ""tools"": [""string""]
   }},
-  ""certifications"": [""string""],
+  ""certifications"": [
+    {{
+      ""name"": ""string"",
+      ""issuer"": ""string"",
+      ""date"": ""string"",
+      ""expirationDate"": ""string"",
+      ""credentialId"": ""string""
+    }}
+  ],
   ""projects"": [
     {{
       ""name"": ""string"",

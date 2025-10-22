@@ -230,20 +230,29 @@ export const ParsedResumeViewer: React.FC<ParsedResumeViewerProps> = ({ content,
       )}
 
       {/* Certifications */}
-      {content.certifications && ensureArray(content.certifications).length > 0 && (
+      {content.certifications && ensureArrayOfAny(content.certifications).length > 0 && (
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <Award className="w-5 h-5 mr-2 text-blue-600" />
             Certifications
           </h3>
-          <ul className="space-y-2">
-            {ensureArray(content.certifications).map((cert, index) => (
-              <li key={index} className="flex items-start">
-                <Award className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-sm text-gray-700">{cert}</span>
-              </li>
+          <div className="space-y-4">
+            {ensureArrayOfAny(content.certifications).map((cert, index) => (
+              <div key={index} className="border-l-4 border-yellow-500 pl-4">
+                <h4 className="font-semibold text-gray-900">{cert.name}</h4>
+                {cert.issuer && (
+                  <p className="text-sm text-gray-600">{cert.issuer}</p>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {cert.date && <span>Issued: {cert.date}</span>}
+                  {cert.expirationDate && <span> • Expires: {cert.expirationDate}</span>}
+                </div>
+                {cert.credentialId && (
+                  <p className="text-xs text-gray-500 mt-1">Credential ID: {cert.credentialId}</p>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
